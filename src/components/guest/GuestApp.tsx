@@ -1,0 +1,176 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+
+import { cn } from "@/lib/cn";
+import type { ProcessedPhoto } from "@/lib/image";
+import {
+  type QueueStatus,
+  drainQueue,
+  enqueuePhoto,
+  subscribeQueue,
+  watchConnectivity,
+} from "@/lib/upload-queue";
+
+import { AlbumView } from "./AlbumView";
+import { CameraView } from "./CameraView";
+import { ReviewOverlay } from "./ReviewOverlay";
+
+interface GuestAppProps {
+  code: string;
+  eventName: string;
+  phase: "scheduled" | "capturing" | "revealed";
+  shotsLeft: number;
+}
+
+export function GuestApp({ code, eventName, phase, shotsLeft: initialShots }: GuestAppProps) {
+  const router = useRouter();
+  const canShoot = phase === "capturing";
+
+  const [view, setView] = useState<"camera" | "album">(canShoot ? "camera" : "album");
+  const [review, setReview] = useState<{ photo: ProcessedPhoto; url: string } | null>(null);
+  const [shotsLeft, setShotsLeft] = useState(initialShots);
+  const [queue, setQueue] = useState<QueueStatus>({
+    pending: 0,
+    uploading: false,
+    lastError: null,
+  });
+  const [saving, setSaving] = useState(false);
+
+  // Anything left in the queue from a previous session goes out as soon as we're back.
+  useEffect(() => {
+    void drainQueue(code);
+    const unwatch = watchConnectivity(code);
+    const unsubscribe = subscribeQueue(setQueue);
+    return () => {
+      unwatch();
+      unsubscribe();
+    };
+  }, [code]);
+
+  async function keepPhoto() {
+    if (!review) return;
+    setSaving(true);
+    try {
+      await enqueuePhoto(code, review.photo);
+      setShotsLeft((n) => Math.max(0, n - 1));
+      URL.revokeObjectURL(review.url);
+      setReview(null);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  /* ------------------------------------------------------------------ album */
+
+  if (view === "album" || !canShoot) {
+    return (
+      <div className="min-h-dvh bg-ink">
+        <div className="pt-[var(--safe-top)]">
+          <AlbumView code={code} onRevealed={() => router.refresh()} />
+        </div>
+
+        {canShoot ? (
+          <button
+            type="button"
+            onClick={() => setView("camera")}
+            className="fixed right-5 bottom-[calc(var(--safe-bottom)+1.25rem)] z-30 flex h-14 items-center gap-2.5 rounded-full bg-ember pr-6 pl-5 font-medium text-ink shadow-[0_10px_30px_-8px_rgba(242,104,60,0.8)]"
+          >
+            <CameraIcon />
+            {shotsLeft > 0 ? `${shotsLeft} left` : "Out of film"}
+          </button>
+        ) : null}
+      </div>
+    );
+  }
+
+  /* ------------------------------------------------------------------ camera */
+
+  return (
+    <div className="fixed inset-0 bg-ink">
+      <CameraView
+        shotsLeft={shotsLeft}
+        disabled={Boolean(review)}
+        onCaptured={(photo, url) => setReview({ photo, url })}
+      />
+
+      {/* Top bar — deliberately sparse so it never competes with the viewfinder. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-4 px-5 pt-[calc(var(--safe-top)+1rem)]">
+        <span className="truncate rounded-full bg-ink/45 px-3.5 py-1.5 text-[13px] text-paper backdrop-blur-md">
+          {eventName}
+        </span>
+        <span
+          data-testid="shots-left"
+          className={cn(
+            "shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-medium backdrop-blur-md tabular",
+            shotsLeft === 0
+              ? "bg-danger/25 text-danger"
+              : shotsLeft <= 3
+                ? "bg-marigold/25 text-marigold"
+                : "bg-ink/45 text-paper",
+          )}
+        >
+          {shotsLeft} left
+        </span>
+      </div>
+
+      {queue.pending > 0 ? (
+        <p className="pointer-events-none absolute inset-x-0 top-[calc(var(--safe-top)+3.75rem)] text-center text-[12px] text-paper-dim">
+          {queue.uploading
+            ? `Saving ${queue.pending} photo${queue.pending === 1 ? "" : "s"}…`
+            : `${queue.pending} waiting for signal`}
+        </p>
+      ) : null}
+
+      {/* Album button, bottom-left — where the camera roll lives on a phone. */}
+      <button
+        type="button"
+        onClick={() => setView("album")}
+        aria-label="See the album"
+        className="absolute bottom-[calc(var(--safe-bottom)+2.6rem)] left-8 grid h-11 w-11 place-items-center rounded-lg border border-paper/25 bg-ink/45 text-paper backdrop-blur-md"
+      >
+        <StackIcon />
+      </button>
+
+      {shotsLeft === 0 ? (
+        <div className="pointer-events-none absolute inset-x-0 bottom-[calc(var(--safe-bottom)+9rem)] px-10 text-center">
+          <p className="rounded-md bg-ink/70 px-4 py-3 text-[14px] leading-relaxed text-paper backdrop-blur-md">
+            That&rsquo;s all your shots. Everything unlocks for everyone at reveal time.
+          </p>
+        </div>
+      ) : null}
+
+      {review ? (
+        <ReviewOverlay
+          imageUrl={review.url}
+          busy={saving}
+          shotsLeftAfter={Math.max(0, shotsLeft - 1)}
+          onRetake={() => {
+            URL.revokeObjectURL(review.url);
+            setReview(null);
+          }}
+          onKeep={keepPhoto}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function CameraIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.9">
+      <path d="M3 8.5A2.5 2.5 0 0 1 5.5 6h1.9l1.2-1.8A1 1 0 0 1 9.4 3.8h5.2a1 1 0 0 1 .8.4L16.6 6h1.9A2.5 2.5 0 0 1 21 8.5v8A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5v-8Z" />
+      <circle cx="12" cy="12.5" r="3.4" />
+    </svg>
+  );
+}
+
+function StackIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <rect x="7" y="3.5" width="13.5" height="13.5" rx="2.5" />
+      <path d="M16.5 20.5H6A2.5 2.5 0 0 1 3.5 18V7.5" />
+    </svg>
+  );
+}

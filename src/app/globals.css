@@ -1,26 +1,213 @@
 @import "tailwindcss";
 
+/*
+  MemoVue — "darkroom".
+
+  Everything lives in the dark: the app is used at night in dim venues, the camera screen
+  has to be full-bleed dark anyway, and a darkroom is where hidden images wait to develop.
+  Warm near-black rather than blue-black, ember accent for the safelight, paper-white type.
+*/
+
+@theme {
+  --color-ink: #0a090b;
+  --color-ink-raised: #141216;
+  --color-ink-high: #1e1b21;
+  --color-ink-inset: #060507;
+
+  --color-ember: #f2683c;
+  --color-ember-bright: #ff7d54;
+  --color-ember-dim: #b4441f;
+  --color-marigold: #f5a623;
+
+  --color-paper: #f7f2ea;
+  --color-paper-dim: #a9a29b;
+  --color-paper-faint: #6f6862;
+
+  --color-line: #262227;
+  --color-line-bright: #383239;
+
+  --color-danger: #e5484d;
+  --color-success: #46a758;
+
+  --font-display: var(--font-instrument-serif), Georgia, serif;
+  --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: dark;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+* {
+  -webkit-tap-highlight-color: transparent;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  background: var(--color-ink);
+  color: var(--color-paper);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior-y: none;
+  /* Decorative glows deliberately bleed past their columns. `clip` contains them without
+     creating a scroll container, so sticky/fixed descendants keep working. */
+  overflow-x: clip;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100dvh;
+}
+
+/* iOS zooms the viewport when focusing any input under 16px. Rather than disabling
+   pinch-zoom (which breaks accessibility), just never go below 16px on form controls. */
+input,
+textarea,
+select,
+button {
+  font-family: inherit;
+  font-size: 16px;
+}
+
+::selection {
+  background: var(--color-ember);
+  color: var(--color-ink);
+}
+
+/* ------------------------------------------------------------------ film grain */
+
+/*
+  A single fixed grain layer over the whole app. Static noise, no animation — it reads as
+  photographic texture rather than TV static, and costs nothing to composite.
+*/
+.grain::after {
+  content: "";
+  position: fixed;
+  inset: -50%;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0.16;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+}
+
+/* ------------------------------------------------------------------ safelight */
+
+/* Warm radial bleed from the top of a screen — the darkroom lamp. */
+.safelight {
+  position: relative;
+  isolation: isolate;
+}
+
+.safelight::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 70% at 50% -10%, rgba(242, 104, 60, 0.16), transparent 60%),
+    radial-gradient(90% 50% at 85% 10%, rgba(245, 166, 35, 0.08), transparent 70%);
+}
+
+/* ------------------------------------------------------------------ utilities */
+
+.font-display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.pad-safe-bottom {
+  padding-bottom: calc(var(--safe-bottom) + 1rem);
+}
+
+@keyframes mv-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes mv-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* The reveal payoff: a photo resolving out of blur, like it's coming up in the developer. */
+@keyframes mv-develop {
+  from {
+    opacity: 0;
+    filter: blur(24px) saturate(0.4);
+    transform: scale(1.06);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0) saturate(1);
+    transform: none;
+  }
+}
+
+@keyframes mv-shutter {
+  0% {
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.animate-rise {
+  animation: mv-rise 0.5s var(--ease-out-soft) both;
+}
+
+.animate-fade {
+  animation: mv-fade 0.4s ease both;
+}
+
+.animate-develop {
+  animation: mv-develop 0.9s var(--ease-out-soft) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Hide scrollbars on horizontal photo rails without losing scrollability. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

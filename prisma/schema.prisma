@@ -1,0 +1,178 @@
+// MemoVue data model.
+// Guests never get accounts — they're identified by a signed cookie tied to a Guest row.
+// Hosts get real accounts, gated behind beta access until payments exist.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  HOST
+  ADMIN
+}
+
+enum AccessStatus {
+  NONE
+  REQUESTED
+  APPROVED
+  DENIED
+}
+
+enum EventType {
+  WEDDING
+  BIRTHDAY
+  ANNIVERSARY
+  BABY_SHOWER
+  GRADUATION
+  PARTY
+  OFFSITE
+  TRIP
+  FESTIVAL
+  OTHER
+}
+
+enum EventStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum PhotoStatus {
+  PENDING
+  READY
+}
+
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  passwordHash String
+  name         String
+  role         Role         @default(HOST)
+  accessStatus AccessStatus @default(NONE)
+  // Bumped on password change / "sign out everywhere" so live JWTs stop validating.
+  tokenVersion Int          @default(0)
+  createdAt    DateTime     @default(now())
+
+  events        Event[]
+  accessRequest AccessRequest?
+
+  @@index([accessStatus])
+}
+
+model Event {
+  id     String @id @default(cuid())
+  code   String @unique
+  hostId String
+  host   User   @relation(fields: [hostId], references: [id], onDelete: Cascade)
+
+  name String
+  type EventType
+
+  // Personalisation for the guest join screen. Which of these is used depends on `type`
+  // — see src/lib/event-types.ts, the single source of truth.
+  partnerA    String?
+  partnerB    String?
+  honoreeName String?
+  askRelation Boolean @default(true)
+
+  maxGuests      Int
+  photosPerGuest Int
+
+  // Capture window is startsAt .. revealAt. One reveal control, no separate end time.
+  startsAt         DateTime
+  revealDelayHours Int
+  revealAt         DateTime
+  revealedEarly    Boolean  @default(false)
+
+  status    EventStatus @default(ACTIVE)
+  // Set when the host is warned about retention cleanup; deletion is 30 days later.
+  deletionNoticeAt DateTime?
+  createdAt DateTime    @default(now())
+
+  guests Guest[]
+  photos Photo[]
+
+  @@index([hostId])
+}
+
+model Guest {
+  id      String @id @default(cuid())
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  name String
+  // Case/whitespace-normalised form of `name`, so "Riya  Sharma" collides with "riya sharma".
+  nameKey String
+
+  relation     String?
+  // Wedding/anniversary only: "A" | "B" | "BOTH".
+  relationSide String?
+
+  tokenVersion Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  photos Photo[]
+
+  @@unique([eventId, nameKey])
+  @@index([eventId])
+}
+
+model Photo {
+  id      String @id @default(cuid())
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  guestId String
+  guest   Guest  @relation(fields: [guestId], references: [id], onDelete: Cascade)
+
+  fullKey    String
+  previewKey String
+  // Tiny base64 JPEG (~32px wide) inlined so the pre-reveal blurred wall needs zero fetches.
+  blurData String @db.Text
+
+  width  Int
+  height Int
+  bytes  Int
+
+  // PENDING once upload URLs are issued, READY once the client confirms both objects landed.
+  // Both states count against quota; stale PENDING rows are swept so a failed upload
+  // doesn't permanently eat one of the guest's shots.
+  status PhotoStatus @default(PENDING)
+
+  takenAt   DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  @@index([eventId, takenAt])
+  @@index([guestId])
+  @@index([status, createdAt])
+}
+
+model AccessRequest {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  eventKind     String
+  expectedDate  String?
+  guestEstimate String?
+  phone         String?
+  note          String?
+
+  status    AccessStatus @default(REQUESTED)
+  createdAt DateTime     @default(now())
+  decidedAt DateTime?
+
+  @@index([status])
+}
+
+model InviteCode {
+  id        String    @id @default(cuid())
+  code      String    @unique
+  note      String?
+  maxUses   Int       @default(1)
+  uses      Int       @default(0)
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+}

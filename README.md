@@ -1,36 +1,74 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MemoVue
 
-## Getting Started
+A disposable camera for events. Guests shoot on their own phones, nobody sees a single
+photo — not even the person who took it — until the reveal time the host picked, and then
+the whole album opens at once.
 
-First, run the development server:
+## How it works
+
+A host creates an event and gets one QR code. Guests scan it, type a name, and get a
+camera with a fixed number of shots. Every frame goes straight to private storage and stays
+sealed. At reveal time the album unlocks for everyone who was there, and the host can
+download the lot in original quality.
+
+## Stack
+
+| Concern  | Choice                                                     |
+| -------- | ---------------------------------------------------------- |
+| App      | Next.js 16 (App Router), React 19, TypeScript, Tailwind v4  |
+| Database | PostgreSQL via Prisma 7 (driver adapter)                    |
+| Photos   | Cloudflare R2, browser-to-bucket via presigned URLs         |
+| Auth     | Hosts: email + bcrypt. Guests: signed cookie, no account    |
+| Hosting  | Railway                                                     |
+| Tests    | Playwright, with a synthetic camera device                  |
+
+## Running locally
 
 ```bash
+npm install
+cp .env.example .env.local   # fill in DATABASE_URL, AUTH_SECRET, R2_*
+npx prisma migrate deploy
+npm run setup:r2             # allows browser uploads from your origin
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Sign up with the address in `ADMIN_EMAIL` and that account becomes an admin with beta
+access, so you can create events immediately.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Tests
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm test
+```
 
-## Learn More
+The suite drives a real capture: Chromium runs with `--use-fake-device-for-media-stream`,
+so photos are genuinely encoded, uploaded to R2 and confirmed. It also asserts the part
+that matters most — that before the reveal, the only image data reaching the browser is an
+inlined ~32px blur placeholder, and the photo API returns 403.
 
-To learn more about Next.js, take a look at the following resources:
+## Design decisions worth knowing
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**One time control, not three.** The host sets a start time and picks how long until photos
+unlock. Shooting runs from start until reveal, so there's no separate "event ends" field to
+get wrong. `revealAt` is the single moving part.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**Shots are reserved before bytes are uploaded.** Tapping "Keep it" writes the photo to
+IndexedDB first, then reserves a `PENDING` row, then uploads. A phone that dies mid-upload
+loses nothing — the queue retries on next open or when it comes back online — and one photo
+can never consume two shots.
 
-## Deploy on Vercel
+**Guests have one session per name.** Recovering a name on a new device bumps a token
+version, which signs the old device out. Someone hijacking a name is therefore immediately
+obvious to whoever actually owns it, rather than silently sharing their quota.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+**The host waits too.** There is no route that serves full images before `revealAt`, for
+anyone, including the event owner. It's the whole product promise.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**Storage is separated by key prefix**, not by bucket, so local development can't collide
+with a live event's album.
+
+## Retention
+
+Albums are kept for as long as the host's account exists. If that ever has to change, the
+host is emailed at least 30 days before anything is removed. Deleting an event or an
+account erases the database rows and the R2 objects.
