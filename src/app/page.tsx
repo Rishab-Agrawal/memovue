@@ -1,35 +1,28 @@
 import Link from "next/link";
 
-import { Sketch, type SketchName } from "@/components/marketing/Sketch";
 import { ButtonLink } from "@/components/ui/Button";
 import { Logo, Mark } from "@/components/ui/Logo";
-import { cn } from "@/lib/cn";
 
-const STEPS: { sketch: SketchName; title: string; body: string }[] = [
-  {
-    sketch: "plan",
-    title: "Set it up",
-    body: "Name your event and choose how many shots each guest gets. It takes about a minute.",
-  },
-  {
-    sketch: "scan",
-    title: "Share one code",
-    body: "Print it for the tables or send it in the group chat. Guests scan and start shooting — no app, no sign-up.",
-  },
-  {
-    sketch: "album",
-    title: "Get the album",
-    body: "Every photo, from every guest, in one place and in full quality.",
-  },
+const STEPS: [string, string][] = [
+  [
+    "Set it up",
+    "Name your event and choose how many shots each guest gets. It takes about a minute.",
+  ],
+  [
+    "Share one code",
+    "Print it for the tables or send it in the group chat. Guests scan and start shooting — no app, no sign-up.",
+  ],
+  ["Get the album", "Every photo, from every guest, in one place and in full quality."],
 ];
 
-const POINTS: [string, string][] = [
-  ["Nothing to install", "It's a web page."],
-  ["A shot limit", "Three to twenty-five each."],
-  ["Credited", "Each photo carries its photographer's name."],
-  ["Revealed together", "Photos stay hidden until the time you pick."],
-  ["Yours to keep", "Download it all in original quality."],
-  ["Up to 500 guests", "Built for a full wedding."],
+/** Short enough to read as each one passes. */
+const TICKER = [
+  "Nothing to install",
+  "Three to twenty-five shots each",
+  "Every photo credited",
+  "Hidden until the time you pick",
+  "Yours in original quality",
+  "Up to 500 guests",
 ];
 
 export default function Home() {
@@ -92,64 +85,50 @@ export default function Home() {
         </section>
 
         {/* ---------------------------------------------------------------- steps */}
-        <section className="border-t border-hair px-6 py-4 sm:px-10">
+        <section className="border-t border-hair px-6 sm:px-10">
           <div className="mx-auto max-w-5xl">
-            {STEPS.map((step, index) => (
+            {STEPS.map(([title, body]) => (
               <div
-                key={step.title}
-                className={cn(
-                  "flex flex-col gap-7 border-b border-hair py-14 last:border-b-0 sm:flex-row sm:items-center sm:gap-16",
-                  // Alternating sides so the section never settles into a symmetric grid.
-                  index % 2 === 1 && "sm:flex-row-reverse",
-                )}
+                key={title}
+                className="grid gap-x-14 gap-y-3 border-b border-hair py-11 last:border-b-0 sm:grid-cols-[1fr_1.5fr] sm:items-baseline"
               >
-                {/* On a phone the row direction can't alternate, so the drawing shifts
-                    side instead — otherwise all three steps stack identically. */}
-                <Sketch
-                  name={step.sketch}
-                  className={cn(
-                    "w-36 shrink-0 sm:w-48",
-                    index % 2 === 1 && "self-end sm:self-auto",
-                  )}
-                />
-                <div className={cn("sm:max-w-md", index % 2 === 1 && "sm:text-right")}>
-                  <h2 className="display text-[1.75rem] text-chalk">{step.title}</h2>
-                  <p className="mt-3 text-[16px] leading-relaxed text-ash">{step.body}</p>
-                </div>
+                <h2 className="display text-[1.7rem] text-chalk">{title}</h2>
+                <p className="text-[16px] leading-relaxed text-ash">{body}</p>
               </div>
             ))}
           </div>
         </section>
 
-        {/* ---------------------------------------------------------------- points */}
-        {/* Deliberately quiet and dense: small type, tight rows. The contrast in scale is
-            what stops this reading as a second run of the section above it. */}
-        <section className="border-t border-hair px-6 py-14 sm:px-10">
-          <div className="mx-auto max-w-5xl">
-            <p className="marking">Also worth knowing</p>
-            <ul className="mt-7 grid gap-x-12 sm:grid-cols-2">
-              {POINTS.map(([term, description]) => (
-                <li
-                  key={term}
-                  className="border-t border-hair py-3.5 text-[14px] leading-snug"
-                >
-                  <span className="text-chalk">{term}</span>
-                  <span className="text-dust"> — {description}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+        {/* ---------------------------------------------------------------- ticker */}
+        {/* Motion instead of another stacked list, so this reads nothing like the section
+            above it. Pauses on hover, and holds still under reduced-motion. */}
+        <section className="marquee border-y border-hair py-6" aria-label="What you get">
+          <ul className="marquee__track">
+            {[0, 1].map((copy) => (
+              <li key={copy} aria-hidden={copy === 1} className="flex shrink-0">
+                {TICKER.map((item) => (
+                  <span key={item} className="flex shrink-0 items-center">
+                    <span className="px-7 text-[15px] whitespace-nowrap text-ash">{item}</span>
+                    <span
+                      className="h-1.5 w-1.5 shrink-0 rounded-full border border-flame"
+                      aria-hidden="true"
+                    />
+                  </span>
+                ))}
+              </li>
+            ))}
+          </ul>
         </section>
 
         {/* ---------------------------------------------------------------- closing */}
-        <section className="bloom border-t border-hair px-6 py-24 sm:px-10">
+        <section className="bloom px-6 py-24 sm:px-10">
           <div className="mx-auto flex max-w-5xl flex-col items-start gap-7">
             <Mark className="h-11 w-auto" glow />
             <h2 className="display max-w-xl text-[clamp(2.2rem,7vw,3.4rem)] text-chalk">
               The parts you <span className="text-flame">missed.</span>
             </h2>
             <p className="max-w-sm text-[16px] leading-relaxed text-ash">
-              You can&rsquo;t be in every room. Your guests already are.
+              You can&rsquo;t be in every room. Your guests are.
             </p>
             <ButtonLink href="/signup" className="mt-2">
               Create an event
