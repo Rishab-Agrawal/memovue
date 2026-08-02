@@ -12,16 +12,14 @@ export function ChangePasswordForm() {
   const [state, action] = useActionState<AccountState, FormData>(changePasswordAction, {});
 
   return (
-    <form action={action} className="mt-5 flex flex-col gap-5">
+    <form action={action} className="mt-8 flex flex-col gap-7">
       {state.success ? (
-        <p className="rounded-md border border-success/40 bg-success/10 px-4 py-3 text-[14px] text-success">
+        <p className="border-l-2 border-success py-1 pl-5 text-[14px] text-success">
           {state.success}
         </p>
       ) : null}
       {state.error ? (
-        <p className="rounded-md border border-danger/35 bg-danger/10 px-4 py-3 text-[14px] text-danger">
-          {state.error}
-        </p>
+        <p className="border-l-2 border-danger py-1 pl-5 text-[14px] text-danger">{state.error}</p>
       ) : null}
 
       <TextField
@@ -43,7 +41,7 @@ export function ChangePasswordForm() {
         error={state.fields?.newPassword}
       />
 
-      <SubmitButton variant="secondary" pendingLabel="Saving…" className="self-start">
+      <SubmitButton variant="secondary" pendingLabel="Saving…" className="mt-2 self-start">
         Change password
       </SubmitButton>
     </form>
@@ -56,18 +54,16 @@ export function DeleteAccountForm() {
 
   if (!open) {
     return (
-      <Button variant="danger" size="sm" className="mt-5" onClick={() => setOpen(true)}>
+      <Button variant="danger" size="sm" className="mt-7" onClick={() => setOpen(true)}>
         Delete my account
       </Button>
     );
   }
 
   return (
-    <form action={action} className="mt-5 flex flex-col gap-4">
+    <form action={action} className="mt-8 flex flex-col gap-6 border-l-2 border-danger pl-5">
       {state.error ? (
-        <p className="rounded-md border border-danger/35 bg-danger/10 px-4 py-3 text-[14px] text-danger">
-          {state.error}
-        </p>
+        <p className="text-[14px] text-danger">{state.error}</p>
       ) : null}
 
       <TextField
@@ -78,7 +74,7 @@ export function DeleteAccountForm() {
         required
         error={state.fields?.password}
       />
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-4">
         <SubmitButton variant="danger" size="sm" pendingLabel="Deleting…">
           Permanently delete everything
         </SubmitButton>

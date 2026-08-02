@@ -11,12 +11,9 @@ export function AccessRequestForm() {
   const [state, action] = useActionState<ActionState, FormData>(requestAccessAction, {});
 
   return (
-    <form action={action} className="mt-7 flex flex-col gap-5">
+    <form action={action} className="mt-12 flex flex-col gap-8 border-t border-hair pt-10">
       {state.error ? (
-        <p
-          className="rounded-md border border-danger/35 bg-danger/10 px-4 py-3 text-[14px] text-danger"
-          role="alert"
-        >
+        <p className="border-l-2 border-danger py-1 pl-4 text-[14px] text-danger" role="alert">
           {state.error}
         </p>
       ) : null}
@@ -28,7 +25,7 @@ export function AccessRequestForm() {
         placeholder="My sister's wedding"
         error={state.fields?.eventKind}
       />
-      <div className="grid gap-5 sm:grid-cols-2">
+      <div className="grid gap-8 sm:grid-cols-2">
         <TextField
           label="Roughly when?"
           name="expectedDate"
@@ -57,7 +54,7 @@ export function AccessRequestForm() {
         error={state.fields?.note}
       />
 
-      <SubmitButton size="lg" pendingLabel="Sending…" className="self-start px-8">
+      <SubmitButton size="lg" pendingLabel="Sending…" className="mt-2 self-start">
         Request access
       </SubmitButton>
     </form>

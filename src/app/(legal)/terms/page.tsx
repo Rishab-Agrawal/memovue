@@ -4,7 +4,7 @@ export default function TermsPage() {
   return (
     <>
       <h1>Terms of Service</h1>
-      <p className="!text-paper-faint !text-[14px]">Last updated 1 August 2026</p>
+      <p className="marking !mt-6">Last updated 1 August 2026</p>
 
       <p>
         MemoVue lets a host set up a shared photo album for an event. Guests take photos on their

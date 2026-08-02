@@ -1,8 +1,7 @@
 import Link from "next/link";
 
-import { PhotoWall } from "@/components/marketing/PhotoWall";
 import { ButtonLink } from "@/components/ui/Button";
-import { Logo } from "@/components/ui/Logo";
+import { Logo, Mark } from "@/components/ui/Logo";
 
 const STEPS = [
   {
@@ -10,7 +9,7 @@ const STEPS = [
     body: "Name the event, choose how many people are coming and how many shots each one gets. About a minute.",
   },
   {
-    title: "Share one QR code",
+    title: "Share one code",
     body: "Print it for the tables or drop it in the group chat. Guests scan and start shooting — no app, no account, no sign-up.",
   },
   {
@@ -20,94 +19,111 @@ const STEPS = [
 ];
 
 const POINTS = [
-  {
-    title: "Nothing to install",
-    body: "It's a web page. Scanning the code is the entire onboarding, for every guest, at every age.",
-  },
-  {
-    title: "A real shot limit",
-    body: "Between 3 and 25 photos each. Running out is the point — it's what makes people wait for the shot worth taking.",
-  },
-  {
-    title: "Every photo credited",
-    body: "Each frame carries the name of whoever took it, so you know who caught the moment you missed.",
-  },
-  {
-    title: "The album is yours",
-    body: "Download everything in original quality whenever you like. We'll never delete an album without telling you first.",
-  },
+  [
+    "No install",
+    "It's a web page. Scanning the code is the entire onboarding, for every guest, at every age.",
+  ],
+  [
+    "A real limit",
+    "Between 3 and 25 shots each. Running out is the point — it's what makes people wait for the frame worth taking.",
+  ],
+  [
+    "Credited",
+    "Every frame carries the name of whoever took it, so you know who caught the moment you missed.",
+  ],
+  [
+    "Yours",
+    "Download everything in original quality whenever you like. We'll never delete an album without telling you first.",
+  ],
 ];
 
 export default function Home() {
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="flex items-center justify-between px-5 py-5 sm:px-8">
+      <header className="flex items-center justify-between border-b border-hair px-6 py-5 sm:px-10">
         <Logo />
-        <Link
-          href="/login"
-          className="text-[15px] text-paper-dim transition-colors hover:text-paper"
-        >
+        <Link href="/login" className="marking transition-colors hover:text-chalk">
           Sign in
         </Link>
       </header>
 
       <main className="flex-1">
         {/* ---------------------------------------------------------------- hero */}
-        <section className="safelight px-5 pt-10 pb-20 sm:px-8 sm:pt-16">
-          <div className="mx-auto grid max-w-6xl items-center gap-14 lg:grid-cols-[1.05fr_0.95fr] lg:gap-20">
-            <div className="animate-rise">
-              <p className="mb-5 text-[13px] font-medium tracking-[0.18em] text-ember uppercase">
-                A disposable camera for everyone
-              </p>
-              <h1 className="font-display text-[clamp(2.6rem,8.5vw,4.6rem)] leading-[0.98] text-paper">
-                Nobody sees a thing
-                <br />
-                <em className="text-ember">until it&rsquo;s over.</em>
+        <section className="bloom px-6 pt-14 pb-16 sm:px-10 sm:pt-24 sm:pb-24">
+          <div className="mx-auto grid max-w-6xl gap-16 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-8">
+            <div>
+              <p className="marking animate-fade text-flame">Everyone's camera · one album</p>
+
+              {/* The trailing spaces matter: without them the heading's text content runs
+                  together as "Nobody seesa thing until…" for screen readers and copy-paste. */}
+              <h1 className="display mt-7 text-[clamp(3rem,12vw,5.5rem)] text-chalk">
+                <span className="animate-rise block">Nobody sees </span>
+                <span className="animate-rise block" style={{ animationDelay: "90ms" }}>
+                  a thing until{" "}
+                </span>
+                <span
+                  className="animate-rise block text-flame"
+                  style={{ animationDelay: "180ms" }}
+                >
+                  it&rsquo;s over.
+                </span>
               </h1>
-              <p className="mt-6 max-w-lg text-[17px] leading-relaxed text-paper-dim">
-                Your guests shoot the whole night on their own phones. Every photo stays sealed
-                until the moment you choose — then the entire album opens at once, for everyone.
+
+              <p
+                className="animate-rise mt-8 max-w-md text-[17px] leading-relaxed text-ash"
+                style={{ animationDelay: "280ms" }}
+              >
+                Your guests shoot the whole night on their own phones. Every photo stays sealed —
+                from them, from you, from everyone — until the moment you chose. Then the entire
+                album opens at once.
               </p>
-              <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-                <ButtonLink href="/signup" size="lg" className="sm:px-8">
+
+              <div
+                className="animate-rise mt-11 flex flex-col items-start gap-6 sm:flex-row sm:items-center sm:gap-8"
+                style={{ animationDelay: "360ms" }}
+              >
+                <ButtonLink href="/signup" size="lg">
                   Create an event
                 </ButtonLink>
-                <ButtonLink href="/join" variant="secondary" size="lg">
-                  Join with a code
-                </ButtonLink>
+                <Link
+                  href="/join"
+                  className="border-b border-hair-bright pb-1 text-[15px] text-ash transition-colors hover:border-flame hover:text-chalk"
+                >
+                  I have a code
+                </Link>
               </div>
-              <p className="mt-5 text-[14px] text-paper-faint">
-                Free while we&rsquo;re in beta. Hosting an event needs an invite for now.
+
+              <p
+                className="animate-fade mt-10 text-[13px] text-dust"
+                style={{ animationDelay: "500ms" }}
+              >
+                Free while we&rsquo;re in beta. Hosting needs an invite for now.
               </p>
             </div>
 
-            <div className="relative">
-              <div className="pointer-events-none absolute -inset-8 -z-10 bg-[radial-gradient(60%_50%_at_50%_40%,rgba(242,104,60,0.16),transparent_70%)]" />
-              <PhotoWall className="mx-auto max-w-sm lg:max-w-none" />
-              <p className="mt-5 text-center text-[13px] text-paper-faint">
-                What guests see before the reveal
-              </p>
+            {/* The mark is the hero image. Four viewpoints, one root — it draws itself in. */}
+            <div className="order-first flex justify-center lg:order-last lg:justify-end">
+              <Mark animate glow className="h-48 w-auto sm:h-60 lg:h-72" />
             </div>
           </div>
         </section>
 
         {/* ---------------------------------------------------------------- steps */}
-        <section className="border-t border-line px-5 py-20 sm:px-8">
+        <section className="border-t border-hair px-6 py-20 sm:px-10">
           <div className="mx-auto max-w-6xl">
-            <h2 className="font-display text-[clamp(1.9rem,5vw,2.8rem)] leading-tight text-paper">
-              How it works
-            </h2>
-            <ol className="mt-12 grid gap-10 sm:grid-cols-3 sm:gap-8">
+            <p className="marking">How it works</p>
+
+            <ol className="mt-10">
               {STEPS.map((step, index) => (
-                <li key={step.title} className="relative">
-                  <span
-                    className="font-display text-[3.5rem] leading-none text-ember/25"
-                    aria-hidden="true"
-                  >
-                    {index + 1}
+                <li
+                  key={step.title}
+                  className="grid gap-x-10 gap-y-3 border-t border-hair py-9 sm:grid-cols-[4rem_1fr_1.2fr] sm:items-baseline"
+                >
+                  <span className="tabular text-[13px] text-flame">
+                    {String(index + 1).padStart(2, "0")}
                   </span>
-                  <h3 className="mt-2 text-[19px] font-medium text-paper">{step.title}</h3>
-                  <p className="mt-2.5 text-[15px] leading-relaxed text-paper-dim">{step.body}</p>
+                  <h2 className="display text-[1.9rem] text-chalk">{step.title}</h2>
+                  <p className="max-w-md text-[16px] leading-relaxed text-ash">{step.body}</p>
                 </li>
               ))}
             </ol>
@@ -115,53 +131,59 @@ export default function Home() {
         </section>
 
         {/* ---------------------------------------------------------------- points */}
-        <section className="border-t border-line px-5 py-20 sm:px-8">
-          <div className="mx-auto grid max-w-6xl gap-x-12 gap-y-10 sm:grid-cols-2">
-            {POINTS.map((point) => (
-              <div key={point.title} className="border-t border-line pt-6">
-                <h3 className="text-[17px] font-medium text-paper">{point.title}</h3>
-                <p className="mt-2 text-[15px] leading-relaxed text-paper-dim">{point.body}</p>
-              </div>
-            ))}
+        <section className="border-t border-hair px-6 py-20 sm:px-10">
+          <div className="mx-auto max-w-6xl">
+            <p className="marking">Why it works</p>
+
+            <dl className="mt-10">
+              {POINTS.map(([term, description]) => (
+                <div
+                  key={term}
+                  className="grid gap-x-10 gap-y-2 border-t border-hair py-7 sm:grid-cols-[10rem_1fr] sm:items-baseline"
+                >
+                  <dt className="text-[15px] font-medium text-chalk">{term}</dt>
+                  <dd className="max-w-xl text-[16px] leading-relaxed text-ash">{description}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
         </section>
 
         {/* ---------------------------------------------------------------- cta */}
-        <section className="safelight border-t border-line px-5 py-24 text-center sm:px-8">
-          <div className="mx-auto max-w-2xl">
-            <h2 className="font-display text-[clamp(2rem,6vw,3.2rem)] leading-tight text-paper">
+        <section className="bloom border-t border-hair px-6 py-28 sm:px-10">
+          <div className="mx-auto flex max-w-6xl flex-col items-start gap-10">
+            <Mark className="h-14 w-auto" glow />
+            <h2 className="display max-w-2xl text-[clamp(2.4rem,8vw,4rem)] text-chalk">
               Give everyone a camera.
               <br />
-              <em className="text-ember">Take away the screen.</em>
+              <span className="text-flame">Take away the screen.</span>
             </h2>
-            <div className="mt-9 flex justify-center">
-              <ButtonLink href="/signup" size="lg" className="px-10">
-                Create an event
-              </ButtonLink>
-            </div>
+            <ButtonLink href="/signup" size="lg">
+              Create an event
+            </ButtonLink>
           </div>
         </section>
       </main>
 
-      <footer className="border-t border-line px-5 py-10 sm:px-8">
-        <div className="mx-auto flex max-w-6xl flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+      <footer className="border-t border-hair px-6 py-10 sm:px-10">
+        <div className="mx-auto flex max-w-6xl flex-col gap-8 sm:flex-row sm:items-center sm:justify-between">
           <Logo />
-          <nav className="flex flex-wrap gap-x-7 gap-y-3 text-[14px] text-paper-dim">
-            <Link href="/terms" className="transition-colors hover:text-paper">
+          <nav className="flex flex-wrap gap-x-8 gap-y-3">
+            <Link href="/terms" className="marking transition-colors hover:text-chalk">
               Terms
             </Link>
-            <Link href="/privacy" className="transition-colors hover:text-paper">
+            <Link href="/privacy" className="marking transition-colors hover:text-chalk">
               Privacy
             </Link>
-            <Link href="/join" className="transition-colors hover:text-paper">
-              Join an event
+            <Link href="/join" className="marking transition-colors hover:text-chalk">
+              Join
             </Link>
-            <a href="mailto:hello@memovue.com" className="transition-colors hover:text-paper">
+            <a href="mailto:hello@memovue.com" className="marking transition-colors hover:text-chalk">
               Contact
             </a>
           </nav>
         </div>
-        <p className="mx-auto mt-8 max-w-6xl text-[13px] text-paper-faint">
+        <p className="tabular mx-auto mt-8 max-w-6xl text-[11px] text-dust">
           © {new Date().getFullYear()} MemoVue
         </p>
       </footer>

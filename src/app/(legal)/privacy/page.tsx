@@ -4,7 +4,7 @@ export default function PrivacyPage() {
   return (
     <>
       <h1>Privacy Policy</h1>
-      <p className="!text-paper-faint !text-[14px]">Last updated 1 August 2026</p>
+      <p className="marking !mt-6">Last updated 1 August 2026</p>
 
       <p>
         This explains what MemoVue collects, why, and what you can do about it. The short version:

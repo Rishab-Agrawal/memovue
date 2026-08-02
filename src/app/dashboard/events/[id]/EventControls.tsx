@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/Button";
+
 import { deleteEventAction, revealNowAction } from "../../actions";
 
 export function CopyLinkButton({ url }: { url: string }) {
@@ -21,7 +22,7 @@ export function CopyLinkButton({ url }: { url: string }) {
   }
 
   return (
-    <Button variant="secondary" onClick={copy}>
+    <Button variant="secondary" size="sm" onClick={copy}>
       {copied ? "Copied" : "Copy join link"}
     </Button>
   );
@@ -41,12 +42,13 @@ export function RevealNowButton({ eventId }: { eventId: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-md border border-ember/40 bg-ember/8 p-4">
-      <p className="text-[14px] leading-relaxed text-paper">
-        This opens the album for everyone immediately and <strong>stops guests taking any
-        more photos</strong>. It can&rsquo;t be undone.
+    <div className="max-w-md border-l-2 border-flame py-1 pl-5">
+      <p className="text-[14px] leading-relaxed text-chalk">
+        This opens the album for everyone immediately and{" "}
+        <strong className="font-medium">stops guests taking any more photos</strong>. It
+        can&rsquo;t be undone.
       </p>
-      <div className="flex flex-wrap gap-2">
+      <div className="mt-5 flex flex-wrap gap-3">
         <Button
           size="sm"
           disabled={pending}
@@ -81,20 +83,21 @@ export function DeleteEventButton({ eventId, eventName }: { eventId: string; eve
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-md border border-danger/40 bg-danger/8 p-4">
-      <p className="text-[14px] leading-relaxed text-paper">
-        This permanently deletes the event and <strong>every photo in it</strong>, for every
-        guest. There is no way to get them back.
+    <div className="max-w-md border-l-2 border-danger py-1 pl-5">
+      <p className="text-[14px] leading-relaxed text-chalk">
+        This permanently deletes the event and{" "}
+        <strong className="font-medium">every photo in it</strong>, for every guest. There is no
+        way to get them back.
       </p>
-      <label className="text-[13px] text-paper-dim">
-        Type <span className="text-paper">{eventName}</span> to confirm
+      <label className="marking mt-5 block">
+        Type “{eventName}” to confirm
         <input
           value={typed}
           onChange={(e) => setTyped(e.target.value)}
-          className="mt-1.5 h-11 w-full rounded-md border border-line bg-ink-inset px-3 text-paper focus:border-danger focus:outline-none"
+          className="mt-2 h-11 w-full border-0 border-b border-hair-bright bg-transparent px-0 text-[16px] text-chalk normal-case tracking-normal outline-none focus:border-danger"
         />
       </label>
-      <div className="flex flex-wrap gap-2">
+      <div className="mt-5 flex flex-wrap gap-3">
         <Button
           variant="danger"
           size="sm"

@@ -5,12 +5,12 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/Field";
-import { Logo } from "@/components/ui/Logo";
+import { Mark } from "@/components/ui/Logo";
 import { normalizeCode } from "@/lib/codes";
 
 /**
- * Fallback for when the QR won't scan — a scuffed printout, a cracked screen, a phone
- * camera that refuses to focus. The code is printed under every QR for exactly this.
+ * Fallback for when the QR won't scan — a scuffed printout, a cracked screen, a camera
+ * that refuses to focus. The code is printed under every QR for exactly this.
  */
 export default function JoinByCodePage() {
   const router = useRouter();
@@ -19,26 +19,27 @@ export default function JoinByCodePage() {
   const cleaned = normalizeCode(code);
 
   return (
-    <div className="safelight flex min-h-dvh flex-col px-5 pb-12">
-      <header className="py-5">
-        <Logo />
+    <div className="bloom flex min-h-dvh flex-col px-6 pb-16">
+      <header className="py-6">
+        <Mark className="h-8 w-auto" glow />
       </header>
       <main className="flex flex-1 flex-col justify-center">
         <form
-          className="mx-auto w-full max-w-[26rem] animate-rise"
+          className="animate-rise mx-auto w-full max-w-[24rem]"
           onSubmit={(event) => {
             event.preventDefault();
             if (cleaned.length >= 4) router.push(`/join/${cleaned}`);
           }}
         >
-          <h1 className="font-display text-[clamp(2.2rem,9vw,3rem)] leading-[1.05] text-paper">
+          <p className="marking text-flame">Join an event</p>
+          <h1 className="display mt-4 text-[clamp(2.4rem,11vw,3.2rem)] text-chalk">
             Enter your code
           </h1>
-          <p className="mt-4 text-[16px] leading-relaxed text-paper-dim">
+          <p className="mt-6 text-[16px] leading-relaxed text-ash">
             It&rsquo;s printed underneath the QR code your host shared.
           </p>
 
-          <div className="mt-8">
+          <div className="mt-10">
             <TextField
               label="Join code"
               value={code}
@@ -48,11 +49,11 @@ export default function JoinByCodePage() {
               autoFocus
               placeholder="Z7G9UJ"
               maxLength={9}
-              className="text-center font-display text-[1.6rem] tracking-[0.3em]"
+              className="tabular h-14 text-[1.6rem] tracking-[0.3em]"
             />
           </div>
 
-          <Button type="submit" size="lg" full className="mt-6" disabled={cleaned.length < 4}>
+          <Button type="submit" size="lg" full className="mt-8" disabled={cleaned.length < 4}>
             Continue
           </Button>
         </form>

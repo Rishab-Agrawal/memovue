@@ -128,7 +128,7 @@ test("host creates an event, a guest shoots it, and the reveal opens the album",
   await host.getByRole("button", { name: "Yes, reveal now" }).click();
   // The download link only exists once an event is revealed, so it's the unambiguous signal.
   await expect(host.getByRole("link", { name: "Download everything" })).toBeVisible();
-  await expect(host.getByText("2 photos").first()).toBeVisible();
+  await expect(host.getByTestId("revealed-count")).toHaveText("2");
 
   /* ---------------------------------------------------------------- after reveal */
 

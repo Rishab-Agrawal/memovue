@@ -12,8 +12,8 @@ export interface ViewerPhoto {
 
 /**
  * Full-screen viewer built on CSS scroll snapping rather than a gesture library: it gets
- * native-feeling momentum, keyboard and screen-reader support for free, and it degrades to
- * an ordinary scrolling list if anything goes wrong.
+ * native-feeling momentum, keyboard and screen-reader support for free, and degrades to an
+ * ordinary scrolling list if anything goes wrong.
  */
 export function PhotoViewer({
   code,
@@ -46,14 +46,21 @@ export function PhotoViewer({
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-ink">
+    <div className="fixed inset-0 z-50 bg-void">
       <button
         type="button"
         onClick={onClose}
         aria-label="Close"
-        className="absolute top-[calc(var(--safe-top)+1rem)] right-4 z-10 grid h-10 w-10 place-items-center rounded-full bg-ink/60 text-paper backdrop-blur-md"
+        className="absolute top-[calc(var(--safe-top)+1rem)] right-4 z-10 grid h-10 w-10 place-items-center border border-chalk/25 bg-void/50 text-chalk backdrop-blur-md"
       >
-        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+        <svg
+          viewBox="0 0 24 24"
+          className="h-4 w-4"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        >
           <path d="M6 6l12 12M18 6L6 18" />
         </svg>
       </button>
@@ -80,10 +87,10 @@ export function PhotoViewer({
               loading="lazy"
               className="max-h-full w-full object-contain"
             />
-            <figcaption className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 bg-gradient-to-t from-ink via-ink/75 to-transparent px-5 pt-16 pb-[calc(var(--safe-bottom)+1.25rem)]">
+            <figcaption className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 bg-gradient-to-t from-void via-void/80 to-transparent px-5 pt-20 pb-[calc(var(--safe-bottom)+1.25rem)]">
               <span>
-                <span className="block text-[16px] text-paper">{photo.guestName}</span>
-                <span className="block text-[13px] text-paper-faint">
+                <span className="block text-[16px] text-chalk">{photo.guestName}</span>
+                <span className="marking mt-1 block">
                   {new Date(photo.takenAt).toLocaleTimeString(undefined, {
                     hour: "numeric",
                     minute: "2-digit",
@@ -92,7 +99,7 @@ export function PhotoViewer({
               </span>
               <a
                 href={`/api/e/${code}/photos/${photo.id}/full?download=1`}
-                className="shrink-0 rounded-full bg-paper/12 px-4 py-2 text-[14px] text-paper backdrop-blur-md"
+                className="marking shrink-0 border border-chalk/25 px-4 py-2.5 text-chalk backdrop-blur-md transition-colors hover:border-flame hover:text-flame"
               >
                 Save
               </a>

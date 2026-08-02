@@ -85,46 +85,46 @@ export function AlbumView({ code, onRevealed }: { code: string; onRevealed?: () 
   }, [revealed, filterGuest]);
 
   if (!feed) {
-    return <p className="px-5 py-16 text-center text-[15px] text-paper-dim">Loading…</p>;
+    return <p className="marking px-6 py-20 text-center">Loading</p>;
   }
 
   return (
     <div className="pad-safe-bottom min-h-full">
       {/* ------------------------------------------------------------ header */}
-      <header className="px-5 pt-5 pb-4">
+      <header className="bloom px-6 pt-8 pb-8">
         {revealed ? (
           <>
-            <h1 className="font-display text-[1.9rem] leading-tight text-paper">
+            <p className="marking text-success">Revealed</p>
+            <h1 className="display mt-4 text-[2.2rem] leading-tight text-chalk">
               {feed.eventName}
             </h1>
-            <p className="mt-1 text-[15px] text-paper-dim">
-              {feed.totalPhotos} photo{feed.totalPhotos === 1 ? "" : "s"} from{" "}
-              {feed.people.length} {feed.people.length === 1 ? "person" : "people"}
+            <p className="marking mt-3">
+              <span className="tabular">{feed.totalPhotos}</span> photos ·{" "}
+              <span className="tabular">{feed.people.length}</span>{" "}
+              {feed.people.length === 1 ? "person" : "people"}
             </p>
           </>
         ) : (
-          <div className="safelight rounded-lg border border-line bg-ink-raised p-5">
-            <p className="text-[13px] font-medium tracking-[0.16em] text-ember uppercase">
-              Everything unlocks in
-            </p>
-            <p className="mt-2 font-display text-[2.1rem] leading-none text-paper">
+          <>
+            <p className="marking text-flame">Everything unlocks in</p>
+            <p className="tabular mt-4 text-[2.4rem] leading-none text-chalk">
               <Countdown
                 target={feed.revealAt}
                 initial={formatCountdown(feed.revealAt)}
                 onElapsed={onRevealed}
               />
             </p>
-            <p className="mt-3 text-[14px] leading-relaxed text-paper-dim">
-              {feed.totalPhotos} photo{feed.totalPhotos === 1 ? "" : "s"} so far. Nobody can see
+            <p className="mt-5 max-w-sm text-[15px] leading-relaxed text-ash">
+              <span className="tabular text-chalk">{feed.totalPhotos}</span> so far. Nobody can see
               any of them yet — not even the person who took them.
             </p>
-          </div>
+          </>
         )}
       </header>
 
       {/* ------------------------------------------------------------ tabs */}
       {revealed ? (
-        <div className="sticky top-0 z-20 flex gap-2 border-b border-line bg-ink/90 px-5 py-3 backdrop-blur-md">
+        <div className="sticky top-0 z-20 flex items-center gap-7 border-y border-hair bg-void/95 px-6 py-3.5 backdrop-blur-md">
           {(["all", "people"] as const).map((value) => (
             <button
               key={value}
@@ -134,18 +134,21 @@ export function AlbumView({ code, onRevealed }: { code: string; onRevealed?: () 
                 if (value === "all") setFilterGuest(null);
               }}
               className={cn(
-                "rounded-full px-4 py-1.5 text-[14px] transition-colors",
-                tab === value ? "bg-paper text-ink" : "bg-ink-high text-paper-dim",
+                "marking relative py-1 transition-colors",
+                tab === value ? "text-chalk" : "hover:text-chalk",
               )}
             >
               {value === "all" ? "Everyone" : "By person"}
+              {tab === value ? (
+                <span className="absolute inset-x-0 -bottom-3.5 h-px bg-flame" aria-hidden="true" />
+              ) : null}
             </button>
           ))}
           {filterGuest ? (
             <button
               type="button"
               onClick={() => setFilterGuest(null)}
-              className="ml-auto rounded-full bg-ember/15 px-4 py-1.5 text-[14px] text-ember"
+              className="marking ml-auto text-flame"
             >
               {filterGuest.name} ✕
             </button>
@@ -155,12 +158,10 @@ export function AlbumView({ code, onRevealed }: { code: string; onRevealed?: () 
 
       {/* ------------------------------------------------------------ body */}
       {feed.people.length === 0 ? (
-        <p className="px-5 py-16 text-center text-[15px] leading-relaxed text-paper-dim">
+        <p className="border-t border-hair px-6 py-20 text-center text-[15px] leading-relaxed text-ash">
           Nothing here yet. Be the first to take one.
         </p>
-      ) : revealed && tab === "all" ? (
-        <PhotoGrid photos={photos} onOpen={setViewerIndex} />
-      ) : revealed && filterGuest ? (
+      ) : revealed && (tab === "all" || filterGuest) ? (
         <PhotoGrid photos={photos} onOpen={setViewerIndex} />
       ) : (
         <PeopleWall
@@ -171,14 +172,14 @@ export function AlbumView({ code, onRevealed }: { code: string; onRevealed?: () 
       )}
 
       {revealed && (tab === "all" || filterGuest) && !exhausted ? (
-        <div className="px-5 py-8 text-center">
+        <div className="px-6 py-10 text-center">
           <button
             type="button"
             onClick={() => void loadPhotos(false)}
             disabled={loadingMore}
-            className="rounded-full border border-line px-6 py-2.5 text-[14px] text-paper-dim disabled:opacity-50"
+            className="marking border border-hair-bright px-6 py-3 transition-colors hover:border-flame hover:text-flame disabled:opacity-50"
           >
-            {loadingMore ? "Loading…" : "Load more"}
+            {loadingMore ? "Loading" : "Load more"}
           </button>
         </div>
       ) : null}
@@ -198,21 +199,16 @@ export function AlbumView({ code, onRevealed }: { code: string; onRevealed?: () 
   );
 }
 
-function PhotoGrid({
-  photos,
-  onOpen,
-}: {
-  photos: ViewerPhoto[];
-  onOpen: (index: number) => void;
-}) {
+/** Edge-to-edge with hairline gaps — the photos are the interface, not cards holding them. */
+function PhotoGrid({ photos, onOpen }: { photos: ViewerPhoto[]; onOpen: (index: number) => void }) {
   return (
-    <div className="grid grid-cols-3 gap-0.5">
+    <div className="grid grid-cols-3 gap-px bg-hair">
       {photos.map((photo, index) => (
         <button
           key={photo.id}
           type="button"
           onClick={() => onOpen(index)}
-          className="relative aspect-square overflow-hidden bg-ink-high"
+          className="relative aspect-square overflow-hidden bg-void"
         >
           {/* eslint-disable-next-line @next/next/no-img-element -- presigned R2 URL */}
           <img
@@ -243,30 +239,25 @@ function PeopleWall({
   onPick?: (person: Person) => void;
 }) {
   return (
-    <ul className="flex flex-col gap-6 px-5 py-5">
+    <ul className="border-t border-hair">
       {people.map((person) => (
-        <li key={person.id}>
-          <div className="flex items-baseline justify-between gap-3">
-            <h2 className="truncate text-[16px] text-paper">
+        <li key={person.id} className="border-b border-hair px-6 py-6">
+          <div className="flex items-baseline justify-between gap-4">
+            <h2 className="truncate text-[17px] text-chalk">
               {person.name}
-              {person.isMe ? <span className="ml-2 text-[13px] text-ember">you</span> : null}
+              {person.isMe ? <span className="marking ml-3 text-flame">you</span> : null}
             </h2>
-            <span className="shrink-0 text-[13px] text-paper-faint tabular">
-              {person.count} photo{person.count === 1 ? "" : "s"}
-            </span>
+            <span className="tabular shrink-0 text-[13px] text-dust">{person.count}</span>
           </div>
 
           <button
             type="button"
             onClick={onPick ? () => onPick(person) : undefined}
             disabled={!onPick}
-            className="no-scrollbar mt-2.5 flex w-full gap-2 overflow-x-auto text-left disabled:cursor-default"
+            className="no-scrollbar mt-4 flex w-full gap-1.5 overflow-x-auto text-left disabled:cursor-default"
           >
             {person.teasers.map((teaser) => (
-              <span
-                key={teaser.id}
-                className="relative h-20 w-20 shrink-0 overflow-hidden rounded-md bg-ink-high"
-              >
+              <span key={teaser.id} className="h-20 w-20 shrink-0 overflow-hidden bg-surface">
                 {teaser.blurData ? (
                   // eslint-disable-next-line @next/next/no-img-element -- inline data URL
                   <img
@@ -275,16 +266,16 @@ function PeopleWall({
                     aria-hidden="true"
                     className={cn(
                       "h-full w-full scale-125 object-cover",
-                      // Heavier blur than looks necessary: a 32px source scaled up is
+                      // Heavier blur than strictly necessary: a 32px source scaled up is
                       // already unreadable, and this makes that obvious to the guest.
-                      !revealed && "blur-[10px] saturate-[0.85]",
+                      !revealed && "blur-[10px] saturate-[0.8]",
                     )}
                   />
                 ) : null}
               </span>
             ))}
             {person.count > person.teasers.length ? (
-              <span className="grid h-20 w-20 shrink-0 place-items-center rounded-md border border-line text-[13px] text-paper-faint">
+              <span className="tabular grid h-20 w-20 shrink-0 place-items-center border border-hair text-[12px] text-dust">
                 +{person.count - person.teasers.length}
               </span>
             ) : null}

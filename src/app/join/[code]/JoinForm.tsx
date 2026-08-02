@@ -50,12 +50,9 @@ export function JoinForm({ config }: { config: JoinFormConfig }) {
   }
 
   return (
-    <form onSubmit={submit} className="mt-8 flex flex-col gap-6">
+    <form onSubmit={submit} className="mt-10 flex flex-col gap-8">
       {state.error ? (
-        <p
-          className="rounded-md border border-danger/35 bg-danger/10 px-4 py-3 text-[14px] text-danger"
-          role="alert"
-        >
+        <p className="border-l-2 border-danger py-1 pl-5 text-[14px] text-danger" role="alert">
           {state.error}
         </p>
       ) : null}
@@ -78,16 +75,17 @@ export function JoinForm({ config }: { config: JoinFormConfig }) {
       />
 
       {state.nameTaken ? (
-        <div className="-mt-2 flex flex-col gap-3 rounded-md border border-marigold/40 bg-marigold/8 p-4">
-          <p className="text-[14px] leading-relaxed text-paper">
-            Someone already joined as <strong>{name.trim()}</strong>. Add your surname or something
-            that tells you apart — it&rsquo;s how everyone finds your photos later.
+        <div className="-mt-3 border-l-2 border-flame py-1 pl-5">
+          <p className="text-[14px] leading-relaxed text-chalk">
+            Someone already joined as <strong className="font-medium">{name.trim()}</strong>. Add
+            your surname or something that tells you apart — it&rsquo;s how everyone finds your
+            photos later.
           </p>
           <button
             type="button"
             onClick={reclaim}
             disabled={pending}
-            className="self-start text-[14px] text-marigold underline underline-offset-4 disabled:opacity-50"
+            className="marking mt-4 border-b border-flame/40 pb-1 text-flame transition-colors hover:border-flame disabled:opacity-50"
           >
             That&rsquo;s me — I&rsquo;m on a new phone
           </button>
@@ -95,12 +93,10 @@ export function JoinForm({ config }: { config: JoinFormConfig }) {
       ) : null}
 
       {config.asksRelation && config.relationMode === "sides" && sideOptions.length > 0 ? (
-        <div className="flex flex-col gap-2">
-          <span className="text-[13px] font-medium tracking-wide text-paper-dim">
-            {config.relationPrompt}
-          </span>
+        <div className="flex flex-col gap-2.5">
+          <span className="marking">{config.relationPrompt}</span>
           <input type="hidden" name="relationSide" value={side} />
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 border-t border-l border-hair">
             {sideOptions.map((option) => (
               <button
                 key={option.value}
@@ -108,13 +104,14 @@ export function JoinForm({ config }: { config: JoinFormConfig }) {
                 aria-pressed={side === option.value}
                 onClick={() => setSide(option.value)}
                 className={cn(
-                  "min-h-12 truncate rounded-md border px-2 text-[15px] transition-colors",
-                  side === option.value
-                    ? "border-ember bg-ember/12 font-medium text-paper"
-                    : "border-line bg-ink-inset text-paper-dim",
+                  "relative min-h-[52px] truncate border-r border-b border-hair px-3 text-[15px] transition-colors",
+                  side === option.value ? "font-medium text-flame" : "text-ash hover:text-chalk",
                 )}
               >
                 {option.label}
+                {side === option.value ? (
+                  <span className="absolute inset-x-0 bottom-0 h-px bg-flame" aria-hidden="true" />
+                ) : null}
               </button>
             ))}
           </div>
@@ -128,9 +125,7 @@ export function JoinForm({ config }: { config: JoinFormConfig }) {
 
       {config.asksRelation ? (
         <TextField
-          label={
-            config.relationMode === "sides" ? "How do you know them?" : config.relationPrompt
-          }
+          label={config.relationMode === "sides" ? "How do you know them?" : config.relationPrompt}
           name="relation"
           maxLength={60}
           placeholder="Cousin"
@@ -138,7 +133,7 @@ export function JoinForm({ config }: { config: JoinFormConfig }) {
         />
       ) : null}
 
-      <Button type="submit" size="lg" full disabled={pending || !name.trim()}>
+      <Button type="submit" size="lg" full disabled={pending || !name.trim()} className="mt-2">
         {pending ? "Joining…" : config.viewOnly ? "See the album" : "Start shooting"}
       </Button>
     </form>

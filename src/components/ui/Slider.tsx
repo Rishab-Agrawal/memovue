@@ -2,6 +2,7 @@
 
 import { useId } from "react";
 
+/** The value is set large in mono, like a frame counter, with the track as a hairline. */
 export function Slider({
   label,
   hint,
@@ -23,15 +24,16 @@ export function Slider({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-baseline justify-between gap-4">
-        <label htmlFor={id} className="text-[13px] font-medium tracking-wide text-paper-dim">
+      <div className="flex items-end justify-between gap-4">
+        <label htmlFor={id} className="marking">
           {label}
         </label>
-        <span className="font-display text-[1.75rem] leading-none text-ember tabular">
-          {value}
-          {unit ? <span className="ml-1.5 text-[15px] text-paper-dim">{unit}</span> : null}
+        <span className="flex items-baseline gap-1.5">
+          <span className="tabular text-[28px] leading-none text-flame">{value}</span>
+          {unit ? <span className="text-[12px] text-dust">{unit}</span> : null}
         </span>
       </div>
+
       <input
         id={id}
         type="range"
@@ -40,9 +42,15 @@ export function Slider({
         step={1}
         value={value}
         onChange={(event) => onChange(Number(event.target.value))}
-        className="h-2 w-full cursor-pointer appearance-none rounded-full bg-ink-high accent-ember focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
+        className="film-slider"
       />
-      {hint ? <p className="text-[13px] leading-snug text-paper-faint">{hint}</p> : null}
+
+      <div className="flex justify-between">
+        <span className="tabular text-[11px] text-dust">{min}</span>
+        <span className="tabular text-[11px] text-dust">{max}</span>
+      </div>
+
+      {hint ? <p className="text-[13px] leading-snug text-dust">{hint}</p> : null}
     </div>
   );
 }

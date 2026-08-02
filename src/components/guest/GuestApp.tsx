@@ -66,7 +66,7 @@ export function GuestApp({ code, eventName, phase, shotsLeft: initialShots }: Gu
 
   if (view === "album" || !canShoot) {
     return (
-      <div className="min-h-dvh bg-ink">
+      <div className="min-h-dvh bg-void">
         <div className="pt-[var(--safe-top)]">
           <AlbumView code={code} onRevealed={() => router.refresh()} />
         </div>
@@ -75,10 +75,14 @@ export function GuestApp({ code, eventName, phase, shotsLeft: initialShots }: Gu
           <button
             type="button"
             onClick={() => setView("camera")}
-            className="fixed right-5 bottom-[calc(var(--safe-bottom)+1.25rem)] z-30 flex h-14 items-center gap-2.5 rounded-full bg-ember pr-6 pl-5 font-medium text-ink shadow-[0_10px_30px_-8px_rgba(242,104,60,0.8)]"
+            className="fixed right-5 bottom-[calc(var(--safe-bottom)+1.25rem)] z-30 flex h-13 items-center gap-3 bg-flame px-6 py-3.5 text-[14px] font-medium text-void shadow-[0_0_32px_-6px_rgba(255,140,0,0.7)]"
           >
             <CameraIcon />
-            {shotsLeft > 0 ? `${shotsLeft} left` : "Out of film"}
+            {shotsLeft > 0 ? (
+              <span className="tabular">{shotsLeft} left</span>
+            ) : (
+              "Out of film"
+            )}
           </button>
         ) : null}
       </div>
@@ -88,37 +92,31 @@ export function GuestApp({ code, eventName, phase, shotsLeft: initialShots }: Gu
   /* ------------------------------------------------------------------ camera */
 
   return (
-    <div className="fixed inset-0 bg-ink">
+    <div className="fixed inset-0 bg-void">
       <CameraView
         shotsLeft={shotsLeft}
         disabled={Boolean(review)}
         onCaptured={(photo, url) => setReview({ photo, url })}
       />
 
-      {/* Top bar — deliberately sparse so it never competes with the viewfinder. */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-4 px-5 pt-[calc(var(--safe-top)+1rem)]">
-        <span className="truncate rounded-full bg-ink/45 px-3.5 py-1.5 text-[13px] text-paper backdrop-blur-md">
-          {eventName}
-        </span>
+      {/* Chrome is deliberately sparse — a viewfinder, not a dashboard. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between gap-4 px-5 pt-[calc(var(--safe-top)+1.25rem)]">
+        <span className="marking truncate text-chalk/70">{eventName}</span>
         <span
           data-testid="shots-left"
           className={cn(
-            "shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-medium backdrop-blur-md tabular",
-            shotsLeft === 0
-              ? "bg-danger/25 text-danger"
-              : shotsLeft <= 3
-                ? "bg-marigold/25 text-marigold"
-                : "bg-ink/45 text-paper",
+            "tabular shrink-0 text-[14px]",
+            shotsLeft === 0 ? "text-danger" : shotsLeft <= 3 ? "text-flame" : "text-chalk",
           )}
         >
-          {shotsLeft} left
+          {shotsLeft} <span className="marking">left</span>
         </span>
       </div>
 
       {queue.pending > 0 ? (
-        <p className="pointer-events-none absolute inset-x-0 top-[calc(var(--safe-top)+3.75rem)] text-center text-[12px] text-paper-dim">
+        <p className="marking pointer-events-none absolute inset-x-0 top-[calc(var(--safe-top)+3.5rem)] text-center">
           {queue.uploading
-            ? `Saving ${queue.pending} photo${queue.pending === 1 ? "" : "s"}…`
+            ? `Saving ${queue.pending} photo${queue.pending === 1 ? "" : "s"}`
             : `${queue.pending} waiting for signal`}
         </p>
       ) : null}
@@ -128,14 +126,14 @@ export function GuestApp({ code, eventName, phase, shotsLeft: initialShots }: Gu
         type="button"
         onClick={() => setView("album")}
         aria-label="See the album"
-        className="absolute bottom-[calc(var(--safe-bottom)+2.6rem)] left-8 grid h-11 w-11 place-items-center rounded-lg border border-paper/25 bg-ink/45 text-paper backdrop-blur-md"
+        className="absolute bottom-[calc(var(--safe-bottom)+2.7rem)] left-8 grid h-11 w-11 place-items-center border border-chalk/25 bg-void/40 text-chalk backdrop-blur-md"
       >
         <StackIcon />
       </button>
 
       {shotsLeft === 0 ? (
         <div className="pointer-events-none absolute inset-x-0 bottom-[calc(var(--safe-bottom)+9rem)] px-10 text-center">
-          <p className="rounded-md bg-ink/70 px-4 py-3 text-[14px] leading-relaxed text-paper backdrop-blur-md">
+          <p className="border-l-2 border-flame bg-void/70 py-3 pl-4 text-left text-[14px] leading-relaxed text-chalk backdrop-blur-md">
             That&rsquo;s all your shots. Everything unlocks for everyone at reveal time.
           </p>
         </div>
@@ -169,7 +167,7 @@ function CameraIcon() {
 function StackIcon() {
   return (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
-      <rect x="7" y="3.5" width="13.5" height="13.5" rx="2.5" />
+      <rect x="7" y="3.5" width="13.5" height="13.5" />
       <path d="M16.5 20.5H6A2.5 2.5 0 0 1 3.5 18V7.5" />
     </svg>
   );

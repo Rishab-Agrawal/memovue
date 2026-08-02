@@ -75,20 +75,14 @@ export default function NewEventPage() {
 
   return (
     <>
-      <Link
-        href="/dashboard"
-        className="text-[14px] text-paper-dim transition-colors hover:text-paper"
-      >
+      <Link href="/dashboard" className="marking transition-colors hover:text-chalk">
         ← All events
       </Link>
-      <h1 className="mt-4 font-display text-[2.2rem] leading-tight text-paper">New event</h1>
+      <h1 className="display mt-6 text-[2.6rem] text-chalk">New event</h1>
 
-      <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-9">
+      <form onSubmit={handleSubmit} className="mt-12 flex flex-col gap-12">
         {state.error ? (
-          <p
-            className="rounded-md border border-danger/35 bg-danger/10 px-4 py-3 text-[14px] text-danger"
-            role="alert"
-          >
+          <p className="border-l-2 border-danger py-1 pl-4 text-[14px] text-danger" role="alert">
             {state.error}
           </p>
         ) : null}
@@ -106,7 +100,7 @@ export default function NewEventPage() {
         <ChipGroup
           label="What kind of event?"
           columns="grid-cols-2 sm:grid-cols-3"
-          options={EVENT_TYPES.map((t) => ({ value: t.value, label: `${t.emoji}  ${t.label}` }))}
+          options={EVENT_TYPES.map((t) => ({ value: t.value, label: t.label }))}
           value={type}
           onChange={(value) => setType(value)}
           hint="We use this to ask your guests the right question when they join."
@@ -114,7 +108,7 @@ export default function NewEventPage() {
         />
 
         {relationMode === "sides" ? (
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-8 sm:grid-cols-2">
             <TextField
               label={config.nameFields?.a ?? "First name"}
               value={partnerA}
@@ -163,6 +157,7 @@ export default function NewEventPage() {
           value={startsAt}
           onChange={(e) => setStartsAt(e.target.value)}
           required
+          className="tabular"
           hint="Guests can't join or shoot before this."
           error={state.fields?.startsAt}
         />
@@ -173,7 +168,7 @@ export default function NewEventPage() {
           options={REVEAL_OPTIONS.map((r) => ({ value: r.hours, label: r.label }))}
           value={revealDelayHours}
           onChange={setRevealDelayHours}
-          hint="Counted from the start time. Guests keep shooting right up until then — that's when everything appears at once."
+          hint="Counted from the start time. Guests keep shooting right up until then — that's the moment everything appears at once."
           error={state.fields?.revealDelayHours}
         />
 
@@ -197,8 +192,8 @@ export default function NewEventPage() {
           hint="Fewer shots makes people choosier. Around 15 works well for a long evening."
         />
 
-        <div className="flex flex-col gap-3 border-t border-line pt-7 sm:flex-row-reverse sm:justify-start">
-          <Button type="submit" size="lg" disabled={pending} className="px-8">
+        <div className="flex flex-col gap-4 border-t border-hair pt-10 sm:flex-row-reverse sm:justify-start">
+          <Button type="submit" size="lg" disabled={pending}>
             {pending ? "Creating…" : "Create event"}
           </Button>
           <Button

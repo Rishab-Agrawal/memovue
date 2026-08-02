@@ -15,17 +15,19 @@ export default function SignupPage() {
 
   return (
     <>
-      <h1 className="font-display text-[2.4rem] leading-tight text-paper">Create your account</h1>
-      <p className="mt-2 text-[15px] text-paper-dim">
-        Free while we&rsquo;re in beta. Guests never need an account — this is just for you.
+      <p className="marking text-flame">Create account</p>
+      <h1 className="display mt-5 text-[2.8rem] text-chalk">
+        Set up
+        <br />
+        your first event
+      </h1>
+      <p className="mt-5 text-[15px] leading-relaxed text-ash">
+        Free while we&rsquo;re in beta. Your guests never need an account — this is just for you.
       </p>
 
-      <form action={action} className="mt-8 flex flex-col gap-5">
+      <form action={action} className="mt-10 flex flex-col gap-7">
         {state.error ? (
-          <p
-            className="rounded-md border border-danger/35 bg-danger/10 px-4 py-3 text-[14px] text-danger"
-            role="alert"
-          >
+          <p className="border-l-2 border-danger py-1 pl-4 text-[14px] text-danger" role="alert">
             {state.error}
           </p>
         ) : null}
@@ -62,6 +64,7 @@ export default function SignupPage() {
             name="inviteCode"
             autoCapitalize="characters"
             placeholder="ABCD1234"
+            className="tabular tracking-[0.2em]"
             hint="Skips the waiting list and lets you create events straight away."
             error={state.fields?.inviteCode}
           />
@@ -69,20 +72,23 @@ export default function SignupPage() {
           <button
             type="button"
             onClick={() => setShowInvite(true)}
-            className="self-start text-[14px] text-paper-dim underline underline-offset-4 transition-colors hover:text-paper"
+            className="marking self-start border-b border-hair-bright pb-1 transition-colors hover:border-flame hover:text-flame"
           >
             I have an invite code
           </button>
         )}
 
-        <SubmitButton size="lg" full pendingLabel="Creating account…">
+        <SubmitButton size="lg" full pendingLabel="Creating…" className="mt-2">
           Create account
         </SubmitButton>
       </form>
 
-      <p className="mt-7 text-center text-[15px] text-paper-dim">
+      <p className="mt-10 text-[14px] text-ash">
         Already have an account?{" "}
-        <Link href="/login" className="text-ember hover:underline">
+        <Link
+          href="/login"
+          className="border-b border-hair-bright pb-0.5 text-chalk transition-colors hover:border-flame hover:text-flame"
+        >
           Sign in
         </Link>
       </p>

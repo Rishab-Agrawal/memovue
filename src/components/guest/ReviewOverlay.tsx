@@ -20,17 +20,17 @@ export function ReviewOverlay({
   shotsLeftAfter: number;
 }) {
   return (
-    <div className="absolute inset-0 z-30 flex flex-col bg-ink">
+    <div className="absolute inset-0 z-30 flex flex-col bg-void">
       {/* eslint-disable-next-line @next/next/no-img-element -- object URL from the camera, not a static asset */}
       <img src={imageUrl} alt="The photo you just took" className="min-h-0 flex-1 object-contain" />
 
-      <div className="pad-safe-bottom px-6 pt-5">
-        <p className="mb-4 text-center text-[14px] text-paper-dim">
+      <div className="pad-safe-bottom border-t border-hair px-6 pt-6">
+        <p className="marking text-center">
           {shotsLeftAfter === 0
-            ? "This is your last shot — make it count."
-            : `Keep it and you'll have ${shotsLeftAfter} left.`}
+            ? "Your last shot — make it count"
+            : `Keep it and ${shotsLeftAfter} remain`}
         </p>
-        <div className="flex gap-3">
+        <div className="mt-5 flex gap-4">
           <Button variant="secondary" size="lg" full onClick={onRetake} disabled={busy}>
             Retake
           </Button>

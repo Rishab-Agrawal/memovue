@@ -41,15 +41,15 @@ export function InviteCodeForm() {
   const [state, action] = useActionState<AdminState, FormData>(createInviteCodeAction, {});
 
   return (
-    <form action={action} className="mt-5 flex flex-col gap-4">
+    <form action={action} className="mt-8 flex flex-col gap-6">
       {state.createdCode ? (
-        <p className="rounded-md border border-success/40 bg-success/10 px-4 py-3 text-[14px] text-success">
-          Created <strong className="tracking-[0.12em]">{state.createdCode}</strong> — send it to
-          the host and they&rsquo;ll skip the queue.
+        <p className="border-l-2 border-success py-1 pl-5 text-[14px] text-success">
+          Created <strong className="tabular tracking-[0.16em]">{state.createdCode}</strong> — send
+          it to the host and they&rsquo;ll skip the queue.
         </p>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-[1fr_auto_auto] sm:items-end">
+      <div className="grid gap-6 sm:grid-cols-[1fr_auto_auto] sm:items-end">
         <TextField
           label="Who's it for?"
           name="note"
@@ -94,7 +94,7 @@ export function DeleteInviteCode({ id }: { id: string }) {
           router.refresh();
         });
       }}
-      className="shrink-0 text-[13px] text-paper-faint transition-colors hover:text-danger disabled:opacity-50"
+      className="marking shrink-0 transition-colors hover:text-danger disabled:opacity-50"
     >
       {confirming ? "Tap again" : "Revoke"}
     </button>

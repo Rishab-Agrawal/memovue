@@ -6,17 +6,19 @@ import type { EventType } from "@prisma/client";
  * `relation` decides what (if anything) we ask a guest beyond their name:
  *   - "sides"   → two named people; guest picks one or both, plus a free-text relation.
  *   - "honoree" → one named person; guest just says how they know them.
- *   - "none"    → name only. Colleagues/trip-mates already know each other.
+ *   - "none"    → name only. Colleagues and trip-mates already know each other.
  *
- * The host can always switch the relation question off entirely; they can never switch
- * it on for a "none" type, because there's no sensible question to ask.
+ * The host can always switch the relation question off entirely; they can never switch it
+ * on for a "none" type, because there's no sensible question to ask.
+ *
+ * Deliberately no icons or emoji here. Emoji-as-iconography is a giveaway of generated
+ * interfaces, and the words are perfectly legible on their own.
  */
 export type RelationMode = "sides" | "honoree" | "none";
 
 export interface EventTypeConfig {
   value: EventType;
   label: string;
-  emoji: string;
   relation: RelationMode;
   /** Labels for the name inputs the host fills in at creation time. */
   nameFields?: { a: string; b?: string };
@@ -28,7 +30,6 @@ export const EVENT_TYPES: EventTypeConfig[] = [
   {
     value: "WEDDING",
     label: "Wedding",
-    emoji: "💍",
     relation: "sides",
     nameFields: { a: "First partner's name", b: "Second partner's name" },
     relationPrompt: "Whose side are you here for?",
@@ -36,7 +37,6 @@ export const EVENT_TYPES: EventTypeConfig[] = [
   {
     value: "BIRTHDAY",
     label: "Birthday",
-    emoji: "🎂",
     relation: "honoree",
     nameFields: { a: "Whose birthday is it?" },
     relationPrompt: "How do you know {name}?",
@@ -44,7 +44,6 @@ export const EVENT_TYPES: EventTypeConfig[] = [
   {
     value: "ANNIVERSARY",
     label: "Anniversary",
-    emoji: "🥂",
     relation: "sides",
     nameFields: { a: "First partner's name", b: "Second partner's name" },
     relationPrompt: "Whose side are you here for?",
@@ -52,7 +51,6 @@ export const EVENT_TYPES: EventTypeConfig[] = [
   {
     value: "BABY_SHOWER",
     label: "Baby shower",
-    emoji: "🍼",
     relation: "honoree",
     nameFields: { a: "Who's the shower for?" },
     relationPrompt: "How do you know {name}?",
@@ -60,16 +58,15 @@ export const EVENT_TYPES: EventTypeConfig[] = [
   {
     value: "GRADUATION",
     label: "Graduation",
-    emoji: "🎓",
     relation: "honoree",
     nameFields: { a: "Who's graduating?" },
     relationPrompt: "How do you know {name}?",
   },
-  { value: "PARTY", label: "Party", emoji: "🎉", relation: "none" },
-  { value: "OFFSITE", label: "Team offsite", emoji: "💼", relation: "none" },
-  { value: "TRIP", label: "Trip", emoji: "✈️", relation: "none" },
-  { value: "FESTIVAL", label: "Festival", emoji: "🪔", relation: "none" },
-  { value: "OTHER", label: "Something else", emoji: "✨", relation: "none" },
+  { value: "PARTY", label: "Party", relation: "none" },
+  { value: "OFFSITE", label: "Team offsite", relation: "none" },
+  { value: "TRIP", label: "Trip", relation: "none" },
+  { value: "FESTIVAL", label: "Festival", relation: "none" },
+  { value: "OTHER", label: "Something else", relation: "none" },
 ];
 
 export function eventTypeConfig(type: EventType): EventTypeConfig {

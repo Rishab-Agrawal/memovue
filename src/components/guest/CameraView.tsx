@@ -163,7 +163,7 @@ export function CameraView({ shotsLeft, onCaptured, disabled }: CameraViewProps)
   const out = shotsLeft <= 0;
 
   return (
-    <div ref={containerRef} className="absolute inset-0 overflow-hidden bg-ink-inset">
+    <div ref={containerRef} className="absolute inset-0 overflow-hidden bg-void">
       <video
         ref={videoRef}
         playsInline
@@ -179,29 +179,27 @@ export function CameraView({ shotsLeft, onCaptured, disabled }: CameraViewProps)
       {/* Shutter flash */}
       {flash ? (
         <div
-          className="pointer-events-none absolute inset-0 bg-paper"
+          className="pointer-events-none absolute inset-0 bg-chalk"
           style={{ animation: "mv-shutter 260ms ease-out" }}
         />
       ) : null}
 
       {permission === "starting" ? (
-        <p className="absolute inset-0 grid place-items-center text-[15px] text-paper-dim">
-          Waking the camera…
-        </p>
+        <p className="marking absolute inset-0 grid place-items-center">Waking the camera</p>
       ) : null}
 
       {permission === "denied" || permission === "unsupported" ? (
-        <div className="absolute inset-0 grid place-items-center px-8 text-center">
-          <div>
-            <h2 className="font-display text-[1.7rem] text-paper">
+        <div className="absolute inset-0 grid place-items-center px-8">
+          <div className="max-w-xs">
+            <h2 className="display text-[1.9rem] text-chalk">
               {permission === "denied" ? "Camera blocked" : "Camera unavailable here"}
             </h2>
-            <p className="mx-auto mt-3 max-w-xs text-[15px] leading-relaxed text-paper-dim">
+            <p className="mt-4 text-[15px] leading-relaxed text-ash">
               {permission === "denied"
                 ? "Allow camera access in your browser settings, or pick a photo instead."
                 : "This browser won't open the camera directly. You can still take a photo and pick it."}
             </p>
-            <label className="mt-6 inline-flex h-12 cursor-pointer items-center rounded-md bg-ember px-6 font-medium text-ink">
+            <label className="mt-7 inline-flex h-12 cursor-pointer items-center bg-flame px-6 text-[15px] font-medium text-void">
               Take a photo
               <input
                 type="file"
@@ -225,8 +223,10 @@ export function CameraView({ shotsLeft, onCaptured, disabled }: CameraViewProps)
           aria-pressed={torchOn}
           aria-label="Torch"
           className={cn(
-            "absolute top-[calc(var(--safe-top)+4.5rem)] left-5 grid h-11 w-11 place-items-center rounded-full backdrop-blur-md transition-colors",
-            torchOn ? "bg-marigold text-ink" : "bg-ink/45 text-paper",
+            "absolute top-[calc(var(--safe-top)+4rem)] left-5 grid h-11 w-11 place-items-center border backdrop-blur-md transition-colors",
+            torchOn
+              ? "border-flame bg-flame text-void"
+              : "border-chalk/25 bg-void/40 text-chalk",
           )}
         >
           <BoltIcon />
@@ -243,15 +243,16 @@ export function CameraView({ shotsLeft, onCaptured, disabled }: CameraViewProps)
           disabled={out || busy || permission !== "live"}
           aria-label={out ? "No photos left" : "Take photo"}
           className={cn(
-            "pointer-events-auto grid h-[72px] w-[72px] place-items-center rounded-full",
-            "ring-[3px] ring-paper/90 transition-transform duration-100",
-            "active:scale-90 disabled:opacity-35",
+            // The shutter is the one genuinely circular control, so it's the one round thing.
+            "pointer-events-auto grid h-[74px] w-[74px] place-items-center rounded-full",
+            "ring-[3px] ring-chalk/90 transition-transform duration-100",
+            "active:scale-90 disabled:opacity-30",
           )}
         >
           <span
             className={cn(
-              "h-[58px] w-[58px] rounded-full transition-colors",
-              out ? "bg-paper/30" : "bg-paper",
+              "h-[60px] w-[60px] rounded-full transition-colors",
+              out ? "bg-chalk/25" : "bg-chalk",
             )}
           />
         </button>
@@ -262,7 +263,7 @@ export function CameraView({ shotsLeft, onCaptured, disabled }: CameraViewProps)
             onClick={() => setFacing((f) => (f === "environment" ? "user" : "environment"))}
             aria-label="Switch camera"
             disabled={permission !== "live"}
-            className="pointer-events-auto grid h-11 w-11 place-items-center rounded-full bg-ink/45 text-paper backdrop-blur-md disabled:opacity-35"
+            className="pointer-events-auto grid h-11 w-11 place-items-center border border-chalk/25 bg-void/40 text-chalk backdrop-blur-md disabled:opacity-30"
           >
             <FlipIcon />
           </button>

@@ -32,7 +32,7 @@ export default async function PrintableQrPage({ params }: { params: Promise<{ id
         </p>
         <h1
           className="mt-3 text-[2.4rem] leading-tight font-normal"
-          style={{ fontFamily: "var(--font-instrument-serif), Georgia, serif" }}
+          style={{ fontFamily: "var(--font-fraunces), Georgia, serif" }}
         >
           {event.name}
         </h1>

@@ -1,42 +1,47 @@
 @import "tailwindcss";
 
 /*
-  MemoVue — "darkroom".
+  MemoVue design system.
 
-  Everything lives in the dark: the app is used at night in dim venues, the camera screen
-  has to be full-bleed dark anyway, and a darkroom is where hidden images wait to develop.
-  Warm near-black rather than blue-black, ember accent for the safelight, paper-white type.
+  Derived from the logo: four differently-sized circles on curving stems converging to one
+  root — many viewpoints, one event. Thin organic line-work on pitch black.
+
+  Three rules the whole app obeys:
+
+  1. NO CARDS. Nothing gets a filled background and a border. Structure comes from hairline
+     rules and negative space. Every surface is #000.
+  2. NO RADIUS. Corners are square. Round is reserved for things that are actually circular
+     — the shutter, the logo's circles, status dots.
+  3. THREE TYPEFACES, THREE JOBS. Fraunces carries emotion, Archivo carries prose,
+     DM Mono carries data. A number never appears in the serif; a sentence never in mono.
 */
 
 @theme {
-  --color-ink: #0a090b;
-  --color-ink-raised: #141216;
-  --color-ink-high: #1e1b21;
-  --color-ink-inset: #060507;
+  /* Pitch black, one orange, warm off-white. There is no third hue and no grey ramp —
+     hierarchy is opacity on the off-white. */
+  --color-void: #000000;
+  --color-surface: #0b0b0b;
+  --color-flame: #ff8c00;
+  --color-flame-deep: #b35f00;
+  --color-chalk: #f4f1ec;
+  --color-ash: #8a857e;
+  --color-dust: #56524c;
+  --color-hair: #1c1a18;
+  --color-hair-bright: #2e2b28;
 
-  --color-ember: #f2683c;
-  --color-ember-bright: #ff7d54;
-  --color-ember-dim: #b4441f;
-  --color-marigold: #f5a623;
+  --color-danger: #ff5c47;
+  --color-success: #6ec177;
 
-  --color-paper: #f7f2ea;
-  --color-paper-dim: #a9a29b;
-  --color-paper-faint: #6f6862;
+  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-dm-mono), ui-monospace, monospace;
 
-  --color-line: #262227;
-  --color-line-bright: #383239;
-
-  --color-danger: #e5484d;
-  --color-success: #46a758;
-
-  --font-display: var(--font-instrument-serif), Georgia, serif;
-  --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
-
-  --radius-xs: 6px;
-  --radius-sm: 10px;
-  --radius-md: 14px;
-  --radius-lg: 20px;
-  --radius-xl: 28px;
+  /* Square by default. Anything that needs curvature asks for it explicitly. */
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
 
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -53,14 +58,14 @@
 
 html,
 body {
-  background: var(--color-ink);
-  color: var(--color-paper);
+  background: var(--color-void);
+  color: var(--color-chalk);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   overscroll-behavior-y: none;
-  /* Decorative glows deliberately bleed past their columns. `clip` contains them without
-     creating a scroll container, so sticky/fixed descendants keep working. */
+  /* Decorative strokes deliberately bleed past their columns. `clip` contains them without
+     creating a scroll container, so sticky descendants keep working. */
   overflow-x: clip;
 }
 
@@ -68,77 +73,168 @@ body {
   min-height: 100dvh;
 }
 
-/* iOS zooms the viewport when focusing any input under 16px. Rather than disabling
-   pinch-zoom (which breaks accessibility), just never go below 16px on form controls. */
-input,
-textarea,
-select,
-button {
-  font-family: inherit;
-  font-size: 16px;
+@layer base {
+  /* iOS zooms the viewport when focusing a text control under 16px. Rather than disabling
+     pinch-zoom, never go below 16px on the controls that actually accept typing.
+     Buttons are excluded deliberately — they can't trigger the zoom, and including them
+     would stop small label styles from applying. */
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+
+  input,
+  textarea,
+  select,
+  button {
+    font-family: inherit;
+  }
 }
 
 ::selection {
-  background: var(--color-ember);
-  color: var(--color-ink);
+  background: var(--color-flame);
+  color: var(--color-void);
 }
 
-/* ------------------------------------------------------------------ film grain */
+/* ------------------------------------------------------------------ typography */
 
 /*
-  A single fixed grain layer over the whole app. Static noise, no animation — it reads as
-  photographic texture rather than TV static, and costs nothing to composite.
+  These live in the components layer on purpose. Tailwind orders layers
+  theme → base → components → utilities, so putting them here lets a utility such as
+  `text-flame` or `leading-tight` override the class's own colour and metrics at the call
+  site. Unlayered, they would silently beat every utility.
+*/
+@layer components {
+  .display {
+    font-family: var(--font-display);
+    font-weight: 400;
+    /* Fraunces' optical-size and wonk axes: at display sizes the contrast goes high and
+       the letterforms go slightly irregular, matching the hand-drawn logo. */
+    font-variation-settings:
+      "opsz" 144,
+      "SOFT" 40,
+      "WONK" 1;
+    letter-spacing: -0.02em;
+    line-height: 0.95;
+  }
+
+  /* Film-leader markings: frame counters, field labels, timestamps. Always uppercase,
+     always tracked out, never used for a sentence. */
+  .marking {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-ash);
+  }
+
+  .tabular {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* ------------------------------------------------------------------ texture */
+
+/*
+  Grain. On pure black `overlay` does nothing, so this is a plain low-opacity noise plate.
+  Kept very faint — it should read as film stock, not as static.
 */
 .grain::after {
   content: "";
   position: fixed;
-  inset: -50%;
+  inset: 0;
   z-index: 60;
   pointer-events: none;
-  opacity: 0.16;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
-  mix-blend-mode: overlay;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
-/* ------------------------------------------------------------------ safelight */
-
-/* Warm radial bleed from the top of a screen — the darkroom lamp. */
-.safelight {
+/* The logo's own glow, borrowed for moments that need warmth. */
+.bloom {
   position: relative;
   isolation: isolate;
 }
 
-.safelight::before {
+.bloom::before {
   content: "";
   position: absolute;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background:
-    radial-gradient(120% 70% at 50% -10%, rgba(242, 104, 60, 0.16), transparent 60%),
-    radial-gradient(90% 50% at 85% 10%, rgba(245, 166, 35, 0.08), transparent 70%);
+  background: radial-gradient(70% 55% at 50% 0%, rgba(255, 140, 0, 0.13), transparent 68%);
 }
 
-/* ------------------------------------------------------------------ utilities */
+/* ------------------------------------------------------------------ rules */
 
-.font-display {
-  font-family: var(--font-display);
-  font-weight: 400;
-  letter-spacing: -0.015em;
+/* A hairline that fades out, so sections separate without looking like table borders. */
+.rule-fade {
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    var(--color-hair-bright),
+    var(--color-hair) 55%,
+    transparent
+  );
 }
 
-.tabular {
-  font-variant-numeric: tabular-nums;
+/* ------------------------------------------------------------------ slider */
+
+/*
+  A square thumb on a hairline track. Browsers give no way to style a range input from
+  utility classes alone, and the default rounded-blue-pill is another instant tell.
+*/
+.film-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 28px;
+  background: transparent;
+  cursor: pointer;
 }
 
-.pad-safe-bottom {
-  padding-bottom: calc(var(--safe-bottom) + 1rem);
+.film-slider::-webkit-slider-runnable-track {
+  height: 1px;
+  background: var(--color-hair-bright);
 }
+
+.film-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 22px;
+  margin-top: -11px;
+  background: var(--color-flame);
+  border: none;
+  border-radius: 0;
+}
+
+.film-slider::-moz-range-track {
+  height: 1px;
+  background: var(--color-hair-bright);
+}
+
+.film-slider::-moz-range-thumb {
+  width: 14px;
+  height: 22px;
+  background: var(--color-flame);
+  border: none;
+  border-radius: 0;
+}
+
+.film-slider:focus-visible::-webkit-slider-thumb {
+  outline: 1px solid var(--color-flame);
+  outline-offset: 3px;
+}
+
+/* ------------------------------------------------------------------ motion */
 
 @keyframes mv-rise {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(14px);
   }
   to {
     opacity: 1;
@@ -155,12 +251,12 @@ button {
   }
 }
 
-/* The reveal payoff: a photo resolving out of blur, like it's coming up in the developer. */
+/* Photos resolving out of blur, like a print coming up in the developer. */
 @keyframes mv-develop {
   from {
     opacity: 0;
-    filter: blur(24px) saturate(0.4);
-    transform: scale(1.06);
+    filter: blur(26px) saturate(0.35);
+    transform: scale(1.05);
   }
   to {
     opacity: 1;
@@ -181,12 +277,33 @@ button {
   }
 }
 
+/* The logo drawing itself in: stems first, then the circles bloom on. */
+@keyframes mv-draw {
+  from {
+    stroke-dashoffset: var(--dash, 400);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes mv-bloom-in {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 .animate-rise {
-  animation: mv-rise 0.5s var(--ease-out-soft) both;
+  animation: mv-rise 0.6s var(--ease-out-soft) both;
 }
 
 .animate-fade {
-  animation: mv-fade 0.4s ease both;
+  animation: mv-fade 0.5s ease both;
 }
 
 .animate-develop {
@@ -203,7 +320,7 @@ button {
   }
 }
 
-/* Hide scrollbars on horizontal photo rails without losing scrollability. */
+/* Horizontal rails scroll without a visible scrollbar. */
 .no-scrollbar {
   scrollbar-width: none;
   -ms-overflow-style: none;

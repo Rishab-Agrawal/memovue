@@ -26,55 +26,56 @@ export default async function DashboardPage() {
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="font-display text-[2.2rem] leading-tight text-paper">Your events</h1>
+      <div className="flex flex-wrap items-end justify-between gap-5">
+        <div>
+          <p className="marking text-flame">Your events</p>
+          <h1 className="display mt-4 text-[2.6rem] text-chalk">
+            {events.length === 0 ? "Nothing yet" : `${events.length} event${events.length === 1 ? "" : "s"}`}
+          </h1>
+        </div>
         {events.length > 0 ? <ButtonLink href="/dashboard/new">New event</ButtonLink> : null}
       </div>
 
       {events.length === 0 ? (
-        <div className="mt-10 rounded-lg border border-line bg-ink-raised px-6 py-14 text-center">
-          <h2 className="font-display text-[1.6rem] text-paper">Nothing here yet</h2>
-          <p className="mx-auto mt-2 max-w-sm text-[15px] leading-relaxed text-paper-dim">
+        <div className="mt-14 border-t border-hair pt-10">
+          <p className="max-w-sm text-[16px] leading-relaxed text-ash">
             Set up your first event and we&rsquo;ll give you a QR code to put in front of your
-            guests.
+            guests. It takes about a minute.
           </p>
-          <div className="mt-7 flex justify-center">
-            <ButtonLink href="/dashboard/new" size="lg" className="px-8">
-              Create an event
-            </ButtonLink>
-          </div>
+          <ButtonLink href="/dashboard/new" size="lg" className="mt-8">
+            Create an event
+          </ButtonLink>
         </div>
       ) : (
-        <ul className="mt-8 flex flex-col gap-3">
+        // An index, not a stack of cards: shared hairlines, aligned columns.
+        <ul className="mt-12 border-t border-hair">
           {events.map((event) => {
-            const config = eventTypeConfig(event.type);
             const phase = eventPhase(event);
             return (
               <li key={event.id}>
                 <Link
                   href={`/dashboard/events/${event.id}`}
-                  className="group flex items-center gap-4 rounded-lg border border-line bg-ink-raised p-4 transition-colors hover:border-line-bright sm:p-5"
+                  className="group grid grid-cols-[1fr_auto] items-baseline gap-x-6 gap-y-2 border-b border-hair py-6 transition-colors hover:bg-surface"
                 >
-                  <span
-                    className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-ink-high text-[20px]"
-                    aria-hidden="true"
-                  >
-                    {config.emoji}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                      <span className="truncate text-[17px] font-medium text-paper">
-                        {event.name}
-                      </span>
+                  <span className="min-w-0">
+                    <span className="display block truncate text-[1.5rem] text-chalk transition-colors group-hover:text-flame">
+                      {event.name}
+                    </span>
+                    <span className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
                       <EventPhaseBadge phase={phase} />
-                    </span>
-                    <span className="mt-1 block text-[14px] text-paper-dim">
-                      {formatDateTime(event.startsAt)}
+                      <span className="marking text-dust">
+                        {eventTypeConfig(event.type).label}
+                      </span>
+                      <span className="marking text-dust">{formatDateTime(event.startsAt)}</span>
                     </span>
                   </span>
-                  <span className="shrink-0 text-right text-[13px] text-paper-faint tabular">
-                    <span className="block">{event._count.guests} guests</span>
-                    <span className="block">{event._count.photos} photos</span>
+                  <span className="text-right">
+                    <span className="tabular block text-[1.25rem] leading-none text-chalk">
+                      {event._count.photos}
+                    </span>
+                    <span className="marking mt-1.5 block text-dust">
+                      {event._count.guests} guests
+                    </span>
                   </span>
                 </Link>
               </li>
@@ -89,20 +90,19 @@ export default async function DashboardPage() {
 function AccessGate({ status, name }: { status: string; name: string }) {
   if (status === "REQUESTED") {
     return (
-      <div className="mx-auto max-w-xl py-10 text-center">
-        <p className="text-[13px] font-medium tracking-[0.18em] text-ember uppercase">
-          Request received
-        </p>
-        <h1 className="mt-4 font-display text-[2.4rem] leading-tight text-paper">
-          You&rsquo;re on the list
-        </h1>
-        <p className="mt-4 text-[16px] leading-relaxed text-paper-dim">
+      <div className="max-w-xl">
+        <p className="marking text-flame">Request received</p>
+        <h1 className="display mt-5 text-[2.8rem] text-chalk">You&rsquo;re on the list</h1>
+        <p className="mt-6 text-[16px] leading-relaxed text-ash">
           We approve hosts by hand while MemoVue is in beta — usually within a day. We&rsquo;ll
           email you at the address on this account the moment you&rsquo;re in.
         </p>
-        <p className="mt-6 text-[15px] text-paper-faint">
+        <p className="mt-8 border-t border-hair pt-6 text-[15px] text-dust">
           In a hurry?{" "}
-          <a href="mailto:hello@memovue.com" className="text-ember hover:underline">
+          <a
+            href="mailto:hello@memovue.com"
+            className="border-b border-flame/35 text-flame hover:border-flame"
+          >
             Email us
           </a>{" "}
           and we&rsquo;ll bump you up.
@@ -113,13 +113,14 @@ function AccessGate({ status, name }: { status: string; name: string }) {
 
   if (status === "DENIED") {
     return (
-      <div className="mx-auto max-w-xl py-10 text-center">
-        <h1 className="font-display text-[2.2rem] leading-tight text-paper">
-          We couldn&rsquo;t approve this account
-        </h1>
-        <p className="mt-4 text-[16px] leading-relaxed text-paper-dim">
-          If you think that&rsquo;s a mistake, reply to us at{" "}
-          <a href="mailto:hello@memovue.com" className="text-ember hover:underline">
+      <div className="max-w-xl">
+        <h1 className="display text-[2.4rem] text-chalk">We couldn&rsquo;t approve this account</h1>
+        <p className="mt-6 text-[16px] leading-relaxed text-ash">
+          If you think that&rsquo;s a mistake, write to{" "}
+          <a
+            href="mailto:hello@memovue.com"
+            className="border-b border-flame/35 text-flame hover:border-flame"
+          >
             hello@memovue.com
           </a>{" "}
           and we&rsquo;ll take another look.
@@ -129,12 +130,12 @@ function AccessGate({ status, name }: { status: string; name: string }) {
   }
 
   return (
-    <div className="mx-auto max-w-xl">
-      <p className="text-[13px] font-medium tracking-[0.18em] text-ember uppercase">Beta access</p>
-      <h1 className="mt-4 font-display text-[2.4rem] leading-tight text-paper">
+    <div className="max-w-xl">
+      <p className="marking text-flame">Beta access</p>
+      <h1 className="display mt-5 text-[2.6rem] text-chalk">
         Hi {name.split(" ")[0]} — tell us about your event
       </h1>
-      <p className="mt-4 text-[16px] leading-relaxed text-paper-dim">
+      <p className="mt-6 text-[16px] leading-relaxed text-ash">
         MemoVue is free while we&rsquo;re in beta, and we let hosts in by hand so we can keep an
         eye on every event. Two minutes now, and we&rsquo;ll usually have you set up within a day.
       </p>
