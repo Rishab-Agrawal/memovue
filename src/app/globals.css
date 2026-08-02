@@ -33,7 +33,6 @@
      one. There is no success green — a confirmation is just the accent. */
   --color-danger: #ff5c47;
 
-  --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
   --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
 
   /* Square by default. Anything that needs curvature asks for it explicitly. */
@@ -106,13 +105,12 @@ body {
   site. Unlayered, they would silently beat every utility.
 */
 @layer components {
+  /* Headlines are the body typeface at heavy weight, tracked in tight. No second family:
+     scale and weight carry the hierarchy. */
   .display {
-    font-family: var(--font-display);
-    font-weight: 600;
-    /* Large optical size: Bricolage tightens and sharpens as it scales up. */
-    font-variation-settings: "opsz" 48;
-    letter-spacing: -0.03em;
-    line-height: 1;
+    font-weight: 700;
+    letter-spacing: -0.032em;
+    line-height: 1.03;
   }
 
   /* Small tracked labels: field names, statuses, meta. Uppercase and spaced out so they

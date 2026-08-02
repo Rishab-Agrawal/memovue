@@ -108,8 +108,10 @@ function Shell({
       </header>
       <main className="flex flex-1 flex-col justify-center">
         <div className="animate-rise mx-auto w-full max-w-[24rem]">
-          {eyebrow ? <p className="marking text-flame">{eyebrow}</p> : null}
-          <h1 className="display mt-4 text-[clamp(2.4rem,11vw,3.2rem)] text-chalk">{title}</h1>
+          <h1 className="display text-[clamp(2.2rem,10vw,3rem)] text-chalk">{title}</h1>
+          {/* The event type sits under the title as metadata rather than above it as a
+              label — the tiny caps eyebrow over a heading is a worn-out pattern. */}
+          {eyebrow ? <p className="marking mt-3">{eyebrow}</p> : null}
           {body ? <p className="mt-6 text-[16px] leading-relaxed text-ash">{body}</p> : null}
           {children}
         </div>

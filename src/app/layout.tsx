@@ -1,25 +1,16 @@
 import type { Metadata, Viewport } from "next";
-import { Archivo, Bricolage_Grotesque } from "next/font/google";
+import { Archivo } from "next/font/google";
 
 import "./globals.css";
 
 /**
- * Two faces, and no monospace.
+ * One typeface.
  *
- * Bricolage Grotesque carries the headlines: a display sans with genuinely irregular
- * terminals, which echoes the hand-drawn logo. A high-contrast serif was the obvious
- * choice here and that is precisely the problem — it is the default for this category.
- *
- * Archivo carries everything else, including numbers via tabular figures. Dropping the
- * monospace removed both the slashed zero and the engineering flavour it brought with it.
+ * Two previous attempts overshot in opposite directions: a high-contrast serif, which is
+ * the default for anything wedding-adjacent, then a quirky display sans, which read as
+ * childish. Hierarchy here comes from weight and scale rather than from a second face —
+ * which is both more grounded and a more deliberate constraint than adding another font.
  */
-const bricolage = Bricolage_Grotesque({
-  variable: "--font-bricolage",
-  subsets: ["latin"],
-  axes: ["opsz"],
-  display: "swap",
-});
-
 const archivo = Archivo({
   variable: "--font-archivo",
   subsets: ["latin"],
@@ -29,15 +20,15 @@ const archivo = Archivo({
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.APP_URL ?? "http://localhost:3000"),
   title: {
-    default: "MemoVue — everyone's photos, one album",
+    default: "MemoVue — every memory, one album",
     template: "%s · MemoVue",
   },
   description:
-    "Your guests shoot your event on their own phones. Everything lands in one shared album, with every photo credited to whoever took it.",
+    "Your guests shoot your event on their own phones. Every photo lands in one shared album, credited to whoever took it.",
   openGraph: {
-    title: "MemoVue — everyone's photos, one album",
+    title: "MemoVue — every memory, one album",
     description:
-      "Your guests shoot your event on their own phones. Everything lands in one shared album, with every photo credited to whoever took it.",
+      "Your guests shoot your event on their own phones. Every photo lands in one shared album, credited to whoever took it.",
     siteName: "MemoVue",
     type: "website",
   },
@@ -55,7 +46,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${bricolage.variable} ${archivo.variable}`}>
+    <html lang="en" className={archivo.variable}>
       <body className="grain min-h-dvh bg-void text-chalk">{children}</body>
     </html>
   );

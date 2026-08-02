@@ -15,11 +15,10 @@ export default function SignupPage() {
 
   return (
     <>
-      <p className="marking text-flame">Create account</p>
-      <h1 className="display mt-5 text-[2.8rem] text-chalk">
-        Set up
+      <h1 className="display text-[2.6rem] text-chalk">
+        Set up your
         <br />
-        your first event
+        first event
       </h1>
       <p className="mt-5 text-[15px] leading-relaxed text-ash">
         Free while we&rsquo;re in beta. Your guests never need an account — this is just for you.

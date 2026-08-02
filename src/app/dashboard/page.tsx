@@ -27,12 +27,11 @@ export default async function DashboardPage() {
   return (
     <>
       <div className="flex flex-wrap items-end justify-between gap-5">
-        <div>
-          <p className="marking text-flame">Your events</p>
-          <h1 className="display mt-4 text-[2.6rem] text-chalk">
-            {events.length === 0 ? "Nothing yet" : `${events.length} event${events.length === 1 ? "" : "s"}`}
-          </h1>
-        </div>
+        <h1 className="display text-[2.4rem] text-chalk">
+          {events.length === 0
+            ? "Nothing yet"
+            : `${events.length} event${events.length === 1 ? "" : "s"}`}
+        </h1>
         {events.length > 0 ? <ButtonLink href="/dashboard/new">New event</ButtonLink> : null}
       </div>
 
@@ -91,8 +90,7 @@ function AccessGate({ status, name }: { status: string; name: string }) {
   if (status === "REQUESTED") {
     return (
       <div className="max-w-xl">
-        <p className="marking text-flame">Request received</p>
-        <h1 className="display mt-5 text-[2.8rem] text-chalk">You&rsquo;re on the list</h1>
+        <h1 className="display text-[2.6rem] text-chalk">You&rsquo;re on the list</h1>
         <p className="mt-6 text-[16px] leading-relaxed text-ash">
           We approve hosts by hand while MemoVue is in beta — usually within a day. We&rsquo;ll
           email you at the address on this account the moment you&rsquo;re in.
@@ -131,8 +129,7 @@ function AccessGate({ status, name }: { status: string; name: string }) {
 
   return (
     <div className="max-w-xl">
-      <p className="marking text-flame">Beta access</p>
-      <h1 className="display mt-5 text-[2.6rem] text-chalk">
+      <h1 className="display text-[2.4rem] text-chalk">
         Hi {name.split(" ")[0]} — tell us about your event
       </h1>
       <p className="mt-6 text-[16px] leading-relaxed text-ash">

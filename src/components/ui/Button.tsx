@@ -29,9 +29,10 @@ const variants: Record<Variant, string> = {
 
 const sizes: Record<Size, string> = {
   sm: "h-9 px-4 text-[13px]",
-  md: "h-12 px-6 text-[15px]",
-  // Thumb-sized: the guest flow is one-handed on a phone, at a party, in the dark.
-  lg: "h-14 px-8 text-[15px]",
+  md: "h-11 px-5 text-[14px]",
+  // Still comfortably thumb-sized for the one-handed guest flow, without the oversized
+  // slab a marketing CTA turns into at h-14.
+  lg: "h-12 px-6 text-[15px]",
 };
 
 interface CommonProps {

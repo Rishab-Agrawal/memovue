@@ -13,8 +13,7 @@ export default function LoginPage() {
 
   return (
     <>
-      <p className="marking text-flame">Sign in</p>
-      <h1 className="display mt-5 text-[2.8rem] text-chalk">Welcome back</h1>
+      <h1 className="display text-[2.6rem] text-chalk">Welcome back</h1>
 
       <form action={action} className="mt-10 flex flex-col gap-7">
         {/* A rule, not a rounded alert box. */}
