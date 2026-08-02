@@ -182,8 +182,12 @@ body {
 
   Items are stacked in a single grid cell rather than positioned absolutely, so the
   container sizes itself to the tallest line-wrap and never jumps as statements change
-  length. Six slots across a 13.2s cycle; each item runs the same keyframes offset by a
-  negative delay, so no JavaScript and no hydration to get wrong.
+  length. Each item runs the same keyframes offset by a negative delay, so no JavaScript
+  and no hydration to get wrong.
+
+  TIED TO THE NUMBER OF STATEMENTS: four slots of 2.2s across an 8.8s cycle, so each slot
+  is 25% of the timeline. Adding or removing a statement means changing the duration and
+  the keyframe stops below to match.
 */
 .rotator {
   display: grid;
@@ -195,7 +199,7 @@ body {
 .rotator__item {
   grid-area: 1 / 1;
   opacity: 0;
-  animation: mv-rotate 13.2s linear infinite;
+  animation: mv-rotate 8.8s linear infinite;
   animation-delay: calc(var(--slot) * -2.2s);
 }
 
@@ -204,15 +208,15 @@ body {
     opacity: 0;
     transform: translateY(10px);
   }
-  1.5% {
+  2.25% {
     opacity: 1;
     transform: none;
   }
-  13.5% {
+  20.25% {
     opacity: 1;
     transform: none;
   }
-  16.667% {
+  25% {
     opacity: 0;
     transform: translateY(-10px);
   }

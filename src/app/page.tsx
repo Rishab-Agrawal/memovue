@@ -15,15 +15,34 @@ const STEPS: [string, string][] = [
   ["Get the album", "Every photo, from every guest, in one place and in full quality."],
 ];
 
-/** Shown one at a time, so each can be a whole statement rather than a fragment. */
-const STATEMENTS = [
-  "Nothing to install — it's just a web page.",
-  "Three to twenty-five shots each, like a disposable camera.",
-  "Every photo carries the name of whoever took it.",
-  "Photos stay hidden until the time you pick.",
-  "Download it all in original quality, whenever you like.",
-  "Built for up to 500 guests.",
+/**
+ * Shown one at a time, so each can be a whole statement rather than a fragment. `accent`
+ * is the phrase set in orange — kept as a substring of `text` rather than pre-split markup
+ * so the copy stays readable and editable as a plain sentence.
+ *
+ * Changing how many of these there are also means retiming `.rotator` in globals.css.
+ */
+const STATEMENTS: { text: string; accent: string }[] = [
+  { text: "Guests join via QR code, no install hassle.", accent: "QR code" },
+  {
+    text: "Up to twenty-five shots each, like a disposable camera.",
+    accent: "disposable camera",
+  },
+  { text: "Photos revealed all at once after the event.", accent: "revealed" },
+  { text: "Suited for weddings, parties, team outings, and more.", accent: "weddings" },
 ];
+
+function withAccent(text: string, accent: string) {
+  const at = text.indexOf(accent);
+  if (at === -1) return text;
+  return (
+    <>
+      {text.slice(0, at)}
+      <span className="text-flame">{accent}</span>
+      {text.slice(at + accent.length)}
+    </>
+  );
+}
 
 export default function Home() {
   return (
@@ -107,11 +126,11 @@ export default function Home() {
           <ul className="rotator mx-auto max-w-5xl">
             {STATEMENTS.map((statement, index) => (
               <li
-                key={statement}
+                key={statement.text}
                 className="rotator__item display max-w-2xl text-[clamp(1.8rem,6.5vw,2.8rem)] text-chalk"
                 style={{ ["--slot" as string]: index }}
               >
-                {statement}
+                {withAccent(statement.text, statement.accent)}
               </li>
             ))}
           </ul>
