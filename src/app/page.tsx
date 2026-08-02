@@ -15,14 +15,14 @@ const STEPS: [string, string][] = [
   ["Get the album", "Every photo, from every guest, in one place and in full quality."],
 ];
 
-/** Short enough to read as each one passes. */
-const TICKER = [
-  "Nothing to install",
-  "Three to twenty-five shots each",
-  "Every photo credited",
-  "Hidden until the time you pick",
-  "Yours in original quality",
-  "Up to 500 guests",
+/** Shown one at a time, so each can be a whole statement rather than a fragment. */
+const STATEMENTS = [
+  "Nothing to install — it's just a web page.",
+  "Three to twenty-five shots each, like a disposable camera.",
+  "Every photo carries the name of whoever took it.",
+  "Photos stay hidden until the time you pick.",
+  "Download it all in original quality, whenever you like.",
+  "Built for up to 500 guests.",
 ];
 
 export default function Home() {
@@ -99,22 +99,19 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ---------------------------------------------------------------- ticker */}
-        {/* Motion instead of another stacked list, so this reads nothing like the section
-            above it. Pauses on hover, and holds still under reduced-motion. */}
-        <section className="marquee border-y border-hair py-6" aria-label="What you get">
-          <ul className="marquee__track">
-            {[0, 1].map((copy) => (
-              <li key={copy} aria-hidden={copy === 1} className="flex shrink-0">
-                {TICKER.map((item) => (
-                  <span key={item} className="flex shrink-0 items-center">
-                    <span className="px-7 text-[15px] whitespace-nowrap text-ash">{item}</span>
-                    <span
-                      className="h-1.5 w-1.5 shrink-0 rounded-full border border-flame"
-                      aria-hidden="true"
-                    />
-                  </span>
-                ))}
+        {/* ---------------------------------------------------------------- statements */}
+        {/* A section in its own right: one statement at a time, held for a beat. Every item
+            stays in the DOM and unhidden, so a screen reader gets all six regardless of
+            which one is currently visible. */}
+        <section className="border-y border-hair px-6 py-24 sm:px-10 sm:py-32">
+          <ul className="rotator mx-auto max-w-5xl">
+            {STATEMENTS.map((statement, index) => (
+              <li
+                key={statement}
+                className="rotator__item display max-w-2xl text-[clamp(1.8rem,6.5vw,2.8rem)] text-chalk"
+                style={{ ["--slot" as string]: index }}
+              >
+                {statement}
               </li>
             ))}
           </ul>

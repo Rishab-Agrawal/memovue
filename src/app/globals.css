@@ -175,50 +175,69 @@ body {
   );
 }
 
-/* ------------------------------------------------------------------ marquee */
+/* ------------------------------------------------------------------ rotator */
 
 /*
-  A continuously scrolling strip. The track holds the list twice, so translating it by
-  exactly half its width loops seamlessly — and it also means the reduced-motion stop
-  position looks identical to the start rather than half-way through an item.
+  One statement at a time, each held for a beat before the next.
+
+  Items are stacked in a single grid cell rather than positioned absolutely, so the
+  container sizes itself to the tallest line-wrap and never jumps as statements change
+  length. Six slots across a 13.2s cycle; each item runs the same keyframes offset by a
+  negative delay, so no JavaScript and no hydration to get wrong.
 */
-.marquee {
-  overflow: hidden;
-  /* Feather the ends so items enter and leave rather than being clipped mid-word. */
-  -webkit-mask-image: linear-gradient(
-    to right,
-    transparent,
-    #000 6%,
-    #000 94%,
-    transparent
-  );
-  mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
+.rotator {
+  display: grid;
+  /* The row is as tall as the longest statement; centring keeps the shorter one-liners
+     from sitting against the top edge of that reserved space. */
+  align-items: center;
 }
 
-.marquee__track {
-  display: flex;
-  width: max-content;
-  animation: mv-marquee 42s linear infinite;
+.rotator__item {
+  grid-area: 1 / 1;
+  opacity: 0;
+  animation: mv-rotate 13.2s linear infinite;
+  animation-delay: calc(var(--slot) * -2.2s);
 }
 
-.marquee:hover .marquee__track,
-.marquee:focus-within .marquee__track {
-  animation-play-state: paused;
-}
-
-@keyframes mv-marquee {
-  from {
-    transform: translateX(0);
+@keyframes mv-rotate {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
   }
-  to {
-    transform: translateX(-50%);
+  1.5% {
+    opacity: 1;
+    transform: none;
+  }
+  13.5% {
+    opacity: 1;
+    transform: none;
+  }
+  16.667% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  100% {
+    opacity: 0;
   }
 }
 
+/*
+  Must be explicit. The global reduced-motion rule collapses every animation to a single
+  0.001ms run, which would leave each item parked on its final keyframe — opacity 0, so
+  the whole section would vanish. Instead it becomes a plain stacked list.
+*/
 @media (prefers-reduced-motion: reduce) {
-  .marquee__track {
-    animation: none !important;
+  .rotator {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .rotator__item {
+    grid-area: auto;
+    opacity: 1 !important;
     transform: none !important;
+    animation: none !important;
   }
 }
 
