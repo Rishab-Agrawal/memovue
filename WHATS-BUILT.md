@@ -103,6 +103,30 @@ where there's no sensible question to ask.
   stops working instead of exposing the event forever.
 - **Email is optional infrastructure.** Without `RESEND_API_KEY` the app works end to end
   and messages are logged instead of sent.
-- **Design direction is "darkroom"** — warm near-black, ember accent, film grain. Chosen
-  because the app is used at night in dim venues, the camera screen must be dark anyway,
-  and a darkroom is literally where hidden images wait to develop.
+## The design system
+
+Derived from the logo — thin organic line-work, four differently-sized circles converging
+on one root, which is the product in one image. Three rules the whole app obeys, all of
+them chosen specifically to avoid the things that make an interface look machine-generated:
+
+1. **No cards.** Nothing gets a filled background *and* a border. Structure comes from
+   hairline rules and negative space; every surface is pure black. The nested rounded card
+   is the single most reproduced pattern on the web.
+2. **No radius.** Corners are square. Round is reserved for things that are genuinely
+   circular — the shutter, the logo's circles, status dots.
+3. **Three typefaces, three jobs.** Fraunces carries emotion (its SOFT and WONK axes make
+   display sizes slightly irregular, matching the hand-drawn mark), Archivo carries prose,
+   DM Mono carries data. A number never appears in the serif; a sentence never in mono.
+
+Palette is pitch black with `#FF8C00` and a warm off-white. There is deliberately no third
+hue and no grey ramp — hierarchy is opacity on the off-white.
+
+Consequences worth preserving: inputs are ruled underlines rather than boxes; option
+pickers are typographic grids rather than pill chips; the toggle is a square marker rather
+than an iOS switch; the shot counter is set in mono like a film frame counter; and there
+are **no emoji anywhere** — `emoji` was removed from the event-type config entirely so no
+surface can reintroduce it.
+
+One implementation note: `.marking`, `.display` and `.tabular` live inside
+`@layer components` so Tailwind utilities (`text-flame`, `leading-tight`) can override them
+at the call site. Unlayered, a plain class silently beats every utility.

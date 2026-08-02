@@ -126,6 +126,12 @@ test("host creates an event, a guest shoots it, and the reveal opens the album",
   await host.reload();
   await host.getByRole("button", { name: "Reveal photos now" }).click();
   await host.getByRole("button", { name: "Yes, reveal now" }).click();
+
+  // Reload rather than trusting the client-side refresh the action triggers: against a
+  // remote deployment that refresh can land after the assertions do, which made this flake.
+  await expect(host.getByRole("button", { name: "Reveal photos now" })).toBeHidden();
+  await host.reload();
+
   // The download link only exists once an event is revealed, so it's the unambiguous signal.
   await expect(host.getByRole("link", { name: "Download everything" })).toBeVisible();
   await expect(host.getByTestId("revealed-count")).toHaveText("2");
