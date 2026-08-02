@@ -6,7 +6,7 @@
  *
  *   npx tsx scripts/setup-r2.ts
  */
-import { PutBucketCorsCommand, S3Client } from "@aws-sdk/client-s3";
+import { GetBucketCorsCommand, PutBucketCorsCommand, S3Client } from "@aws-sdk/client-s3";
 import { config as loadEnv } from "dotenv";
 
 loadEnv({ path: ".env.local", quiet: true });
@@ -57,7 +57,20 @@ async function main() {
     }),
   );
 
-  console.log(`CORS applied to bucket "${bucket}" for:\n  ${allowed.join("\n  ")}`);
+  // Read it back rather than trusting the write, because this is the one piece of config
+  // that needs an account-scoped token — once that token is gone it can't be corrected.
+  const live = await client.send(new GetBucketCorsCommand({ Bucket: bucket }));
+  const liveOrigins = live.CORSRules?.[0]?.AllowedOrigins ?? [];
+
+  console.log(`CORS live on bucket "${bucket}":`);
+  for (const origin of liveOrigins) console.log(`  ${origin}`);
+
+  const missing = allowed.filter((origin) => !liveOrigins.includes(origin));
+  if (missing.length) {
+    console.error(`\nMISSING after write: ${missing.join(", ")}`);
+    process.exit(1);
+  }
+  console.log(`\nAll ${allowed.length} expected origins confirmed.`);
 }
 
 main().catch((error) => {
