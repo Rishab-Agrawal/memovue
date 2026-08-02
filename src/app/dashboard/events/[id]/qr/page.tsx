@@ -32,7 +32,7 @@ export default async function PrintableQrPage({ params }: { params: Promise<{ id
         </p>
         <h1
           className="mt-3 text-[2.4rem] leading-tight font-normal"
-          style={{ fontFamily: "var(--font-fraunces), Georgia, serif" }}
+          style={{ fontFamily: "var(--font-bricolage), system-ui, sans-serif" }}
         >
           {event.name}
         </h1>
@@ -44,8 +44,8 @@ export default async function PrintableQrPage({ params }: { params: Promise<{ id
 
         <p className="mt-6 text-[15px] leading-relaxed text-[#444]">
           Point your phone camera at the code. You get{" "}
-          <strong className="text-[#111]">{event.photosPerGuest} photos</strong> — nobody sees any
-          of them until after the event, when they all appear at once.
+          <strong className="text-[#111]">{event.photosPerGuest} photos</strong>, and the whole
+          album opens after the event.
         </p>
 
         <div className="mt-6 border-t border-[#ddd] pt-5 text-[14px] text-[#666]">

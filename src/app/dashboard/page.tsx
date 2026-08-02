@@ -70,7 +70,7 @@ export default async function DashboardPage() {
                     </span>
                   </span>
                   <span className="text-right">
-                    <span className="tabular block text-[1.25rem] leading-none text-chalk">
+                    <span className="display tabular block text-[1.25rem] leading-none text-chalk">
                       {event._count.photos}
                     </span>
                     <span className="marking mt-1.5 block text-dust">

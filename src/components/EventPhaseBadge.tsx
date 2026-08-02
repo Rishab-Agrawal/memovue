@@ -5,10 +5,14 @@ import { type EventPhase } from "@/lib/reveal";
  * A tracked mono label with a status dot rather than a coloured pill — the pill badge is
  * one of the most reproduced components on the web and instantly dates an interface.
  */
+/**
+ * Orange means live. Everything else is a brightness step on the off-white, so the palette
+ * stays two colours — a third hue for "revealed" was the one place the system leaked.
+ */
 const STYLES: Record<EventPhase, { label: string; className: string; dot: string }> = {
   scheduled: { label: "Scheduled", className: "text-dust", dot: "bg-dust" },
   capturing: { label: "Shooting now", className: "text-flame", dot: "bg-flame" },
-  revealed: { label: "Revealed", className: "text-success", dot: "bg-success" },
+  revealed: { label: "Revealed", className: "text-chalk", dot: "bg-chalk" },
 };
 
 export function EventPhaseBadge({ phase, className }: { phase: EventPhase; className?: string }) {

@@ -94,7 +94,7 @@ export function AlbumView({ code, onRevealed }: { code: string; onRevealed?: () 
       <header className="bloom px-6 pt-8 pb-8">
         {revealed ? (
           <>
-            <p className="marking text-success">Revealed</p>
+            <p className="marking text-chalk">Revealed</p>
             <h1 className="display mt-4 text-[2.2rem] leading-tight text-chalk">
               {feed.eventName}
             </h1>
@@ -107,7 +107,7 @@ export function AlbumView({ code, onRevealed }: { code: string; onRevealed?: () 
         ) : (
           <>
             <p className="marking text-flame">Everything unlocks in</p>
-            <p className="tabular mt-4 text-[2.4rem] leading-none text-chalk">
+            <p className="display tabular mt-4 text-[2.4rem] leading-none text-chalk">
               <Countdown
                 target={feed.revealAt}
                 initial={formatCountdown(feed.revealAt)}
@@ -115,8 +115,8 @@ export function AlbumView({ code, onRevealed }: { code: string; onRevealed?: () 
               />
             </p>
             <p className="mt-5 max-w-sm text-[15px] leading-relaxed text-ash">
-              <span className="tabular text-chalk">{feed.totalPhotos}</span> so far. Nobody can see
-              any of them yet — not even the person who took them.
+              <span className="tabular text-chalk">{feed.totalPhotos}</span> photos so far, hidden
+              until then.
             </p>
           </>
         )}

@@ -4,7 +4,7 @@ test.describe("public pages", () => {
   test("landing page renders and never scrolls sideways", async ({ page }) => {
     await page.goto("/");
 
-    await expect(page.getByRole("heading", { level: 1 })).toContainText("Nobody sees a thing");
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("Every memory, one album");
     await expect(page.getByRole("link", { name: "Create an event" }).first()).toBeVisible();
 
     // Decorative glows bleed past their columns on purpose; the page must still not scroll.

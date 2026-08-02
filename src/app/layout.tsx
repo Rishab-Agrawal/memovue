@@ -1,19 +1,22 @@
 import type { Metadata, Viewport } from "next";
-import { Archivo, DM_Mono, Fraunces } from "next/font/google";
+import { Archivo, Bricolage_Grotesque } from "next/font/google";
 
 import "./globals.css";
 
 /**
- * Three faces, three jobs.
+ * Two faces, and no monospace.
  *
- * Fraunces carries emotion — it's a variable serif with SOFT and WONK axes that make the
- * letterforms slightly irregular at display sizes, which matches the hand-drawn logo.
- * Archivo carries prose. DM Mono carries data: counters, timestamps, field labels.
+ * Bricolage Grotesque carries the headlines: a display sans with genuinely irregular
+ * terminals, which echoes the hand-drawn logo. A high-contrast serif was the obvious
+ * choice here and that is precisely the problem — it is the default for this category.
+ *
+ * Archivo carries everything else, including numbers via tabular figures. Dropping the
+ * monospace removed both the slashed zero and the engineering flavour it brought with it.
  */
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
+const bricolage = Bricolage_Grotesque({
+  variable: "--font-bricolage",
   subsets: ["latin"],
-  axes: ["SOFT", "WONK", "opsz"],
+  axes: ["opsz"],
   display: "swap",
 });
 
@@ -23,25 +26,18 @@ const archivo = Archivo({
   display: "swap",
 });
 
-const dmMono = DM_Mono({
-  variable: "--font-dm-mono",
-  subsets: ["latin"],
-  weight: ["400", "500"],
-  display: "swap",
-});
-
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.APP_URL ?? "http://localhost:3000"),
   title: {
-    default: "MemoVue — everyone's camera, one album",
+    default: "MemoVue — everyone's photos, one album",
     template: "%s · MemoVue",
   },
   description:
-    "Guests shoot your event on their own phones. Nothing is visible — to anyone, including you — until it all unlocks at once.",
+    "Your guests shoot your event on their own phones. Everything lands in one shared album, with every photo credited to whoever took it.",
   openGraph: {
-    title: "MemoVue — everyone's camera, one album",
+    title: "MemoVue — everyone's photos, one album",
     description:
-      "Guests shoot your event on their own phones. Nothing is visible — to anyone, including you — until it all unlocks at once.",
+      "Your guests shoot your event on their own phones. Everything lands in one shared album, with every photo credited to whoever took it.",
     siteName: "MemoVue",
     type: "website",
   },
@@ -59,10 +55,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html
-      lang="en"
-      className={`${fraunces.variable} ${archivo.variable} ${dmMono.variable}`}
-    >
+    <html lang="en" className={`${bricolage.variable} ${archivo.variable}`}>
       <body className="grain min-h-dvh bg-void text-chalk">{children}</body>
     </html>
   );

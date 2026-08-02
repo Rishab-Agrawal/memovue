@@ -51,7 +51,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
         {phase === "scheduled" ? (
           <>
             <p className="marking">Doors open in</p>
-            <p className="tabular mt-4 text-[2.6rem] leading-none text-chalk">
+            <p className="display tabular mt-4 text-[2.6rem] leading-none text-chalk">
               <Countdown
                 target={event.startsAt.toISOString()}
                 initial={formatCountdown(event.startsAt)}
@@ -65,15 +65,14 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
         ) : phase === "capturing" ? (
           <>
             <p className="marking text-flame">Photos unlock in</p>
-            <p className="tabular mt-4 text-[2.6rem] leading-none text-chalk">
+            <p className="display tabular mt-4 text-[2.6rem] leading-none text-chalk">
               <Countdown
                 target={event.revealAt.toISOString()}
                 initial={formatCountdown(event.revealAt)}
               />
             </p>
             <p className="mt-5 max-w-lg text-[15px] leading-relaxed text-ash">
-              Everyone — including you — sees the album at {formatDateTime(event.revealAt)}. Until
-              then nobody can see a single photo, not even their own.
+              The album opens for everyone, including you, at {formatDateTime(event.revealAt)}.
             </p>
             <div className="mt-8">
               <RevealNowButton eventId={event.id} />
@@ -81,13 +80,16 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
           </>
         ) : (
           <>
-            <p className="marking text-success">Revealed</p>
+            <p className="marking text-chalk">Revealed</p>
             {/* The count is data and belongs in mono; the noun is prose and doesn't. */}
             <p className="mt-4 flex items-baseline gap-3 text-chalk">
-              <span data-testid="revealed-count" className="tabular text-[2.6rem] leading-none">
+              <span
+                data-testid="revealed-count"
+                className="display tabular text-[2.6rem] leading-none"
+              >
                 {photoCount}
               </span>
-              <span className="display text-[1.5rem]">
+              <span className="display text-[1.5rem] text-ash">
                 photo{photoCount === 1 ? "" : "s"}
               </span>
             </p>
@@ -140,7 +142,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
             <p className="marking">Join code</p>
             <p
               data-testid="join-code"
-              className="tabular mt-2 text-[2.1rem] leading-none tracking-[0.18em] text-flame"
+              className="display mt-2 text-[2.1rem] leading-none tracking-[0.16em] text-flame"
             >
               {event.code}
             </p>
@@ -239,9 +241,13 @@ function Stat({
   return (
     <div className="border-b border-hair py-6 pr-6">
       <dt className="marking">{label}</dt>
-      <dd className="tabular mt-2.5 text-[1.6rem] leading-none text-chalk">
+      <dd className="display tabular mt-2.5 text-[1.6rem] leading-none text-chalk">
         {value}
-        {sub ? <span className="ml-2 text-[12px] text-dust">{sub}</span> : null}
+        {sub ? (
+          <span className="ml-2 font-sans text-[12px] font-normal tracking-normal text-dust">
+            {sub}
+          </span>
+        ) : null}
       </dd>
     </div>
   );

@@ -43,7 +43,7 @@ export function InviteCodeForm() {
   return (
     <form action={action} className="mt-8 flex flex-col gap-6">
       {state.createdCode ? (
-        <p className="border-l-2 border-success py-1 pl-5 text-[14px] text-success">
+        <p className="border-l-2 border-flame py-1 pl-5 text-[14px] text-flame">
           Created <strong className="tabular tracking-[0.16em]">{state.createdCode}</strong> — send
           it to the host and they&rsquo;ll skip the queue.
         </p>

@@ -62,13 +62,14 @@ export default async function JoinPage({ params }: { params: Promise<{ code: str
   return (
     <Shell title={event.name} eyebrow={config.label}>
       <p className="mt-6 text-[16px] leading-relaxed text-ash">
+        {/* A guest who shoots and never sees the photo needs to know why, so this stays
+            explicit here even though it's played down on the marketing pages. */}
         {revealed ? (
           "The album is already open. Add your name to see everything from the night."
         ) : (
           <>
-            You get{" "}
-            <span className="tabular text-chalk">{event.photosPerGuest}</span> photos. Nobody sees
-            any of them — not even you — until they all unlock at{" "}
+            You get <span className="tabular text-chalk">{event.photosPerGuest}</span> photos. They
+            stay hidden until the album opens at{" "}
             <span className="text-chalk">{formatDateTime(event.revealAt)}</span>.
           </>
         )}

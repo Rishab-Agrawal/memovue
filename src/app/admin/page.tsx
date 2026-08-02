@@ -136,7 +136,7 @@ function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div className="border-b border-hair py-6 pr-6">
       <dt className="marking">{label}</dt>
-      <dd className="tabular mt-2.5 text-[1.6rem] leading-none text-chalk">{value}</dd>
+      <dd className="display tabular mt-2.5 text-[1.6rem] leading-none text-chalk">{value}</dd>
     </div>
   );
 }

@@ -29,7 +29,7 @@ export function Slider({
           {label}
         </label>
         <span className="flex items-baseline gap-1.5">
-          <span className="tabular text-[28px] leading-none text-flame">{value}</span>
+          <span className="display tabular text-[28px] leading-none text-flame">{value}</span>
           {unit ? <span className="text-[12px] text-dust">{unit}</span> : null}
         </span>
       </div>

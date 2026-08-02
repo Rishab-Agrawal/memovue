@@ -1,132 +1,59 @@
 # What's built
 
-Status as of **2 August 2026**. Written down so the reasoning behind the non-obvious
-choices isn't lost.
+Only the things that differ from what you asked for, or that you'd otherwise be surprised
+by. Everything else works the way you'd expect.
 
 - **Live:** https://memovue-web-production.up.railway.app
 - **Repo:** https://github.com/Rishab-Agrawal/memovue (private)
-- **Infra:** Railway (app + Postgres), Cloudflare R2 (photos)
+- **Stack:** Next.js + Postgres on Railway, photos on Cloudflare R2
 
-## Surfaces that exist
+## Decisions that differ from the brief
 
-| Area   | What's there                                                                                    |
-| ------ | ----------------------------------------------------------------------------------------------- |
-| Public | Landing page, join-by-QR, join-by-code fallback, terms, privacy                                   |
-| Host   | Signup/login, beta-access request, event creation, event control panel, QR + printable card, live countdown, reveal-now, ZIP download, account page, password change, account deletion |
-| Guest  | Join with event-type-specific questions, camera, review/retake, shot counter, blurred pre-reveal wall, post-reveal grid, full-screen swipe viewer, per-photo save |
-| Admin  | Approval queue, invite code creation/revocation, platform stats                                   |
+**One time control, not two.** You described a reveal delay but no event end time. Capture
+now runs from **start until reveal** — "12 hours" means guests shoot for 12 hours and then
+everything opens. It removes a field, and removes a way to misconfigure an event by setting
+an end time after the reveal time. There's also a **Reveal now** button for manual control.
 
-## Verification
+**You can't see the photos early either.** No route serves full images before the reveal to
+anyone, including you as the host, and the download is gated on it. This is stronger than
+you asked for. If a host can peek, the promise being made to guests isn't true — but it
+does mean you can't preview an album mid-event to check it's working. The guest count and
+photo count are visible throughout, which is enough to confirm it's running.
 
-The Playwright suite runs Chromium with `--use-fake-device-for-media-stream`, so it isn't
-mocking the hard part — photos are genuinely encoded, uploaded to R2, and confirmed.
+**Invite codes, alongside the approval queue.** Your first customers are people you've
+already pitched, so making them fill a form and wait is friction with no upside. Admin can
+mint a code you hand over directly; the holder signs up with it and can create events
+immediately. The queue stays for anyone who finds you cold.
 
-It also asserts the promise the whole product rests on: **before reveal, the only image
-data reaching a browser is an inlined ~32px blur placeholder, and the photo API returns
-403.** If that ever breaks, the test fails.
+**One session per guest name.** If a guest loses their session, "that's me, I'm on a new
+phone" recovers it — and signs the old device out. So a name is only ever active on one
+device, and someone taking over a name is immediately obvious to whoever owns it rather
+than quietly sharing their shot quota.
 
-7 tests, passing both locally and against production. Run with `npm test`, or against
-production with `TEST_BASE_URL=https://memovue-web-production.up.railway.app npm test`.
+**Event types changed.** "Office outing" became **Team offsite**, and I added Anniversary,
+Baby shower, Graduation, Party, Trip and Festival. Which question a guest is asked depends
+on the type — weddings and anniversaries ask which partner's side they're on (using the
+names you enter, not "bride/groom"); birthdays, showers and graduations ask how they know
+one named person; parties, offsites, trips and festivals ask nothing but a name.
 
-## Decisions that differ from the original brief
+**Photos survive a dying phone.** A capture is written to the phone's local storage before
+any upload starts, and retries when the app reopens or the signal returns. A guest who
+locks their phone mid-upload at a venue with bad wifi doesn't lose the shot, and a failed
+upload can never cost them two of their shots.
 
-### One time control, not two
+## Design rules worth not undoing
 
-The brief described a reveal delay but no event end time. Capture now runs from **start
-until reveal** — "12 hours" means guests shoot for 12 hours and then everything opens at
-once.
+The look is derived from your logo — thin orange line-work on pitch black. Three rules hold
+it together, and breaking one is what makes an interface start looking generated:
 
-*Why:* it removes a field from event creation, eliminates a way to misconfigure an event
-(end time after reveal time), and matches how people actually think about a disposable
-camera — shoot all night, see them in the morning. The host also gets a **Reveal now**
-button for manual control.
+1. **No cards.** Nothing gets a filled background *and* a border. Structure is hairline
+   rules and space; every surface is pure black.
+2. **No rounded corners.** Round is only for things that are actually circular — the
+   shutter button, the logo's circles, status dots.
+3. **Two colours.** Black and `#FF8C00`, with a warm off-white for text. Hierarchy is
+   opacity on the off-white, not extra colours. Red appears only on destructive actions,
+   because a delete button has to be distinguishable from a primary one.
 
-### The host waits too
-
-There is no route that serves full images before `revealAt` to anyone, including the event
-owner. The ZIP download is gated on it.
-
-*Why:* if the host can peek, the promise being made to guests isn't true. This is stronger
-than the brief required, and it's the single most important invariant in the codebase.
-
-### Invite codes alongside the approval queue
-
-Admin can mint a code to hand over directly; the holder signs up with it and can create
-events immediately, skipping the queue.
-
-*Why:* the first customers are people who've already been pitched in person. Making them
-fill a form and wait is friction with no upside. The queue stays for inbound requests.
-
-### No localStorage token mirror
-
-Session robustness comes from a 400-day httpOnly cookie, plus a **"that's me, I'm on a new
-phone"** recovery path on the join screen.
-
-*Why:* anything that clears cookies clears localStorage too, so the mirror adds nothing but
-does put a bearer token where XSS can read it. Recovery bumps a token version, which signs
-the previous device out — so one name means one active session, and a hijack is immediately
-visible to whoever actually owns the name rather than silently sharing their shot quota.
-
-### Captures are durable before they're uploaded
-
-Tapping "Keep it" writes the photo to IndexedDB *before* any network call, then reserves a
-`PENDING` row on the server, then uploads to R2.
-
-*Why:* venue wifi is bad and phones lock mid-upload. A photo that only lived in memory
-would be gone. The queue retries on next app open and on the `online` event, and because
-the reservation is persisted, one photo can never consume two shots.
-
-### Event type list
-
-"Office outing" became **Team offsite**. Added Anniversary, Baby shower, Graduation, Party,
-Trip, Festival, plus Other.
-
-Relation questions are driven by type, from a single source of truth in
-`src/lib/event-types.ts`:
-
-- **Wedding / Anniversary** — host enters both partner names; guests pick one or Both, plus
-  free-text relation. (Names rather than "bride/groom", as requested.)
-- **Birthday / Baby shower / Graduation** — host names the guest of honour; guests answer
-  "How do you know {name}?"
-- **Party / Team offsite / Trip / Festival / Other** — name only.
-
-The host can switch the relation question off entirely; they can't switch it on for a type
-where there's no sensible question to ask.
-
-## Other things worth knowing
-
-- **Storage separation** — dev and production share the R2 bucket but are separated by key
-  prefix (`dev/` vs `events/`), so local testing can't collide with a live album.
-- **Photos never touch the app server** — browsers PUT directly to R2 via presigned URLs.
-  Only the host's ZIP streams through the server.
-- **Read URLs are signed per request** and expire within the hour, so a copied album link
-  stops working instead of exposing the event forever.
-- **Email is optional infrastructure.** Without `RESEND_API_KEY` the app works end to end
-  and messages are logged instead of sent.
-## The design system
-
-Derived from the logo — thin organic line-work, four differently-sized circles converging
-on one root, which is the product in one image. Three rules the whole app obeys, all of
-them chosen specifically to avoid the things that make an interface look machine-generated:
-
-1. **No cards.** Nothing gets a filled background *and* a border. Structure comes from
-   hairline rules and negative space; every surface is pure black. The nested rounded card
-   is the single most reproduced pattern on the web.
-2. **No radius.** Corners are square. Round is reserved for things that are genuinely
-   circular — the shutter, the logo's circles, status dots.
-3. **Three typefaces, three jobs.** Fraunces carries emotion (its SOFT and WONK axes make
-   display sizes slightly irregular, matching the hand-drawn mark), Archivo carries prose,
-   DM Mono carries data. A number never appears in the serif; a sentence never in mono.
-
-Palette is pitch black with `#FF8C00` and a warm off-white. There is deliberately no third
-hue and no grey ramp — hierarchy is opacity on the off-white.
-
-Consequences worth preserving: inputs are ruled underlines rather than boxes; option
-pickers are typographic grids rather than pill chips; the toggle is a square marker rather
-than an iOS switch; the shot counter is set in mono like a film frame counter; and there
-are **no emoji anywhere** — `emoji` was removed from the event-type config entirely so no
-surface can reintroduce it.
-
-One implementation note: `.marking`, `.display` and `.tabular` live inside
-`@layer components` so Tailwind utilities (`text-flame`, `leading-tight`) can override them
-at the call site. Unlayered, a plain class silently beats every utility.
+Also deliberate, so it doesn't look like something's missing: **no emoji anywhere** (they
+were removed from the event-type config so no screen can reintroduce them), and **no
+monospace** — the numbers are the normal typeface with fixed-width figures.

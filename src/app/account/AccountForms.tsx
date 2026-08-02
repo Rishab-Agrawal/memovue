@@ -14,7 +14,7 @@ export function ChangePasswordForm() {
   return (
     <form action={action} className="mt-8 flex flex-col gap-7">
       {state.success ? (
-        <p className="border-l-2 border-success py-1 pl-5 text-[14px] text-success">
+        <p className="border-l-2 border-flame py-1 pl-5 text-[14px] text-flame">
           {state.success}
         </p>
       ) : null}

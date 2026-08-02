@@ -29,12 +29,12 @@
   --color-hair: #1c1a18;
   --color-hair-bright: #2e2b28;
 
+  /* Red earns its place: a destructive action has to be distinguishable from the primary
+     one. There is no success green — a confirmation is just the accent. */
   --color-danger: #ff5c47;
-  --color-success: #6ec177;
 
-  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
   --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-dm-mono), ui-monospace, monospace;
 
   /* Square by default. Anything that needs curvature asks for it explicitly. */
   --radius-xs: 0px;
@@ -108,31 +108,28 @@ body {
 @layer components {
   .display {
     font-family: var(--font-display);
-    font-weight: 400;
-    /* Fraunces' optical-size and wonk axes: at display sizes the contrast goes high and
-       the letterforms go slightly irregular, matching the hand-drawn logo. */
-    font-variation-settings:
-      "opsz" 144,
-      "SOFT" 40,
-      "WONK" 1;
-    letter-spacing: -0.02em;
-    line-height: 0.95;
+    font-weight: 600;
+    /* Large optical size: Bricolage tightens and sharpens as it scales up. */
+    font-variation-settings: "opsz" 48;
+    letter-spacing: -0.03em;
+    line-height: 1;
   }
 
-  /* Film-leader markings: frame counters, field labels, timestamps. Always uppercase,
-     always tracked out, never used for a sentence. */
+  /* Small tracked labels: field names, statuses, meta. Uppercase and spaced out so they
+     read as annotation rather than as prose. Never used for a sentence. */
   .marking {
-    font-family: var(--font-mono);
     font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.16em;
+    font-weight: 600;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--color-ash);
   }
 
+  /* Figures that must not jitter as they count down. Deliberately not a monospace family:
+     the slashed zero and terminal flavour that came with one were both wrong here. */
   .tabular {
-    font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
   }
 }
 
