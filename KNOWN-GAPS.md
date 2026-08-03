@@ -10,7 +10,8 @@ and no admin UI for resetting one. Recovering an account currently means editing
 database by hand.
 
 **Blocks:** letting real hosts sign up without hand-holding.
-**Needs:** the email sender to be switched on first (see `TODO.md`).
+**Unblocked:** this used to be waiting on email. Resend is live and verified now, so the
+reset flow can be built whenever you want it.
 
 ## 2. Failed uploads can permanently eat a shot
 
