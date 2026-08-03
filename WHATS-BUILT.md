@@ -3,7 +3,7 @@
 Only the things that differ from what you asked for, or that you'd otherwise be surprised
 by. Everything else works the way you'd expect.
 
-- **Live:** https://memovue-web-production.up.railway.app
+- **Live:** https://memovue.com
 - **Repo:** https://github.com/Rishab-Agrawal/memovue (private)
 - **Stack:** Next.js + Postgres on Railway, photos on Cloudflare R2
 

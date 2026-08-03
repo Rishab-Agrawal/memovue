@@ -1,20 +1,9 @@
 # TODO
 
-Things that need you, not code. Updated 4 August 2026.
+Things that need you, not code. Only open items live here — anything finished gets deleted
+rather than archived.
 
-## Done since this file was written
-
-Infrastructure is finished — domain, storage, email and deploys are all live and verified.
-
-- `memovue.com` is the canonical domain, DNS on Cloudflare, TLS issued, www 301s to the apex
-- `APP_URL` is `https://memovue.com`, so QR codes encode the clean apex — **safe to print**
-- R2 runs on a bucket-scoped Object token; the account-wide admin token is gone
-- Railway auto-deploys from GitHub
-- `hello@memovue.com` receives via Cloudflare Email Routing, and the app sends via Resend
-
-## Do soon
-
-### 1. Change the admin password
+## Change the admin password
 
 `rishabsecond@gmail.com` is live in production with the password set during the build
 session (`memovue-dev-2026`), and it is an admin account because it matches `ADMIN_EMAIL`.
@@ -22,17 +11,11 @@ session (`memovue-dev-2026`), and it is an admin account because it matches `ADM
 Change it at `/account`. **There is still no password-reset flow** (see `KNOWN-GAPS.md`), so
 put the new one somewhere you will find it. Delete this section once done.
 
-### 2. Turn on HSTS
+## Turn on HSTS
 
 Wait until around 18 August — roughly two weeks of stable HTTPS — then enable it in
 Cloudflare under SSL/TLS → Edge Certificates. It is deliberately hard to undo, because
 browsers cache the policy, so it is worth being sure first.
-
-### 3. Optional hardening
-
-`memovue-web-production.up.railway.app` still serves publicly and bypasses Cloudflare
-entirely. Removing it in Railway closes that path. It exposes nothing extra — it is the
-same app — it simply is not behind the proxy.
 
 ## Housekeeping
 
