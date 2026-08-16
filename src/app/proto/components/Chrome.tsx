@@ -53,7 +53,9 @@ type PillVariant = "light" | "flame" | "quiet";
 
 const pillBase =
   "inline-flex h-12 items-center justify-center gap-2 rounded-full px-6 text-[15px] " +
-  "font-medium transition-colors select-none " +
+  // A wrapped label turns a pill into a rounded paragraph. Nothing here is long enough to
+  // need two lines, so nothing gets them.
+  "font-medium whitespace-nowrap transition-colors select-none " +
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flame";
 
 const pillVariants: Record<PillVariant, string> = {
@@ -61,7 +63,9 @@ const pillVariants: Record<PillVariant, string> = {
   // because orange on a warm cover loses too much contrast.
   light: "bg-chalk text-void hover:bg-white",
   flame: "bg-flame text-void hover:shadow-[0_0_28px_-4px_rgba(255,140,0,0.55)]",
-  quiet: "bg-surface text-chalk hover:text-flame",
+  // The hairline is not decoration: a quiet pill sitting on a `surface` panel is otherwise
+  // the same colour as the panel, and reads as bare text rather than as a control.
+  quiet: "border border-hair-bright bg-surface text-chalk hover:text-flame",
 };
 
 const disabled = "pointer-events-none opacity-40";

@@ -25,6 +25,9 @@ export const SCREENS: Screen[] = [
   { path: "/proto/new/name", name: "New film 1 — name", group: "Create" },
   { path: "/proto/new/start", name: "New film 2 — start date", group: "Create" },
   { path: "/proto/new/finish", name: "New film 3 — finish date", group: "Create" },
+  { path: "/proto/new/reveal", name: "New film 4 — reveal", group: "Create" },
+  { path: "/proto/new/card", name: "New film 5 — invitation card", group: "Create" },
+  { path: "/proto/new/card/preview", name: "Invitation card preview", group: "Create" },
 ];
 
 export function screenAt(path: string): Screen | undefined {

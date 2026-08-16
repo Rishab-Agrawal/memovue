@@ -1,4 +1,126 @@
-/** Stub. Replaced by the real reveal step in the next task. */
+"use client";
+
+import { cn } from "@/lib/cn";
+
+import { Clock, Hourglass } from "../../components/Icons";
+import { Plate } from "../../components/Plate";
+import { WizardShell } from "../../components/WizardShell";
+import { formatShortDateTime } from "../../format";
+import { revealAt, type RevealMode } from "../../rules";
+import { useDraft } from "../DraftContext";
+
+const MODES: { mode: RevealMode; label: string }[] = [
+  { mode: "during", label: "During\nEvent" },
+  { mode: "after", label: "After\nEvent" },
+  { mode: "delay", label: "Additional\nDelay" },
+];
+
+const MIN_DELAY = 1;
+const MAX_DELAY = 72;
+
+/**
+ * The one screen that has to demonstrate rather than describe: the two sample frames go
+ * sharp or sealed as the mode changes, so a host can see what their guests will be looking
+ * at before committing to it.
+ */
 export default function StepReveal() {
-  return <div className="px-5 py-8 text-[15px] text-dust">Reveal step — not built yet.</div>;
+  const { draft, update } = useDraft();
+
+  const reveals = revealAt(draft.finishAt, draft.revealMode, draft.delayHours);
+
+  return (
+    <WizardShell
+      step={4}
+      title="When should we reveal your photos?"
+      subtitle="Photos are hidden by default during the event. You can select when the photos will be revealed."
+      back="/proto/new/finish"
+      next={{ label: "Next →", href: "/proto/new/card" }}
+    >
+      <div className="relative">
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { plate: 1, by: "Meera" },
+            { plate: 4, by: "Arjun" },
+          ].map((sample) => (
+            <div key={sample.by} className="relative h-[220px] overflow-hidden rounded-3xl">
+              <Plate index={sample.plate} className="absolute inset-0" sealed={Boolean(reveals)} />
+              <span className="absolute top-3 left-3 text-[14px] text-chalk/80 italic">
+                {sample.by}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {reveals ? (
+          <span className="tabular absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-full bg-void/75 px-4 py-2 text-[14px] whitespace-nowrap text-chalk backdrop-blur-sm">
+            <Clock className="h-4 w-4" />
+            Reveals on {formatShortDateTime(reveals)}
+          </span>
+        ) : null}
+      </div>
+
+      <div className="mt-7 grid grid-cols-3 gap-3">
+        {MODES.map(({ mode, label }) => {
+          const active = draft.revealMode === mode;
+          return (
+            <button
+              key={mode}
+              type="button"
+              aria-pressed={active}
+              onClick={() => update({ revealMode: mode })}
+              className={cn(
+                "flex flex-col items-start gap-3 rounded-2xl p-4 text-left text-[15px] leading-tight transition-colors",
+                active
+                  ? "border border-flame bg-flame/10 text-flame"
+                  : "bg-surface text-chalk hover:text-flame",
+              )}
+            >
+              <Hourglass className="h-5 w-5" />
+              <span className="whitespace-pre-line">{label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {draft.revealMode === "delay" ? (
+        <div className="mt-6 flex items-center justify-center gap-5 border-t border-hair pt-6">
+          <Stepper
+            label="Decrease delay"
+            glyph="−"
+            onClick={() => update({ delayHours: Math.max(MIN_DELAY, draft.delayHours - 1) })}
+          />
+          <p className="tabular w-16 text-center text-[22px] text-chalk" data-testid="delay-hours">
+            {draft.delayHours}
+          </p>
+          <Stepper
+            label="Increase delay"
+            glyph="+"
+            onClick={() => update({ delayHours: Math.min(MAX_DELAY, draft.delayHours + 1) })}
+          />
+          <span className="sr-only">hours after the film closes</span>
+        </div>
+      ) : null}
+    </WizardShell>
+  );
+}
+
+function Stepper({
+  label,
+  glyph,
+  onClick,
+}: {
+  label: string;
+  glyph: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      className="flex h-12 w-14 items-center justify-center rounded-2xl bg-surface text-[20px] text-chalk transition-colors hover:text-flame"
+    >
+      {glyph}
+    </button>
+  );
 }
