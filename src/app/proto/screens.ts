@@ -1,0 +1,27 @@
+export interface Screen {
+  /** Path including any `?v=` variant, exactly as it should be linked. */
+  path: string;
+  /** Shown in the bottom bar and asserted by the smoke test. */
+  name: string;
+  group: string;
+}
+
+/**
+ * Every screen in the prototype, in walking order.
+ *
+ * The index page, the prev/next bar and the smoke test all read from here, so a screen that
+ * is not registered is a screen nobody will review.
+ */
+export const SCREENS: Screen[] = [
+  { path: "/proto/marketing", name: "Marketing home", group: "Marketing" },
+];
+
+export function screenAt(path: string): Screen | undefined {
+  return SCREENS.find((screen) => screen.path === path);
+}
+
+export function neighbours(path: string): { prev?: Screen; next?: Screen } {
+  const at = SCREENS.findIndex((screen) => screen.path === path);
+  if (at === -1) return {};
+  return { prev: SCREENS[at - 1], next: SCREENS[at + 1] };
+}
