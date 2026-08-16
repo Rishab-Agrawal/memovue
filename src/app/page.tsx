@@ -3,6 +3,16 @@ import Link from "next/link";
 import { ButtonLink } from "@/components/ui/Button";
 import { Logo, Mark } from "@/components/ui/Logo";
 
+/*
+  A copy of `src/app/page.tsx` with one change, made in three places: the header CTA, the
+  hero's pair of buttons, and the closing CTA all collapse to a single "Get started" pointing
+  at the welcome screen. The reference app's welcome screen replaces its marketing site
+  entirely; ours can't, because the marketing page is what explains the product. Unifying the
+  calls to action is how the two meet.
+
+  Everything else — copy, layout, the sealed-frame gradients — is untouched.
+*/
+
 const STEPS: { title: string; body: string }[] = [
   {
     title: "Set it up",
@@ -18,16 +28,6 @@ const STEPS: { title: string; body: string }[] = [
   },
 ];
 
-/**
- * These used to be one section that showed a single line at a time on an 8.8-second loop.
- *
- * Three things were wrong with that. Copy this important shouldn't have to be waited for —
- * a visitor who scrolls past at the wrong second reads one quarter of the pitch and leaves.
- * Anyone landing mid-transition sees a half-faded grey line, which reads as a rendering bug
- * rather than as motion. And the section reserved a full screen of height to display one
- * sentence. Four short claims, all legible at once, is strictly more information in less
- * space, and nothing has to be timed to the number of them any more.
- */
 const CLAIMS: { text: string; accent: string }[] = [
   { text: "Guests join via QR code, no install hassle.", accent: "QR code" },
   { text: "Up to twenty-five shots each, like a disposable camera.", accent: "disposable camera" },
@@ -35,10 +35,6 @@ const CLAIMS: { text: string; accent: string }[] = [
   { text: "Suited for weddings, parties, team outings, and more.", accent: "weddings" },
 ];
 
-/**
- * `accent` is the phrase set in orange — kept as a substring of `text` rather than pre-split
- * markup so the copy stays readable and editable as a plain sentence.
- */
 function withAccent(text: string, accent: string) {
   const at = text.indexOf(accent);
   if (at === -1) return text;
@@ -51,16 +47,6 @@ function withAccent(text: string, accent: string) {
   );
 }
 
-/**
- * The one thing the page was never showing: what a guest is actually looking at for most of
- * the event.
- *
- * A product whose entire promise is "you can't see the photos yet" was describing that in
- * prose and illustrating it with nothing. This is the real pre-reveal state — frames present,
- * accounted for, and blurred past legibility — so it demonstrates the mechanic without
- * standing in for photographs that don't exist. Nine soft washes on black, which is what a
- * 32px placeholder scaled up genuinely looks like.
- */
 const SEALED_FRAMES = [
   "radial-gradient(120% 100% at 30% 25%, #6b3d12, #1a1108 70%)",
   "radial-gradient(120% 100% at 70% 40%, #4a3a2e, #120f0c 72%)",
@@ -73,31 +59,27 @@ const SEALED_FRAMES = [
   "radial-gradient(110% 100% at 65% 30%, #3b3630, #100f0d 72%)",
 ];
 
-export default function Home() {
+export default function MarketingHome() {
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="flex items-center justify-between border-b border-hair px-6 py-3 sm:px-10">
-        <Link href="/" aria-label="MemoVue home" className="flex h-11 items-center">
+        <Link href="/proto/marketing" aria-label="MemoVue home" className="flex h-11 items-center">
           <Logo />
         </Link>
         <Link
-          href="/login"
+          href="/proto/welcome"
           className="marking flex h-11 items-center px-1 transition-colors hover:text-chalk"
         >
-          Sign in
+          Get started
         </Link>
       </header>
 
       <main className="flex-1">
         {/* ---------------------------------------------------------------- hero */}
         <section className="bloom px-6 pt-16 pb-20 sm:px-10 sm:pt-24 sm:pb-28">
-          {/* The left column has to stay wide enough for "Every memory," to hold one line —
-              the explicit break in the headline assumes two lines, not three. */}
           <div className="mx-auto grid max-w-6xl items-center gap-14 lg:grid-cols-[1.15fr_0.85fr] lg:gap-10">
             <div>
               <h1 className="display animate-rise text-[clamp(3rem,12vw,5.5rem)] text-chalk">
-                {/* Trailing space before the break, or the heading's text content reads
-                    "Every memory,one album." to screen readers and copy-paste. */}
                 Every memory,{" "}
                 <br />
                 <span className="text-flame">one album.</span>
@@ -115,15 +97,9 @@ export default function Home() {
                 className="animate-rise mt-9 flex flex-wrap items-center gap-x-6 gap-y-2"
                 style={{ animationDelay: "220ms" }}
               >
-                <ButtonLink href="/signup" size="lg">
-                  Create an event
+                <ButtonLink href="/proto/welcome" size="lg">
+                  Get started
                 </ButtonLink>
-                <Link
-                  href="/join"
-                  className="flex h-12 items-center border-b border-hair-bright px-1 text-[14px] text-ash transition-colors hover:border-flame hover:text-chalk"
-                >
-                  I have a code
-                </Link>
               </div>
 
               <p
@@ -134,7 +110,6 @@ export default function Home() {
               </p>
             </div>
 
-            {/* The mark is the hero image. Four viewpoints, one root — it draws itself in. */}
             <div className="order-first flex justify-center lg:order-last lg:justify-end">
               <Mark animate glow className="h-44 w-auto sm:h-56 lg:h-72" />
             </div>
@@ -142,12 +117,6 @@ export default function Home() {
         </section>
 
         {/* ---------------------------------------------------------------- steps */}
-        {/*
-          Numbered, and the figure carries the left column.
-
-          Three untitled text rows in a two-column grid left most of a desktop screen empty
-          and gave no signal that they were a sequence rather than three unrelated features.
-        */}
         <section className="border-t border-hair px-6 sm:px-10">
           <ol className="mx-auto max-w-5xl">
             {STEPS.map((step, index) => (
@@ -155,8 +124,6 @@ export default function Home() {
                 key={step.title}
                 className="grid items-baseline gap-x-8 gap-y-3 border-b border-hair py-11 last:border-b-0 sm:grid-cols-[auto_1fr_1.4fr] sm:gap-x-10"
               >
-                {/* Neutral, not a faded orange. Dropping the accent to a third of its
-                    opacity on near-black doesn't read as a quiet orange, it reads as brown. */}
                 <span
                   className="display tabular text-[2.4rem] leading-none text-dust sm:text-[3rem]"
                   aria-hidden="true"
@@ -196,20 +163,12 @@ export default function Home() {
               </ul>
             </div>
 
-            {/* Not a mockup of photos — the actual sealed state, which is unreadable by design. */}
             <figure className="mx-auto w-full max-w-[19rem] lg:max-w-[22rem]">
               <div
                 className="grid grid-cols-3 gap-px border border-hair bg-hair p-px"
                 aria-hidden="true"
               >
                 {SEALED_FRAMES.map((frame, index) => (
-                  /*
-                    Each frame clips its own blur. Blurring the cells directly let the haze
-                    spill across the hairline gaps and the nine frames merged into one soft
-                    rectangle — which loses the entire point, that these are individual
-                    photographs sitting there unviewable. The inner plate is oversized so the
-                    blur has material to pull from at the edges instead of fading to nothing.
-                  */
                   <span key={index} className="relative aspect-square overflow-hidden bg-void">
                     <span
                       className="absolute -inset-4 block"
@@ -235,8 +194,8 @@ export default function Home() {
             <p className="max-w-sm text-[16px] leading-relaxed text-ash">
               You can&rsquo;t be in every room. Your guests are.
             </p>
-            <ButtonLink href="/signup" size="lg" className="mt-2">
-              Create an event
+            <ButtonLink href="/proto/welcome" size="lg" className="mt-2">
+              Get started
             </ButtonLink>
           </div>
         </section>
@@ -249,7 +208,7 @@ export default function Home() {
             {[
               ["Terms", "/terms"],
               ["Privacy", "/privacy"],
-              ["Join", "/join"],
+              ["Join", "/proto/join"],
             ].map(([label, href]) => (
               <Link
                 key={href}

@@ -1,73 +1,115 @@
-import Link from "next/link";
+"use client";
 
-import { prisma } from "@/lib/prisma";
-import { requireHost } from "@/lib/session";
+import { useSearchParams } from "next/navigation";
 
-import { ChangePasswordForm, DeleteAccountForm } from "./AccountForms";
+import { BottomNav } from "@/components/roll/BottomNav";
+import { Pill, PillLink } from "@/components/roll/Chrome";
+import { Dialog } from "@/components/roll/Dialog";
+import { Instagram, Logout, Mail, Pencil, Trash, Warning } from "@/components/roll/Icons";
+import { SettingRow } from "@/components/roll/SettingRow";
+import { HOST } from "@/lib/mock-REMOVED";
 
-export const metadata = { title: "Account" };
-
-export default async function AccountPage() {
-  const user = await requireHost();
-
-  const [eventCount, photoCount] = await Promise.all([
-    prisma.event.count({ where: { hostId: user.id } }),
-    prisma.photo.count({ where: { event: { hostId: user.id }, status: "READY" } }),
-  ]);
+/**
+ * Two things from the reference are missing on purpose.
+ *
+ * "Website" sat next to Instagram under SOCIALS — pointless for us, because the thing it
+ * would link to is the page you are already on. And the whole PARTNER section, whose only
+ * row was "Have a discount code?", is gone: codes are entered when a roll is created, which
+ * is the moment they actually apply.
+ */
+export default function AccountSettings() {
+  const confirming = useSearchParams().get("v") === "delete";
 
   return (
-    <div className="flex min-h-dvh flex-col px-6 py-12 sm:px-10">
-      <div className="mx-auto w-full max-w-xl">
-        <Link href="/dashboard" className="marking transition-colors hover:text-chalk">
-          ← Dashboard
-        </Link>
-        <h1 className="display mt-6 text-[2.6rem] text-chalk">Account</h1>
+    <div className="flex h-full flex-col">
+      <div className="flex-1 overflow-y-auto px-5 pt-8 pb-6">
+        <h1 className="display text-[30px] text-chalk">Settings</h1>
 
-        <dl className="mt-12 border-t border-hair">
-          <Row label="Name">{user.name}</Row>
-          <Row label="Email">{user.email}</Row>
-          <Row label="Events">
-            <span className="tabular">{eventCount}</span>
-          </Row>
-          <Row label="Photos stored">
-            <span className="tabular">{photoCount}</span>
-          </Row>
-        </dl>
-
-        <section className="mt-14 border-t border-hair pt-10">
-          <p className="marking">Change password</p>
-          <ChangePasswordForm />
+        <section className="mt-6">
+          <p className="marking">Info</p>
+          <div className="mt-3 flex items-center gap-4">
+            <span className="display-md flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-chalk text-[20px] text-void">
+              {HOST.initials}
+            </span>
+            <div className="flex h-16 flex-1 items-center justify-between rounded-2xl bg-surface px-4">
+              <span className="text-[16px] text-chalk">{HOST.name}</span>
+              <Pencil className="h-4 w-4 text-dust" />
+            </div>
+          </div>
         </section>
 
-        <section className="mt-14 border-t border-hair pt-10">
-          <p className="marking text-danger">Delete account</p>
-          <p className="mt-5 text-[15px] leading-relaxed text-ash">
-            This removes your account, all {eventCount} of your event
-            {eventCount === 1 ? "" : "s"}, and every one of the {photoCount} photo
-            {photoCount === 1 ? "" : "s"} your guests took — permanently, from our servers and our
-            storage. Download anything you want to keep first.
-          </p>
-          <DeleteAccountForm />
+        <section className="mt-8 border-t border-hair pt-6">
+          <p className="marking">Socials</p>
+          <div className="mt-3 space-y-2.5">
+            <SettingRow
+              icon={<Instagram className="h-5 w-5" />}
+              label="Instagram"
+              href="/proto/account"
+            />
+            <SettingRow
+              icon={<Mail className="h-5 w-5" />}
+              label="Contact Support"
+              href="/proto/account"
+            />
+          </div>
         </section>
 
-        <nav className="mt-16 flex gap-8 border-t border-hair pt-8">
-          <Link href="/terms" className="marking hover:text-chalk">
-            Terms
-          </Link>
-          <Link href="/privacy" className="marking hover:text-chalk">
-            Privacy
-          </Link>
-        </nav>
+        <section className="mt-8 border-t border-hair pt-6">
+          <p className="marking">Account</p>
+          <div className="mt-3 space-y-2.5">
+            <SettingRow
+              icon={<Logout className="h-5 w-5" />}
+              label="Logout"
+              href="/proto/welcome"
+              tone="danger"
+            />
+            <SettingRow
+              icon={<Trash className="h-5 w-5" />}
+              label="Delete Account"
+              href="/proto/account?v=delete"
+              tone="danger"
+            />
+          </div>
+        </section>
       </div>
-    </div>
-  );
-}
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-wrap items-baseline justify-between gap-4 border-b border-hair py-4">
-      <dt className="marking">{label}</dt>
-      <dd className="truncate text-[15px] text-chalk">{children}</dd>
+      <BottomNav current="account" />
+
+      <Dialog
+        open={confirming}
+        title={
+          <span className="flex flex-col items-center gap-3 text-center">
+            <Warning className="h-8 w-8 text-danger" />
+            Delete Account?
+          </span>
+        }
+        actions={
+          <>
+            <PillLink href="/proto/account" variant="quiet" full>
+              Cancel
+            </PillLink>
+            <Pill full className="bg-danger px-4 text-void hover:bg-danger">
+              Delete Account
+            </Pill>
+          </>
+        }
+      >
+        <p className="text-chalk">This will permanently delete:</p>
+        <ul className="mt-3 space-y-2 pl-4">
+          {[
+            "Your account and profile",
+            "All rolls you created will be permanently deleted and cannot be recovered",
+            "Your participation in other events will no longer be attached to your account",
+          ].map((line) => (
+            <li key={line} className="list-disc">
+              {line}
+            </li>
+          ))}
+        </ul>
+        <p className="mt-4 text-center text-danger">
+          Hosted events and account data cannot be recovered after deletion.
+        </p>
+      </Dialog>
     </div>
   );
 }

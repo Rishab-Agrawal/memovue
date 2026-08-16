@@ -9,7 +9,6 @@
     "lint": "eslint",
     "test": "playwright test",
     "test:headed": "playwright test --headed",
-    "test:proto": "playwright test -c playwright.proto.config.ts",
     "test:unit": "playwright test -c playwright.unit.config.ts",
     "db:migrate": "prisma migrate deploy",
     "db:studio": "prisma studio",

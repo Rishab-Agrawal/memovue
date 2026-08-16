@@ -1,65 +1,61 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
-import { Button } from "@/components/ui/Button";
-import { TextField } from "@/components/ui/Field";
-import { Mark } from "@/components/ui/Logo";
-import { normalizeCode } from "@/lib/codes";
+import { BackButton, PillLink } from "@/components/roll/Chrome";
+import { Dialog } from "@/components/roll/Dialog";
+import { Plate } from "@/components/roll/Plate";
 
-/**
- * Fallback for when the QR won't scan — a scuffed printout, a cracked screen, a camera
- * that refuses to focus. The code is printed under every QR for exactly this.
- */
-export default function JoinByCodePage() {
-  const router = useRouter();
-  const [code, setCode] = useState("");
-
-  const cleaned = normalizeCode(code);
+export default function JoinRoll() {
+  const invalid = useSearchParams().get("v") === "invalid";
+  const [link, setLink] = useState(invalid ? "frhbcs" : "");
 
   return (
-    <div className="bloom flex min-h-dvh flex-col px-6 pb-16">
-      <header className="py-6">
-        <Mark className="h-8 w-auto" glow />
-      </header>
-      {/* Anchored near the top on a phone. Centring in a tall viewport stranded the mark
-          alone at the top edge with four hundred pixels of nothing under it. */}
-      <main className="flex flex-1 flex-col pt-6 sm:justify-center sm:pt-0">
-        <form
-          className="animate-rise mx-auto w-full max-w-[24rem]"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (cleaned.length >= 4) router.push(`/join/${cleaned}`);
-          }}
+    <div className="relative flex min-h-full flex-col">
+      {/* The camera feed. A plate rather than a real getUserMedia stream — the prototype
+          should never ask for a permission it does nothing with. */}
+      <div className="relative flex-1">
+        <Plate index={5} className="absolute inset-0" />
+        <div className="absolute inset-x-0 top-0 p-4">
+          <BackButton href="/proto/welcome" />
+        </div>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="h-[200px] w-[200px] rounded-3xl border-2 border-dashed border-flame/70" />
+        </div>
+      </div>
+
+      <div className="space-y-4 bg-page px-5 py-6">
+        <p className="marking">Or paste invitation link</p>
+
+        <input
+          value={link}
+          onChange={(event) => setLink(event.target.value)}
+          placeholder="Paste link"
+          aria-label="Invitation link"
+          className="h-14 w-full rounded-2xl bg-surface px-4 text-chalk placeholder:text-dust focus:outline-none focus-visible:ring-1 focus-visible:ring-flame"
+        />
+
+        <PillLink
+          href={link.trim() ? "/proto/guest" : "/proto/join?v=invalid"}
+          variant="light"
+          full
         >
-          <p className="marking text-flame">Join an event</p>
-          <h1 className="display mt-4 text-[clamp(2.4rem,11vw,3.2rem)] text-chalk">
-            Enter your code
-          </h1>
-          <p className="mt-6 text-[16px] leading-relaxed text-ash">
-            It&rsquo;s printed underneath the QR code your host shared.
-          </p>
+          Join →
+        </PillLink>
+      </div>
 
-          <div className="mt-10">
-            <TextField
-              label="Join code"
-              value={code}
-              onChange={(event) => setCode(event.target.value.toUpperCase())}
-              autoCapitalize="characters"
-              autoComplete="off"
-              autoFocus
-              placeholder="Z7G9UJ"
-              maxLength={9}
-              className="tabular h-14 text-[1.6rem] tracking-[0.3em]"
-            />
-          </div>
-
-          <Button type="submit" size="lg" full className="mt-8" disabled={cleaned.length < 4}>
-            Continue
-          </Button>
-        </form>
-      </main>
+      <Dialog
+        open={invalid}
+        title="Invalid link"
+        actions={
+          <PillLink href="/proto/join" variant="quiet" full>
+            OK
+          </PillLink>
+        }
+      >
+        Please scan a QR code or paste a valid invitation link.
+      </Dialog>
     </div>
   );
 }

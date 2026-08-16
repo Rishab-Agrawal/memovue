@@ -1,308 +1,190 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/cn";
-import { type ProcessedPhoto, decode, processCapture } from "@/lib/image";
 
-type Facing = "environment" | "user";
-type Permission = "idle" | "starting" | "live" | "denied" | "unsupported";
+import { BackButton } from "@/components/roll/Chrome";
+import { Counter } from "@/components/roll/Counter";
+import { FlashOff, Flip, Qr } from "@/components/roll/Icons";
+import { Plate } from "@/components/roll/Plate";
+import { ROLL, NOW, SHOTS_PER_PERSON } from "@/lib/mock-REMOVED";
+import { formatCountdown } from "@/lib/roll-config";
 
-interface CameraViewProps {
-  shotsLeft: number;
-  onCaptured: (photo: ProcessedPhoto, previewUrl: string) => void;
-  disabled?: boolean;
-  /** Covered by the album sheet: still streaming, but out of the tab order and unreadable
-      to a screen reader, so the layer on top is the only thing that exists. */
-  inert?: boolean;
-}
+type Phase = "idle" | "flash" | "hold" | "fly";
+
+const FLASH_MS = 90;
+const HOLD_MS = 700;
+const FLIGHT_MS = 420;
 
 /**
- * A viewfinder that behaves like the phone's own camera app: full-bleed preview, one big
- * shutter, flip and torch where the hardware allows it.
+ * The camera.
  *
- * The captured frame is cropped to exactly what the guest could see. The sensor is wider
- * than the screen, and handing someone a photo containing things that were never in their
- * viewfinder feels broken.
+ * There is no keep/retake step: the reference has none, and neither do we. Tapping the
+ * shutter spends a shot, holds the frame for a beat so you see what you got, then throws it
+ * into the gallery thumbnail. That throw is the only confirmation, and it is what makes the
+ * count on the dial feel like it cost something.
+ *
+ * The flight is measured rather than guessed — the frame and the thumbnail report their own
+ * boxes, so the photo lands on the thumbnail at any screen size instead of near it.
  */
-export function CameraView({ shotsLeft, onCaptured, disabled, inert }: CameraViewProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+export function CameraScreen({ autoCapture }: { autoCapture?: boolean }) {
+  // Explicitly `number`: SHOT_TIERS is `as const`, so the inferred type would be the literal
+  // union of the six tiers and decrementing it would not typecheck.
+  const [shotsLeft, setShotsLeft] = useState<number>(SHOTS_PER_PERSON);
+  const [phase, setPhase] = useState<Phase>("idle");
+  const [flight, setFlight] = useState<{ x: number; y: number; scale: number } | null>(null);
 
-  const [facing, setFacing] = useState<Facing>("environment");
-  const [permission, setPermission] = useState<Permission>("idle");
-  const [torchOn, setTorchOn] = useState(false);
-  const [hasTorch, setHasTorch] = useState(false);
-  const [flash, setFlash] = useState(false);
-  const [busy, setBusy] = useState(false);
-
-  const stop = useCallback(() => {
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
-  }, []);
+  const frameRef = useRef<HTMLDivElement>(null);
+  const thumbRef = useRef<HTMLAnchorElement>(null);
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => {
-    let cancelled = false;
+    const pending = timers.current;
+    return () => pending.forEach(clearTimeout);
+  }, []);
 
-    async function start() {
-      if (!navigator.mediaDevices?.getUserMedia) {
-        setPermission("unsupported");
-        return;
-      }
-      setPermission("starting");
-      stop();
+  const capture = useCallback(() => {
+    if (phase !== "idle" || shotsLeft === 0) return;
 
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: facing,
-            width: { ideal: 2560 },
-            height: { ideal: 1440 },
-          },
-          audio: false,
-        });
-        if (cancelled) {
-          stream.getTracks().forEach((track) => track.stop());
-          return;
-        }
+    const spend = () => setShotsLeft((left) => Math.max(0, left - 1));
 
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play().catch(() => {});
-        }
-
-        const track = stream.getVideoTracks()[0];
-        const capabilities = track.getCapabilities?.() as { torch?: boolean } | undefined;
-        setHasTorch(Boolean(capabilities?.torch));
-        setTorchOn(false);
-        setPermission("live");
-      } catch {
-        if (!cancelled) setPermission("denied");
-      }
+    // Travel and scale are what cause vestibular trouble, so reduced motion skips the
+    // flight entirely rather than playing it faster.
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      spend();
+      return;
     }
 
-    void start();
-    return () => {
-      cancelled = true;
-      stop();
-    };
-  }, [facing, stop]);
-
-  async function toggleTorch() {
-    const track = streamRef.current?.getVideoTracks()[0];
-    if (!track) return;
-    const next = !torchOn;
-    try {
-      // `torch` is a real constraint on Android Chrome but isn't in the DOM typings yet.
-      await track.applyConstraints({ advanced: [{ torch: next }] } as unknown as MediaTrackConstraints);
-      setTorchOn(next);
-    } catch {
-      setHasTorch(false);
+    const frame = frameRef.current?.getBoundingClientRect();
+    const thumb = thumbRef.current?.getBoundingClientRect();
+    if (frame && thumb) {
+      setFlight({
+        x: thumb.left + thumb.width / 2 - (frame.left + frame.width / 2),
+        y: thumb.top + thumb.height / 2 - (frame.top + frame.height / 2),
+        scale: thumb.width / frame.width,
+      });
     }
-  }
 
-  async function capture() {
-    const video = videoRef.current;
-    const container = containerRef.current;
-    if (!video || !container || busy || disabled || shotsLeft <= 0) return;
+    setPhase("flash");
+    timers.current.push(
+      setTimeout(() => setPhase("hold"), FLASH_MS),
+      setTimeout(() => setPhase("fly"), HOLD_MS),
+      setTimeout(() => {
+        setPhase("idle");
+        setFlight(null);
+        spend();
+      }, HOLD_MS + FLIGHT_MS),
+    );
+  }, [phase, shotsLeft]);
 
-    setBusy(true);
-    setFlash(true);
-    setTimeout(() => setFlash(false), 260);
-    navigator.vibrate?.(12);
+  // `?v=captured` exists so the animation is reachable from the screen index rather than
+  // only by tapping.
+  const fired = useRef(false);
+  useEffect(() => {
+    if (!autoCapture || fired.current) return;
+    fired.current = true;
+    const timer = setTimeout(capture, 400);
+    return () => clearTimeout(timer);
+  }, [autoCapture, capture]);
 
-    try {
-      const vw = video.videoWidth;
-      const vh = video.videoHeight;
-      const cw = container.clientWidth;
-      const ch = container.clientHeight;
-
-      // Mirror of CSS `object-fit: cover` — work out which slice of the sensor was
-      // actually on screen, and keep only that.
-      const scale = Math.max(cw / vw, ch / vh);
-      const sw = Math.min(vw, cw / scale);
-      const sh = Math.min(vh, ch / scale);
-      const sx = (vw - sw) / 2;
-      const sy = (vh - sh) / 2;
-
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.round(sw);
-      canvas.height = Math.round(sh);
-      const context = canvas.getContext("2d");
-      if (!context) throw new Error("Canvas unavailable");
-
-      if (facing === "user") {
-        // The preview is mirrored, so the saved frame is too — otherwise the photo you get
-        // isn't the one you framed.
-        context.translate(canvas.width, 0);
-        context.scale(-1, 1);
-      }
-      context.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
-
-      const processed = await processCapture(canvas);
-      onCaptured(processed, canvas.toDataURL("image/jpeg", 0.8));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleFilePick(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-
-    setBusy(true);
-    try {
-      const bitmap = await decode(file);
-      const processed = await processCapture(bitmap as CanvasImageSource & { width: number; height: number });
-      onCaptured(processed, URL.createObjectURL(processed.preview));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const out = shotsLeft <= 0;
+  const flying = phase === "hold" || phase === "fly";
 
   return (
-    <div ref={containerRef} inert={inert} className="absolute inset-0 overflow-hidden bg-void">
-      <video
-        ref={videoRef}
-        playsInline
-        muted
-        autoPlay
-        className={cn(
-          "h-full w-full object-cover transition-opacity duration-500",
-          permission === "live" ? "opacity-100" : "opacity-0",
-          facing === "user" && "-scale-x-100",
-        )}
-      />
-
-      {/* Shutter flash */}
-      {flash ? (
-        <div
-          className="pointer-events-none absolute inset-0 bg-chalk"
-          style={{ animation: "mv-shutter 260ms ease-out" }}
-        />
-      ) : null}
-
-      {permission === "starting" ? (
-        <p role="status" className="marking absolute inset-0 grid place-items-center">
-          Waking the camera
-        </p>
-      ) : null}
-
-      {permission === "denied" || permission === "unsupported" ? (
-        <div className="absolute inset-0 grid place-items-center px-8">
-          <div className="max-w-xs">
-            <h2 className="display text-[1.9rem] text-chalk">
-              {permission === "denied" ? "Camera blocked" : "Camera unavailable here"}
-            </h2>
-            <p className="mt-4 text-[15px] leading-relaxed text-ash">
-              {permission === "denied"
-                ? "Allow camera access in your browser settings, or pick a photo instead."
-                : "This browser won't open the camera directly. You can still take a photo and pick it."}
-            </p>
-            <label className="mt-7 inline-flex h-12 cursor-pointer items-center bg-flame px-6 text-[15px] font-medium text-void">
-              Take a photo
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="sr-only"
-                onChange={handleFilePick}
-                disabled={out || busy}
-              />
-            </label>
-          </div>
+    // PAGE rather than VOID so the counter's pure-black housing has something to sit against.
+    <div className="flex h-full flex-col bg-page">
+      <header className="flex items-center justify-between gap-3 px-4 pt-4">
+        <BackButton href="/proto/guest" />
+        <div className="min-w-0 text-center">
+          <p className="display-sm truncate text-[19px] text-chalk">{ROLL.title}</p>
+          <p className="tabular text-[13px] text-dust">
+            {formatCountdown(ROLL.finishAt.getTime() - NOW.getTime())}
+          </p>
         </div>
-      ) : null}
-
-      {/* Torch sits top-left, where the flash control lives in every phone camera app.
-          The bottom-left corner is left free for the album button, same as the camera roll. */}
-      {hasTorch ? (
-        <button
-          type="button"
-          onClick={toggleTorch}
-          aria-pressed={torchOn}
-          aria-label="Torch"
-          className={cn(
-            "absolute top-[calc(var(--safe-top)+4rem)] left-5 grid h-11 w-11 place-items-center border backdrop-blur-md",
-            "transition-[background-color,border-color,transform] duration-200 active:scale-95 active:duration-[60ms]",
-            torchOn
-              ? "border-flame bg-flame text-void"
-              : "border-chalk/25 bg-void/40 text-chalk",
-          )}
+        <Link
+          href="/proto/guest/camera/invite"
+          aria-label="Invite guests"
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-surface text-chalk transition-colors hover:text-flame"
         >
-          <BoltIcon />
-        </button>
-      ) : null}
+          <Qr className="h-5 w-5" />
+        </Link>
+      </header>
 
-      {/* ---------------------------------------------------------- controls */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between px-8 pb-[calc(var(--safe-bottom)+2rem)]">
-        <div className="w-14" />
+      {/* --------------------------------------------------------------- viewfinder */}
+      <div className="flex flex-1 items-center px-4 py-4">
+        <div ref={frameRef} className="relative aspect-[4/5] w-full">
+          <Plate index={6} className="absolute inset-0 rounded-[2rem]" />
 
-        <button
-          type="button"
-          onClick={capture}
-          disabled={out || busy || permission !== "live"}
-          aria-label={out ? "No photos left" : "Take photo"}
-          className={cn(
-            // The shutter is the one genuinely circular control, so it's the one round thing.
-            "pointer-events-auto grid h-[74px] w-[74px] place-items-center rounded-full",
-            "ring-[3px] ring-chalk/90 transition-transform duration-100",
-            "active:scale-90 disabled:opacity-30",
-          )}
-        >
-          <span
-            className={cn(
-              "h-[60px] w-[60px] rounded-full transition-colors",
-              out ? "bg-chalk/25" : "bg-chalk",
-            )}
-          />
-        </button>
+          {phase === "flash" ? (
+            <span className="absolute inset-0 rounded-[2rem] bg-white" />
+          ) : null}
 
-        <div className="flex w-14 justify-end">
-          <button
-            type="button"
-            onClick={() => setFacing((f) => (f === "environment" ? "user" : "environment"))}
-            aria-label="Switch camera"
-            disabled={permission !== "live"}
-            className="pointer-events-auto grid h-11 w-11 place-items-center border border-chalk/25 bg-void/40 text-chalk backdrop-blur-md transition-transform duration-200 active:scale-95 active:duration-[60ms] disabled:opacity-30"
-          >
-            <FlipIcon />
-          </button>
+          {flying ? (
+            <div
+              className="pointer-events-none absolute inset-0 overflow-hidden rounded-[2rem]"
+              style={{
+                transition: `transform ${FLIGHT_MS}ms var(--ease-out-soft), opacity ${FLIGHT_MS}ms ease`,
+                transform:
+                  phase === "fly" && flight
+                    ? `translate(${flight.x}px, ${flight.y}px) scale(${flight.scale})`
+                    : "none",
+                opacity: phase === "fly" ? 0.15 : 1,
+              }}
+            >
+              <Plate index={6} className="absolute inset-0" />
+            </div>
+          ) : null}
         </div>
       </div>
+
+      {/* ----------------------------------------------------------------- controls */}
+      <div className="flex items-center justify-between px-8">
+        <button type="button" aria-label="Flash off" className="tap text-chalk">
+          <FlashOff className="h-6 w-6" />
+        </button>
+
+        <div className="flex items-center rounded-full bg-page p-1">
+          {["1x", "2x"].map((zoom, index) => (
+            <button
+              key={zoom}
+              type="button"
+              className={cn(
+                "tabular h-9 w-12 rounded-full text-[14px] transition-colors",
+                index === 0 ? "bg-surface text-chalk" : "text-dust",
+              )}
+            >
+              {zoom}
+            </button>
+          ))}
+        </div>
+
+        <button type="button" aria-label="Flip camera" className="tap text-chalk">
+          <Flip className="h-6 w-6" />
+        </button>
+      </div>
+
+      {/* ------------------------------------------------------------------- shutter */}
+      <div className="flex items-center justify-between px-6 pt-6 pb-8">
+        <Counter value={shotsLeft} />
+
+        <button
+          type="button"
+          aria-label="Take photo"
+          onClick={capture}
+          disabled={shotsLeft === 0}
+          className="h-[88px] w-[88px] rounded-full border-4 border-chalk bg-surface transition-transform active:scale-95 disabled:opacity-40"
+        />
+
+        <Link
+          ref={thumbRef}
+          href="/proto/guest/album"
+          aria-label="Open album"
+          className="flex h-[72px] w-[72px] items-center justify-center overflow-hidden rounded-2xl bg-surface"
+        >
+          <Plate index={1} className="h-full w-full" />
+        </Link>
+      </div>
     </div>
-  );
-}
-
-function BoltIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden="true">
-      <path d="M13 2 4.5 13.2h5.8L11 22l8.5-11.2h-5.8L13 2Z" />
-    </svg>
-  );
-}
-
-function FlipIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-5 w-5"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M20 10a8 8 0 0 0-13.5-3.5L4 9" />
-      <path d="M4 4v5h5" />
-      <path d="M4 14a8 8 0 0 0 13.5 3.5L20 15" />
-      <path d="M20 20v-5h-5" />
-    </svg>
   );
 }

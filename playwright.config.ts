@@ -7,9 +7,8 @@ export default defineConfig({
   // A screenshot pass over the guest flow, for looking at design changes. It asserts almost
   // nothing and creates a real event every run, so it's opt-in:
   //   npx playwright test tests/shots.spec.ts
-  // Both of these have their own config and need neither a database nor a server:
-  // playwright.proto.config.ts and playwright.unit.config.ts.
-  testIgnore: ["**/shots.spec.ts", "**/proto/**", "**/unit/**"],
+  // Unit specs have their own config and need neither a database nor a server.
+  testIgnore: ["**/shots.spec.ts", "**/unit/**"],
   globalSetup: "./tests/global-setup.ts",
   fullyParallel: false,
   workers: 1,
