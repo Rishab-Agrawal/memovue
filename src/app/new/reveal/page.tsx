@@ -6,17 +6,17 @@ import { Clock, Hourglass } from "@/components/roll/Icons";
 import { Plate } from "@/components/roll/Plate";
 import { WizardShell } from "@/components/roll/WizardShell";
 import { formatShortDateTime } from "@/lib/format";
-import { revealAt, type RevealMode } from "@/lib/roll-config";
+import { computeRevealAt } from "@/lib/roll-access";
+import { MAX_DELAY_HOURS, MIN_DELAY_HOURS } from "@/lib/roll-config";
+import type { RevealMode } from "./../DraftContext";
 import { useDraft } from "../DraftContext";
 
 const MODES: { mode: RevealMode; label: string }[] = [
-  { mode: "during", label: "During\nEvent" },
-  { mode: "after", label: "After\nEvent" },
-  { mode: "delay", label: "Additional\nDelay" },
+  { mode: "DURING", label: "During\nEvent" },
+  { mode: "AFTER", label: "After\nEvent" },
+  { mode: "DELAY", label: "Additional\nDelay" },
 ];
 
-const MIN_DELAY = 1;
-const MAX_DELAY = 72;
 
 /**
  * The one screen that has to demonstrate rather than describe: the two sample frames go
@@ -26,15 +26,21 @@ const MAX_DELAY = 72;
 export default function StepReveal() {
   const { draft, update } = useDraft();
 
-  const reveals = revealAt(draft.finishAt, draft.revealMode, draft.delayHours);
+  // Null for DURING, which is what makes the frames render sharp and hides the chip.
+  // computeRevealAt still returns a date for that mode — the column is never null — so the
+  // check has to be on the mode, not on the result.
+  const reveals =
+    draft.revealMode === "DURING"
+      ? null
+      : computeRevealAt(draft.finishesAt, draft.revealMode, draft.delayHours);
 
   return (
     <WizardShell
       step={4}
       title="When should we reveal your photos?"
       subtitle="Photos are hidden by default during the event. You can select when the photos will be revealed."
-      back="/proto/new/finish"
-      next={{ label: "Next →", href: "/proto/new/card" }}
+      back="/new/finish"
+      next={{ label: "Next →", href: "/new/card" }}
     >
       <div className="relative">
         <div className="grid grid-cols-2 gap-3">
@@ -82,12 +88,12 @@ export default function StepReveal() {
         })}
       </div>
 
-      {draft.revealMode === "delay" ? (
+      {draft.revealMode === "DELAY" ? (
         <div className="mt-6 flex items-center justify-center gap-5 border-t border-hair pt-6">
           <Stepper
             label="Decrease delay"
             glyph="−"
-            onClick={() => update({ delayHours: Math.max(MIN_DELAY, draft.delayHours - 1) })}
+            onClick={() => update({ delayHours: Math.max(MIN_DELAY_HOURS, draft.delayHours - 1) })}
           />
           <p className="tabular w-16 text-center text-[22px] text-chalk" data-testid="delay-hours">
             {draft.delayHours}
@@ -95,7 +101,7 @@ export default function StepReveal() {
           <Stepper
             label="Increase delay"
             glyph="+"
-            onClick={() => update({ delayHours: Math.min(MAX_DELAY, draft.delayHours + 1) })}
+            onClick={() => update({ delayHours: Math.min(MAX_DELAY_HOURS, draft.delayHours + 1) })}
           />
           <span className="sr-only">hours after the roll closes</span>
         </div>

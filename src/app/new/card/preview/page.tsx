@@ -2,36 +2,37 @@
 
 import { CloseButton, PillLink } from "@/components/roll/Chrome";
 import { InvitationCover } from "@/components/roll/InvitationCover";
-import { HOST, NOW } from "@/lib/mock-REMOVED";
-import { SHOT_TIERS, formatCountdown } from "@/lib/roll-config";
+import { formatCountdown } from "@/lib/format";
+import { SHOT_TIERS } from "@/lib/roll-config";
+
 import { useDraft } from "../../DraftContext";
 
 /**
- * The card at the size a guest actually meets it. The name field is filled with "Preview
- * User" and does nothing — this is a look, not a rehearsal.
+ * The card at the size a guest actually meets it. The name field reads "Preview User" and
+ * does nothing — this is a look, not a rehearsal.
  */
 export default function CardPreview() {
-  const { draft } = useDraft();
+  const { draft, hostName } = useDraft();
 
   return (
-    <div className="relative h-full">
+    <div className="relative h-dvh">
       <InvitationCover
-        coverIndex={draft.coverIndex}
-        title={draft.title}
-        hostName={HOST.name}
-        countdown={formatCountdown(draft.finishAt.getTime() - NOW.getTime())}
+        coverIndex={draft.coverPreset}
+        title={draft.name || "Your roll"}
+        hostName={hostName}
+        countdown={formatCountdown(draft.finishesAt.getTime() - Date.now())}
         shots={SHOT_TIERS[draft.shotIndex]}
       >
         <div className="flex h-14 items-center rounded-2xl bg-surface/80 px-4 text-[16px] text-dust">
           Preview User
         </div>
-        <PillLink href="/proto/new/card/preview" variant="light" full inert>
+        <PillLink href="/new/card/preview" variant="light" full inert>
           Take your camera →
         </PillLink>
       </InvitationCover>
 
       <div className="absolute top-4 right-4">
-        <CloseButton href="/proto/new/card" />
+        <CloseButton href="/new/card" />
       </div>
     </div>
   );

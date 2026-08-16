@@ -6,7 +6,7 @@ import { PillLink } from "@/components/roll/Chrome";
 import { Pencil } from "@/components/roll/Icons";
 import { InvitationCover } from "@/components/roll/InvitationCover";
 import { ROLL, HOST, NOW, SHOTS_PER_PERSON } from "@/lib/mock-REMOVED";
-import { formatCountdown } from "@/lib/roll-config";
+import { formatCountdown } from "@/lib/format";
 
 /**
  * What a guest gets after scanning the QR. No account, no install — a name and a camera.

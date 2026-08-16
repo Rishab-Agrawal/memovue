@@ -17,11 +17,11 @@ export default function StepFinish() {
       step={3}
       title="When does your event finish?"
       subtitle="Guests can capture photos until the roll closes at your chosen time."
-      back="/proto/new/start"
-      nextHref="/proto/new/reveal"
-      value={draft.finishAt}
-      onChange={(finishAt) => update({ finishAt })}
-      range={finishDateRange(draft.startAt)}
+      back="/new/start"
+      nextHref="/new/reveal"
+      value={draft.finishesAt}
+      onChange={(finishesAt) => update({ finishesAt })}
+      range={finishDateRange(draft.startsAt)}
     />
   );
 }

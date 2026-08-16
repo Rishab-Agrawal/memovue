@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 
 import { cn } from "@/lib/cn";
 
@@ -12,9 +12,10 @@ import { Person } from "@/components/roll/Icons";
 import { Plate } from "@/components/roll/Plate";
 import { Toggle } from "@/components/roll/Toggle";
 import { WizardShell } from "@/components/roll/WizardShell";
-import { COUPON, ROLL } from "@/lib/mock-REMOVED";
 import { PARTICIPANT_TIERS, SHOT_TIERS, formatPrice, priceFor } from "@/lib/roll-config";
-import { useDraft } from "../DraftContext";
+
+import { createRollAction } from "../actions";
+import { draftToInput, useDraft } from "../DraftContext";
 
 type Stage = "form" | "coupon" | "created";
 
@@ -22,22 +23,25 @@ export default function StepGuests() {
   const { draft, update } = useDraft();
   const router = useRouter();
 
-  const variant = useSearchParams().get("v");
-  const [stage, setStage] = useState<Stage>(
-    variant === "coupon" ? "coupon" : variant === "created" ? "created" : "form",
-  );
+  const [stage, setStage] = useState<Stage>("form");
   const [code, setCode] = useState("");
-  const [rejected, setRejected] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [created, setCreated] = useState<{ id: string; code: string; name: string } | null>(null);
+  const [pending, startTransition] = useTransition();
 
   const price = priceFor(draft.participantIndex, draft.shotIndex);
 
   const apply = () => {
-    if (code.trim().toUpperCase() === COUPON) {
-      setRejected(false);
+    setError(null);
+    startTransition(async () => {
+      const result = await createRollAction(draftToInput(draft, code));
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      setCreated({ id: result.rollId, code: result.code, name: result.name });
       setStage("created");
-    } else {
-      setRejected(true);
-    }
+    });
   };
 
   return (
@@ -46,11 +50,10 @@ export default function StepGuests() {
         step={6}
         title="How many guests for your roll?"
         subtitle="Make sure all guests have a chance to take the most amazing photo from your event."
-        back="/proto/new/card"
-        next={{ label: "Create →", href: "/proto/new/guests" }}
+        back="/new/card"
+        next={{ label: "Create →", href: "/new/guests", inert: !draft.name.trim() }}
         onNext={() => setStage("coupon")}
       >
-        {/* ---------------------------------------------------------- participants */}
         <div className="flex items-start justify-between gap-4">
           <p className="display-md text-[26px] text-chalk">
             Up to
@@ -83,12 +86,9 @@ export default function StepGuests() {
           })}
         </div>
 
-        {/* ---------------------------------------------------------------- shots */}
         <div className="mt-7 border-t border-hair pt-6">
           <p className="marking">Shots per person</p>
 
-          {/* The reference draws the shutter and the counter into one curved housing, so the
-              number you are choosing sits on the camera it belongs to. */}
           <div className="mt-4 flex items-center justify-between rounded-b-[3rem] border border-t-0 border-hair-bright px-4 pt-2 pb-6">
             <Counter value={SHOT_TIERS[draft.shotIndex]} />
             <span className="h-[76px] w-[76px] rounded-full border-4 border-chalk bg-chalk/10" />
@@ -118,7 +118,6 @@ export default function StepGuests() {
           </div>
         </div>
 
-        {/* ----------------------------------------------------------- visibility */}
         <div className="mt-7 border-t border-hair pt-6">
           <p className="marking">Visibility permissions</p>
           <div className="mt-4">
@@ -132,17 +131,16 @@ export default function StepGuests() {
         </div>
       </WizardShell>
 
-      {/* ---------------------------------------------------------------- coupon */}
       <Dialog
         open={stage === "coupon"}
         title="Enter your coupon code"
         actions={
           <>
-            <Pill variant="quiet" full onClick={() => setStage("form")}>
+            <Pill variant="quiet" full disabled={pending} onClick={() => setStage("form")}>
               Cancel
             </Pill>
-            <Pill variant="flame" full disabled={!code.trim()} onClick={apply}>
-              Apply
+            <Pill variant="flame" full disabled={!code.trim() || pending} onClick={apply}>
+              {pending ? "Checking…" : "Apply"}
             </Pill>
           </>
         }
@@ -155,34 +153,31 @@ export default function StepGuests() {
           value={code}
           onChange={(event) => {
             setCode(event.target.value);
-            setRejected(false);
+            setError(null);
           }}
           autoCapitalize="characters"
           placeholder="Your code"
           aria-label="Coupon code"
           className="mt-4 h-14 w-full rounded-2xl bg-void px-4 text-[16px] tracking-[0.08em] text-chalk uppercase placeholder:normal-case placeholder:tracking-normal placeholder:text-dust focus:outline-none focus-visible:ring-1 focus-visible:ring-flame"
         />
-        {rejected ? (
-          <p className="mt-2 text-[13px] text-danger">
-            That code isn&rsquo;t valid or has already been used.
-          </p>
-        ) : null}
+        {error ? <p className="mt-2 text-[13px] text-danger">{error}</p> : null}
       </Dialog>
 
-      {/* --------------------------------------------------------------- created */}
       <Dialog
         open={stage === "created"}
         title="Roll Created!"
         actions={
-          <Pill variant="quiet" full onClick={() => router.push("/proto/roll")}>
+          <Pill variant="quiet" full onClick={() => router.push(`/rolls/${created?.id}`)}>
             OK
           </Pill>
         }
       >
-        <p>Your roll &ldquo;{draft.title}&rdquo; is ready!</p>
-        <p className="tabular mt-4">Share Code: {ROLL.code}</p>
+        <p>Your roll &ldquo;{created?.name}&rdquo; is ready!</p>
+        <p className="tabular mt-4">Share Code: {created?.code}</p>
         <p className="mt-4">Guests can join at:</p>
-        <p className="break-all text-chalk">{ROLL.joinUrl}</p>
+        <p className="break-all text-chalk">
+          {typeof window === "undefined" ? "" : window.location.origin}/j/{created?.code}
+        </p>
       </Dialog>
     </>
   );

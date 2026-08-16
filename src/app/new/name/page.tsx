@@ -17,14 +17,14 @@ export default function StepName() {
       step={1}
       title="What is the name of your event?"
       subtitle="Choose the perfect title for your roll. This title will be visible to everyone you invite."
-      back="/proto/home"
-      next={{ label: "Next →", href: "/proto/new/start", inert: !draft.title.trim() }}
+      back="/rolls"
+      next={{ label: "Next →", href: "/new/start", inert: !draft.name.trim() }}
     >
       <label className="flex h-16 items-center gap-3 rounded-2xl bg-surface px-4 focus-within:ring-1 focus-within:ring-flame">
         <Pencil className="h-4 w-4 shrink-0 text-dust" />
         <input
-          value={draft.title}
-          onChange={(event) => update({ title: event.target.value })}
+          value={draft.name}
+          onChange={(event) => update({ name: event.target.value })}
           aria-label="Event name"
           className="w-full bg-transparent text-[17px] font-medium text-chalk placeholder:text-dust focus:outline-none"
         />

@@ -10,7 +10,7 @@ import { Counter } from "@/components/roll/Counter";
 import { FlashOff, Flip, Qr } from "@/components/roll/Icons";
 import { Plate } from "@/components/roll/Plate";
 import { ROLL, NOW, SHOTS_PER_PERSON } from "@/lib/mock-REMOVED";
-import { formatCountdown } from "@/lib/roll-config";
+import { formatCountdown } from "@/lib/format";
 
 type Phase = "idle" | "flash" | "hold" | "fly";
 

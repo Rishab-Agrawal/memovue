@@ -2,7 +2,7 @@
 
 import { DateStep } from "../DateStep";
 import { useDraft } from "../DraftContext";
-import { NOW } from "@/lib/mock-REMOVED";
+
 import { startDateRange } from "@/lib/roll-config";
 
 /**
@@ -21,11 +21,11 @@ export default function StepStart() {
       step={2}
       title="When does your event start?"
       subtitle="Guests can start capturing photos from this moment."
-      back="/proto/new/name"
-      nextHref="/proto/new/finish"
-      value={draft.startAt}
-      onChange={(startAt) => update({ startAt })}
-      range={startDateRange(NOW)}
+      back="/new/name"
+      nextHref="/new/finish"
+      value={draft.startsAt}
+      onChange={(startsAt) => update({ startsAt })}
+      range={startDateRange()}
     />
   );
 }

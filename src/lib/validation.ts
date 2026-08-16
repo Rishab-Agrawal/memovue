@@ -22,8 +22,7 @@ const shotCounts: number[] = [...SHOT_TIERS];
  * a convenience. A form post is trivially replayed with different values, so anything the
  * client clamps has to be clamped again here.
  */
-export const createRollSchema = z
-  .object({
+const rollFields = z.object({
     name: z.string().trim().min(1, "Give your roll a name").max(80),
 
     startsAt: z.iso.datetime({ offset: true }),
@@ -45,8 +44,13 @@ export const createRollSchema = z
     coverPreset: z.number().int().min(0).max(8),
 
     couponCode: z.string().trim().min(1, "Enter your coupon code").max(40),
-  })
-  .superRefine((data, ctx) => {
+});
+
+/**
+ * Refinement lives outside the object so the schedule slice below can be picked off the
+ * plain shape — a refined schema in Zod 4 has no `.pick`.
+ */
+export const createRollSchema = rollFields.superRefine((data, ctx) => {
     const startsAt = new Date(data.startsAt);
     const finishesAt = new Date(data.finishesAt);
 
@@ -90,7 +94,7 @@ export const editRollSchema = z.object({
   coverPreset: z.number().int().min(0).max(8),
 });
 
-export const rollScheduleSchema = createRollSchema.innerType().pick({
+export const rollScheduleSchema = rollFields.pick({
   startsAt: true,
   finishesAt: true,
   revealMode: true,

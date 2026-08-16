@@ -7,7 +7,8 @@ import { RollHeader } from "@/components/roll/RollHeader";
 import { RollControls, PhotoGrid, VisibilityNotice } from "@/components/roll/RollParts";
 import { formatDay } from "@/lib/format";
 import { ROLL, NOW, PHOTOS } from "@/lib/mock-REMOVED";
-import { formatDuration, revealAt } from "@/lib/roll-config";
+import { formatDuration } from "@/lib/format";
+import { computeRevealAt } from "@/lib/roll-access";
 
 type View = "before" | "after-host-only" | "after-everyone";
 
