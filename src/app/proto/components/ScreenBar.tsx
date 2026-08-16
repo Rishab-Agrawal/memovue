@@ -32,7 +32,7 @@ export function ScreenBar() {
         data-testid="screen-name"
         className="truncate text-center text-ash transition-colors hover:text-flame"
       >
-        {current?.name ?? "unregistered"}
+        {current?.name ?? (pathname === "/proto" ? "All screens" : "unregistered")}
       </Link>
 
       {next ? (
