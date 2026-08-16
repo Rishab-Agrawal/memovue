@@ -17,21 +17,38 @@
 */
 
 @theme {
-  /* Pitch black, one orange, warm off-white. There is no third hue and no grey ramp —
-     hierarchy is opacity on the off-white. */
+  /*
+    Two blacks, one orange, one warm off-white.
+
+    VOID is true #000 and belongs to photographs only — the viewer, the camera, the gaps in
+    the grid. PAGE is a hair above it and carries everything else. The split does two jobs:
+    a photo now sits on a surface visibly deeper than its own chrome, which is depth without
+    a card; and the app's scrolling surfaces leave pure black, where OLED panels smear on
+    fast scroll because a pixel switching fully off and back on lags its neighbours.
+  */
   --color-void: #000000;
-  --color-surface: #0b0b0b;
+  --color-page: #0a0a09;
+  --color-surface: #131211;
   --color-flame: #ff8c00;
   --color-flame-deep: #b35f00;
-  --color-chalk: #f4f1ec;
-  --color-ash: #8a857e;
-  --color-dust: #56524c;
-  --color-hair: #1c1a18;
-  --color-hair-bright: #2e2b28;
+
+  /*
+    The off-white ramp. Every step is a real contrast level against PAGE, not a decorative
+    fade: 17.6 / 7.8 / 5.0 to one. The old ramp put help text and hints at 2.7:1, well below
+    the 4.5:1 floor — on a form, the text explaining what to type was the least legible thing
+    on the screen. Three steps, each about 1.6× apart so the hierarchy still reads, and all
+    three above the floor, is the constraint now.
+  */
+  --color-chalk: #f4f1ec; /* 17.6:1 — headings, values, anything you must read */
+  --color-ash: #a8a29a; /*  7.8:1 — body prose, labels, hints, secondary */
+  --color-dust: #847f76; /*  5.0:1 — meta, counts, the quietest legible tone */
+
+  --color-hair: #1f1d1b;
+  --color-hair-bright: #33302c;
 
   /* Red earns its place: a destructive action has to be distinguishable from the primary
      one. There is no success green — a confirmation is just the accent. */
-  --color-danger: #ff5c47;
+  --color-danger: #ff6b57;
 
   --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
 
@@ -42,7 +59,19 @@
   --radius-lg: 0px;
   --radius-xl: 0px;
 
+  /*
+    Two curves, and they are inverses of each other so a panel returns along the path it
+    arrived on. `soft` decelerates hard — right for something entering under its own power.
+    `in-soft` accelerates — right for the same thing leaving.
+  */
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-soft: cubic-bezier(0.64, 0, 0.78, 0);
+
+  /* Critically damped, no overshoot: the house default for anything a finger can touch.
+     Bounce is reserved for motion a gesture actually threw. */
+  --ease-spring: linear(
+    0, 0.006, 0.025, 0.101, 0.539, 0.721, 0.849, 0.937, 0.968, 0.991, 1
+  );
 }
 
 :root {
@@ -57,9 +86,10 @@
 
 html,
 body {
-  background: var(--color-void);
+  background: var(--color-page);
   color: var(--color-chalk);
   font-family: var(--font-sans);
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   overscroll-behavior-y: none;
@@ -89,6 +119,54 @@ body {
   button {
     font-family: inherit;
   }
+
+  /* The UA stylesheet gives buttons an arrow. Anything that commits an action should say
+     so under the pointer before it is pressed. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  label:has(> input[type="file"]),
+  summary {
+    cursor: pointer;
+  }
+}
+
+/* ------------------------------------------------------------------ layout primitives */
+
+/*
+  Safe areas. These were being referenced by name before they existed, so on any phone with
+  a home indicator the album's last row and — worse — the keep/retake bar sat underneath the
+  system gesture strip. The most consequential tap in the product was in the one place iOS
+  steals touches from.
+*/
+.pad-safe-bottom {
+  padding-bottom: calc(var(--safe-bottom) + 1.5rem);
+}
+
+.pad-safe-top {
+  padding-top: calc(var(--safe-top) + 1rem);
+}
+
+/*
+  A guaranteed 44×44 hit area that costs nothing visually.
+
+  Several controls here are deliberately small — an 12px tracked label, a hairline-underlined
+  link. Enlarging them would wreck the typography, so the target grows behind the type
+  instead of the type growing to meet the target.
+*/
+.tap {
+  position: relative;
+}
+
+.tap::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  min-width: 44px;
+  min-height: 44px;
+  width: 100%;
+  height: 100%;
+  transform: translate(-50%, -50%);
 }
 
 ::selection {
@@ -105,21 +183,49 @@ body {
   site. Unlayered, they would silently beat every utility.
 */
 @layer components {
-  /* Headlines are the body typeface at heavy weight, tracked in tight. No second family:
-     scale and weight carry the hierarchy. */
+  /*
+    Headlines are the body typeface at heavy weight. No second family: scale and weight
+    carry the hierarchy.
+
+    Tracking is a function of size, not a constant. Letterforms drift apart as they grow and
+    crowd as they shrink, so one value is always wrong at one end — a single -0.032em set
+    the 5.5rem hero correctly and squeezed the 19px wordmark. Three tiers, and `.display`
+    alone now means "large".
+  */
   .display {
     font-weight: 700;
-    letter-spacing: -0.032em;
-    line-height: 1.03;
+    letter-spacing: -0.034em;
+    line-height: 1.02;
   }
 
-  /* Small tracked labels: field names, statuses, meta. Uppercase and spaced out so they
-     read as annotation rather than as prose. Never used for a sentence. */
+  /* Section headings and card-sized numbers: past the point where tight tracking helps. */
+  .display-md {
+    font-weight: 700;
+    letter-spacing: -0.018em;
+    line-height: 1.12;
+  }
+
+  /* Anything set heavy below ~20px wants tracking back at zero or above. */
+  .display-sm {
+    font-weight: 700;
+    letter-spacing: 0;
+    line-height: 1.25;
+  }
+
+  /*
+    Small tracked labels: field names, statuses, meta. Uppercase and spaced out so they read
+    as annotation rather than as prose. Never used for a sentence.
+
+    12px, not 11px — this is the type that names form fields and the album's own tabs, read
+    one-handed in a dark room, and 11px uppercase is where legibility starts costing more
+    than the extra pixel of restraint buys.
+  */
   .marking {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
+    line-height: 1.35;
     color: var(--color-ash);
   }
 
@@ -175,87 +281,19 @@ body {
   );
 }
 
-/* ------------------------------------------------------------------ rotator */
-
-/*
-  One statement at a time, each held for a beat before the next.
-
-  Items are stacked in a single grid cell rather than positioned absolutely, so the
-  container sizes itself to the tallest line-wrap and never jumps as statements change
-  length. Each item runs the same keyframes offset by a negative delay, so no JavaScript
-  and no hydration to get wrong.
-
-  TIED TO THE NUMBER OF STATEMENTS: four slots of 2.2s across an 8.8s cycle, so each slot
-  is 25% of the timeline. Adding or removing a statement means changing the duration and
-  the keyframe stops below to match.
-*/
-.rotator {
-  display: grid;
-  /* The row is as tall as the longest statement; centring keeps the shorter one-liners
-     from sitting against the top edge of that reserved space. */
-  align-items: center;
-}
-
-.rotator__item {
-  grid-area: 1 / 1;
-  opacity: 0;
-  animation: mv-rotate 8.8s linear infinite;
-  animation-delay: calc(var(--slot) * -2.2s);
-}
-
-@keyframes mv-rotate {
-  0% {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  2.25% {
-    opacity: 1;
-    transform: none;
-  }
-  20.25% {
-    opacity: 1;
-    transform: none;
-  }
-  25% {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  100% {
-    opacity: 0;
-  }
-}
-
-/*
-  Must be explicit. The global reduced-motion rule collapses every animation to a single
-  0.001ms run, which would leave each item parked on its final keyframe — opacity 0, so
-  the whole section would vanish. Instead it becomes a plain stacked list.
-*/
-@media (prefers-reduced-motion: reduce) {
-  .rotator {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-  }
-
-  .rotator__item {
-    grid-area: auto;
-    opacity: 1 !important;
-    transform: none !important;
-    animation: none !important;
-  }
-}
-
 /* ------------------------------------------------------------------ slider */
 
 /*
   A square thumb on a hairline track. Browsers give no way to style a range input from
   utility classes alone, and the default rounded-blue-pill is another instant tell.
 */
+/* 44px tall so the whole control is a thumb-sized target, while the thumb itself stays the
+   small square the design wants. The track is a hairline centred in that box. */
 .film-slider {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 28px;
+  height: 44px;
   background: transparent;
   cursor: pointer;
 }
@@ -270,10 +308,15 @@ body {
   appearance: none;
   width: 14px;
   height: 22px;
-  margin-top: -11px;
+  margin-top: -10.5px;
   background: var(--color-flame);
   border: none;
   border-radius: 0;
+  transition: transform 120ms var(--ease-out-soft);
+}
+
+.film-slider:active::-webkit-slider-thumb {
+  transform: scaleY(1.18);
 }
 
 .film-slider::-moz-range-track {
@@ -363,6 +406,67 @@ body {
   }
 }
 
+/* A sealed frame breathing while it waits, then the seal breaking. */
+@keyframes mv-breathe {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+@keyframes mv-unseal {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  35% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.14);
+  }
+}
+
+/* Placeholder tiles for a grid that hasn't arrived. A slow pulse, not a sweeping gradient —
+   the sweep is the tell of a component library. */
+@keyframes mv-wait {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/*
+  Full-screen layers arrive and leave along the same axis, on mirrored curves — if the album
+  rose from the bottom edge it has to fall back to the bottom edge, or the two halves of the
+  same action read as two unrelated things happening.
+*/
+@keyframes mv-sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes mv-sheet-out {
+  from {
+    transform: none;
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
 .animate-rise {
   animation: mv-rise 0.6s var(--ease-out-soft) both;
 }
@@ -375,13 +479,61 @@ body {
   animation: mv-develop 0.9s var(--ease-out-soft) both;
 }
 
+.animate-sheet-in {
+  animation: mv-sheet-in 0.42s var(--ease-spring) both;
+}
+
+/* Dismissal is quicker than arrival and rides the inverse curve. Leaving is something the
+   user asked for; making them watch it at the same pace reads as lag. */
+.animate-sheet-out {
+  animation: mv-sheet-out 0.26s var(--ease-in-soft) both;
+}
+
+.animate-wait {
+  animation: mv-wait 1.6s ease-in-out infinite;
+}
+
+.animate-unseal {
+  animation: mv-unseal 1.1s var(--ease-out-soft) both;
+}
+
+/*
+  Reduced motion is not "no motion".
+
+  The blanket rule this replaces collapsed every animation to 0.001ms, which also deleted the
+  cross-fades that explain what just happened — a photo grid appeared with no indication it
+  had loaded, and anything parked on an opacity-0 keyframe vanished outright. What actually
+  triggers vestibular symptoms is travel, scale and blur, so those are what get removed;
+  opacity is kept, and shortened.
+*/
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
-    animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  .animate-rise,
+  .animate-fade,
+  .animate-develop,
+  .animate-sheet-in {
+    animation: mv-fade 0.2s linear both !important;
+  }
+
+  .animate-sheet-out {
+    animation: mv-fade 0.2s linear reverse both !important;
+  }
+
+  /* This one ends hidden by design — swapping it for the plain fade would bring the seal
+     back instead of dissolving it. */
+  .animate-unseal {
+    animation: mv-fade 0.2s linear reverse both !important;
+  }
+
+  .animate-wait {
+    animation: none !important;
+    opacity: 0.5;
   }
 }
 

@@ -123,7 +123,7 @@ export function Logo({
       <Mark className={cn("h-5", markClassName)} />
       {showWordmark ? (
         <span
-          className={cn("display text-[19px] tracking-[0.01em] text-chalk", wordmarkClassName)}
+          className={cn("display-sm text-[19px] tracking-[0.01em] text-chalk", wordmarkClassName)}
         >
           MemoVue
         </span>

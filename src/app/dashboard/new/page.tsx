@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useSyncExternalStore, useTransition } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { ChipGroup, TextField, Toggle } from "@/components/ui/Field";
@@ -30,6 +30,25 @@ function defaultStart(): string {
   return toLocalInputValue(date);
 }
 
+/**
+ * Whether we're past hydration, without a render-triggering effect.
+ *
+ * The default start time can only be computed in the visitor's own timezone, so the server
+ * has nothing sensible to render — it used to render blank and then `setState` in an effect,
+ * which is a second render pass on every visit to the form. This asks the question directly
+ * instead: `false` while server-rendering, `true` once the client has taken over, and the
+ * value is derived rather than stored.
+ */
+const NEVER_CHANGES = () => () => {};
+
+function useHydrated(): boolean {
+  return useSyncExternalStore(
+    NEVER_CHANGES,
+    () => true,
+    () => false,
+  );
+}
+
 export default function NewEventPage() {
   const [name, setName] = useState("");
   const [type, setType] = useState<string>("WEDDING");
@@ -39,14 +58,16 @@ export default function NewEventPage() {
   const [askRelation, setAskRelation] = useState(true);
   const [maxGuests, setMaxGuests] = useState<number>(100);
   const [photosPerGuest, setPhotosPerGuest] = useState(15);
-  const [startsAt, setStartsAt] = useState("");
+  const [startsAtEdit, setStartsAtEdit] = useState<string | null>(null);
   const [revealDelayHours, setRevealDelayHours] = useState<number>(12);
 
   const [state, setState] = useState<ActionState>({});
   const [pending, startTransition] = useTransition();
 
-  // Set on the client only: the server renders in UTC and would mismatch on hydration.
-  useEffect(() => setStartsAt(defaultStart()), []);
+  // Whatever they typed, else tomorrow evening in their own timezone once we're on the
+  // client, else blank for the server pass.
+  const hydrated = useHydrated();
+  const startsAt = startsAtEdit ?? (hydrated ? defaultStart() : "");
 
   const config = eventTypeConfig(type as never);
   const relationMode = config.relation;
@@ -75,10 +96,13 @@ export default function NewEventPage() {
 
   return (
     <>
-      <Link href="/dashboard" className="marking transition-colors hover:text-chalk">
+      <Link
+        href="/dashboard"
+        className="marking -ml-1 inline-flex h-11 items-center px-1 transition-colors hover:text-chalk"
+      >
         ← All events
       </Link>
-      <h1 className="display mt-6 text-[2.6rem] text-chalk">New event</h1>
+      <h1 className="display mt-4 text-[2.6rem] text-chalk">New event</h1>
 
       <form onSubmit={handleSubmit} className="mt-12 flex flex-col gap-12">
         {state.error ? (
@@ -155,7 +179,7 @@ export default function NewEventPage() {
           label="When does it start?"
           type="datetime-local"
           value={startsAt}
-          onChange={(e) => setStartsAt(e.target.value)}
+          onChange={(e) => setStartsAtEdit(e.target.value)}
           required
           className="tabular"
           hint="Guests can't join or shoot before this."

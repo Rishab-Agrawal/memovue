@@ -31,10 +31,13 @@ export default function SignupPage() {
           </p>
         ) : null}
 
+        {/* Every field carries a placeholder. Without one, an underline input is a label,
+            a gap, and a rule — three times over, with nothing saying where to type. */}
         <TextField
           label="Your name"
           name="name"
           autoComplete="name"
+          placeholder="Riya Sharma"
           required
           error={state.fields?.name}
         />
@@ -43,6 +46,7 @@ export default function SignupPage() {
           name="email"
           type="email"
           autoComplete="email"
+          placeholder="you@example.com"
           required
           error={state.fields?.email}
         />
@@ -51,6 +55,7 @@ export default function SignupPage() {
           name="password"
           type="password"
           autoComplete="new-password"
+          placeholder="••••••••"
           required
           minLength={8}
           hint="At least 8 characters."
@@ -68,12 +73,17 @@ export default function SignupPage() {
             error={state.fields?.inviteCode}
           />
         ) : (
+          /* Set as sentence case, not as a `marking` label. In tracked uppercase over a
+             hairline it was pixel-for-pixel the same treatment as YOUR NAME and EMAIL
+             directly above it, so the one control on the form read as a fourth field. */
           <button
             type="button"
             onClick={() => setShowInvite(true)}
-            className="marking self-start border-b border-hair-bright pb-1 transition-colors hover:border-flame hover:text-flame"
+            className="flex h-11 items-center self-start text-[14px] text-ash transition-colors hover:text-flame"
           >
-            I have an invite code
+            <span className="border-b border-hair-bright pb-0.5 transition-colors hover:border-flame">
+              I have an invite code
+            </span>
           </button>
         )}
 

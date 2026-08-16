@@ -21,16 +21,17 @@ export function Slider({
   unit?: string;
 }) {
   const id = useId();
+  const noteId = `${id}-note`;
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2">
       <div className="flex items-end justify-between gap-4">
         <label htmlFor={id} className="marking">
           {label}
         </label>
         <span className="flex items-baseline gap-1.5">
           <span className="display tabular text-[28px] leading-none text-flame">{value}</span>
-          {unit ? <span className="text-[12px] text-dust">{unit}</span> : null}
+          {unit ? <span className="text-[12px] text-ash">{unit}</span> : null}
         </span>
       </div>
 
@@ -42,15 +43,20 @@ export function Slider({
         step={1}
         value={value}
         onChange={(event) => onChange(Number(event.target.value))}
+        aria-describedby={hint ? noteId : undefined}
         className="film-slider"
       />
 
       <div className="flex justify-between">
-        <span className="tabular text-[11px] text-dust">{min}</span>
-        <span className="tabular text-[11px] text-dust">{max}</span>
+        <span className="tabular text-[12px] text-dust">{min}</span>
+        <span className="tabular text-[12px] text-dust">{max}</span>
       </div>
 
-      {hint ? <p className="text-[13px] leading-snug text-dust">{hint}</p> : null}
+      {hint ? (
+        <p id={noteId} className="mt-1 text-[13px] leading-snug text-ash">
+          {hint}
+        </p>
+      ) : null}
     </div>
   );
 }

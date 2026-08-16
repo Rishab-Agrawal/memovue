@@ -85,9 +85,11 @@ export function JoinForm({ config }: { config: JoinFormConfig }) {
             type="button"
             onClick={reclaim}
             disabled={pending}
-            className="marking mt-4 border-b border-flame/40 pb-1 text-flame transition-colors hover:border-flame disabled:opacity-50"
+            className="mt-2 flex h-11 items-center text-[14px] text-flame transition-opacity disabled:opacity-50"
           >
-            That&rsquo;s me — I&rsquo;m on a new phone
+            <span className="border-b border-flame/40 pb-0.5 transition-colors hover:border-flame">
+              That&rsquo;s me — I&rsquo;m on a new phone
+            </span>
           </button>
         </div>
       ) : null}

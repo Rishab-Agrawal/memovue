@@ -47,7 +47,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={archivo.variable}>
-      <body className="grain min-h-dvh bg-void text-chalk">{children}</body>
+      <body className="grain min-h-dvh bg-page text-chalk">{children}</body>
     </html>
   );
 }

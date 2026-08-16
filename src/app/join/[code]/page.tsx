@@ -106,7 +106,8 @@ function Shell({
       <header className="py-6">
         <Mark className="h-8 w-auto" glow />
       </header>
-      <main className="flex flex-1 flex-col justify-center">
+      {/* Anchored near the top on a phone; centred only when there is room to spare. */}
+      <main className="flex flex-1 flex-col pt-6 sm:justify-center sm:pt-0">
         <div className="animate-rise mx-auto w-full max-w-[24rem]">
           <h1 className="display text-[clamp(2.2rem,10vw,3rem)] text-chalk">{title}</h1>
           {/* The event type sits under the title as metadata rather than above it as a

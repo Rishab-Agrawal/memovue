@@ -52,3 +52,11 @@ next-env.d.ts
 
 
 /shots/
+/shots-guest/
+/shots-reveal/
+
+# agent tooling and design references kept in the working copy, not part of the product
+/.agents/
+/.claude/
+/skills-lock.json
+/uiux-reference/

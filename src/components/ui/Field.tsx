@@ -10,35 +10,62 @@ import { cn } from "@/lib/cn";
  * A boxed input with a rounded border and a grey fill is the default shadcn/Tailwind
  * shape, and it makes every form on the web look like the same form. These are ruled
  * lines you write on — closer to a printed booking slip — with the rule burning orange on
- * focus. Field labels are set in the mono "marking" style, like camera-body engraving.
+ * focus. Field labels are set in the tracked "marking" style, like camera-body engraving.
+ *
+ * Two things about that were costing more than they bought, and are fixed here.
+ *
+ * The label used to float eight pixels clear of a 48px-tall control that had no fill, no
+ * placeholder and a rule the same weight as a section divider — so an untouched signup form
+ * read as a heading, a void, and a line, three times over, with nothing saying "type here".
+ * The label now sits tight against its control, the resting rule is brighter than any
+ * divider on the page, and every field carries a placeholder. Proximity does the grouping;
+ * the rule does the affordance. Still no box.
+ *
+ * Hints and errors were also visually attached and programmatically invisible — a screen
+ * reader got "Password" and nothing about the eight-character rule. Both are wired through
+ * `aria-describedby` now.
  */
 
 const controlStyles =
-  "w-full bg-transparent border-0 border-b border-hair-bright px-0 text-chalk " +
-  "placeholder:text-dust transition-colors outline-none " +
-  "focus:border-flame disabled:opacity-50 aria-[invalid=true]:border-danger";
+  "w-full bg-transparent border-0 border-b px-0 text-chalk " +
+  "placeholder:text-dust outline-none " +
+  "transition-[border-color,box-shadow] duration-200 " +
+  // Brighter at rest than `hair`, so a control never reads as a divider. On focus the rule
+  // burns orange and doubles, drawn with a shadow so nothing reflows.
+  "border-hair-bright hover:border-ash " +
+  "focus:border-flame focus:shadow-[0_1px_0_0_var(--color-flame)] " +
+  "disabled:opacity-50 " +
+  "aria-[invalid=true]:border-danger " +
+  "aria-[invalid=true]:focus:shadow-[0_1px_0_0_var(--color-danger)]";
 
 interface FieldShellProps {
   label: string;
   hint?: ReactNode;
   error?: string;
-  children: (id: string) => ReactNode;
+  children: (id: string, describedBy?: string) => ReactNode;
 }
 
 function FieldShell({ label, hint, error, children }: FieldShellProps) {
   const id = useId();
+  const noteId = `${id}-note`;
+  const hasNote = Boolean(error ?? hint);
+
   return (
-    <div className="flex flex-col gap-2">
-      <label htmlFor={id} className="marking">
+    <div className="flex flex-col">
+      <label htmlFor={id} className="marking mb-1.5">
         {label}
       </label>
-      {children(id)}
+
+      {children(id, hasNote ? noteId : undefined)}
+
       {error ? (
-        <p className="text-[13px] text-danger" role="alert">
+        <p id={noteId} className="mt-2.5 text-[13px] leading-snug text-danger" role="alert">
           {error}
         </p>
       ) : hint ? (
-        <p className="text-[13px] leading-snug text-dust">{hint}</p>
+        <p id={noteId} className="mt-2.5 text-[13px] leading-snug text-ash">
+          {hint}
+        </p>
       ) : null}
     </div>
   );
@@ -53,11 +80,12 @@ export function TextField({
 }: { label: string; hint?: ReactNode; error?: string } & ComponentPropsWithoutRef<"input">) {
   return (
     <FieldShell label={label} hint={hint} error={error}>
-      {(id) => (
+      {(id, describedBy) => (
         <input
           id={id}
           aria-invalid={error ? true : undefined}
-          className={cn(controlStyles, "h-12 text-[17px]", className)}
+          aria-describedby={describedBy}
+          className={cn(controlStyles, "h-11 text-[17px]", className)}
           {...props}
         />
       )}
@@ -74,11 +102,16 @@ export function TextArea({
 }: { label: string; hint?: ReactNode; error?: string } & ComponentPropsWithoutRef<"textarea">) {
   return (
     <FieldShell label={label} hint={hint} error={error}>
-      {(id) => (
+      {(id, describedBy) => (
         <textarea
           id={id}
           aria-invalid={error ? true : undefined}
-          className={cn(controlStyles, "min-h-20 resize-y py-2 text-[16px] leading-relaxed", className)}
+          aria-describedby={describedBy}
+          className={cn(
+            controlStyles,
+            "min-h-20 resize-y py-2 text-[16px] leading-relaxed",
+            className,
+          )}
           {...props}
         />
       )}
@@ -110,9 +143,12 @@ export function ChipGroup<T extends string | number>({
   onChange: (value: T) => void;
   columns?: string;
 }) {
+  const noteId = useId();
+  const hasNote = Boolean(error ?? hint);
+
   return (
-    <div className="flex flex-col gap-2.5">
-      <span className="marking">{label}</span>
+    <div className="flex flex-col">
+      <span className="marking mb-2">{label}</span>
 
       {/* Each cell draws its own right and bottom edge; the container closes the top, left
           and right so a partial final row doesn't leave the grid hanging open. */}
@@ -120,6 +156,7 @@ export function ChipGroup<T extends string | number>({
         className={cn("grid border-t border-r border-l border-hair", columns ?? "grid-cols-3")}
         role="group"
         aria-label={label}
+        aria-describedby={hasNote ? noteId : undefined}
       >
         {options.map((option) => {
           const selected = option.value === value;
@@ -132,17 +169,19 @@ export function ChipGroup<T extends string | number>({
               className={cn(
                 "relative flex min-h-[52px] flex-col items-start justify-center gap-0.5",
                 "border-r border-b border-hair px-3 py-2.5 text-left text-[15px]",
-                "transition-colors focus-visible:outline focus-visible:outline-1",
-                "focus-visible:-outline-offset-1 focus-visible:outline-flame",
+                "transition-colors duration-150 focus-visible:outline focus-visible:outline-2",
+                "focus-visible:-outline-offset-2 focus-visible:outline-flame",
                 selected ? "text-flame" : "text-ash hover:text-chalk",
               )}
             >
               <span className={cn(selected && "font-medium")}>{option.label}</span>
               {option.sublabel ? (
-                <span className="text-[11px] text-dust">{option.sublabel}</span>
+                <span className="text-[12px] text-dust">{option.sublabel}</span>
               ) : null}
+              {/* Two pixels, not one. Across a seven-column row of bare numbers the
+                  hairline was doing the entire job of saying which one you picked. */}
               {selected ? (
-                <span className="absolute inset-x-0 bottom-0 h-px bg-flame" aria-hidden="true" />
+                <span className="absolute inset-x-0 bottom-0 h-0.5 bg-flame" aria-hidden="true" />
               ) : null}
             </button>
           );
@@ -150,11 +189,13 @@ export function ChipGroup<T extends string | number>({
       </div>
 
       {error ? (
-        <p className="text-[13px] text-danger" role="alert">
+        <p id={noteId} className="mt-2.5 text-[13px] leading-snug text-danger" role="alert">
           {error}
         </p>
       ) : hint ? (
-        <p className="text-[13px] leading-snug text-dust">{hint}</p>
+        <p id={noteId} className="mt-2.5 text-[13px] leading-snug text-ash">
+          {hint}
+        </p>
       ) : null}
     </div>
   );
@@ -182,14 +223,14 @@ export function Toggle({
       aria-checked={checked}
       onClick={() => onChange(!checked)}
       className={cn(
-        "group flex w-full items-start gap-3.5 border-t border-hair pt-4 text-left",
-        "focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2",
+        "group flex w-full items-start gap-3.5 border-t border-hair py-4 text-left",
+        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2",
         "focus-visible:outline-flame",
       )}
     >
       <span
         className={cn(
-          "mt-0.5 grid h-[18px] w-[18px] shrink-0 place-items-center border transition-colors",
+          "mt-0.5 grid h-[20px] w-[20px] shrink-0 place-items-center border transition-colors",
           checked ? "border-flame bg-flame" : "border-hair-bright group-hover:border-ash",
         )}
       >
@@ -209,7 +250,7 @@ export function Toggle({
       <span className="flex flex-col gap-1">
         <span className="text-[15px] text-chalk">{label}</span>
         {description ? (
-          <span className="text-[13px] leading-snug text-dust">{description}</span>
+          <span className="text-[13px] leading-snug text-ash">{description}</span>
         ) : null}
       </span>
     </button>

@@ -23,7 +23,9 @@ export default function JoinByCodePage() {
       <header className="py-6">
         <Mark className="h-8 w-auto" glow />
       </header>
-      <main className="flex flex-1 flex-col justify-center">
+      {/* Anchored near the top on a phone. Centring in a tall viewport stranded the mark
+          alone at the top edge with four hundred pixels of nothing under it. */}
+      <main className="flex flex-1 flex-col pt-6 sm:justify-center sm:pt-0">
         <form
           className="animate-rise mx-auto w-full max-w-[24rem]"
           onSubmit={(event) => {

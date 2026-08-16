@@ -14,12 +14,14 @@ export function ChangePasswordForm() {
   return (
     <form action={action} className="mt-8 flex flex-col gap-7">
       {state.success ? (
-        <p className="border-l-2 border-flame py-1 pl-5 text-[14px] text-flame">
+        <p role="status" className="border-l-2 border-flame py-1 pl-5 text-[14px] text-flame">
           {state.success}
         </p>
       ) : null}
       {state.error ? (
-        <p className="border-l-2 border-danger py-1 pl-5 text-[14px] text-danger">{state.error}</p>
+        <p role="alert" className="border-l-2 border-danger py-1 pl-5 text-[14px] text-danger">
+          {state.error}
+        </p>
       ) : null}
 
       <TextField
@@ -27,6 +29,7 @@ export function ChangePasswordForm() {
         name="currentPassword"
         type="password"
         autoComplete="current-password"
+        placeholder="••••••••"
         required
         error={state.fields?.currentPassword}
       />
@@ -35,6 +38,7 @@ export function ChangePasswordForm() {
         name="newPassword"
         type="password"
         autoComplete="new-password"
+        placeholder="••••••••"
         required
         minLength={8}
         hint="At least 8 characters."
@@ -63,7 +67,9 @@ export function DeleteAccountForm() {
   return (
     <form action={action} className="mt-8 flex flex-col gap-6 border-l-2 border-danger pl-5">
       {state.error ? (
-        <p className="text-[14px] text-danger">{state.error}</p>
+        <p role="alert" className="text-[14px] text-danger">
+          {state.error}
+        </p>
       ) : null}
 
       <TextField
@@ -71,6 +77,7 @@ export function DeleteAccountForm() {
         name="password"
         type="password"
         autoComplete="current-password"
+        placeholder="••••••••"
         required
         error={state.fields?.password}
       />

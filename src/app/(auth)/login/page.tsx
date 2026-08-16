@@ -28,6 +28,7 @@ export default function LoginPage() {
           name="email"
           type="email"
           autoComplete="email"
+          placeholder="you@example.com"
           required
           error={state.fields?.email}
         />
@@ -36,6 +37,7 @@ export default function LoginPage() {
           name="password"
           type="password"
           autoComplete="current-password"
+          placeholder="••••••••"
           required
           error={state.fields?.password}
         />

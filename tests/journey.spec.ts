@@ -153,6 +153,24 @@ test("host creates an event, a guest shoots it, and the reveal opens the album",
   await expect(guest.getByText("Riya Sharma").first()).toBeVisible();
   await expect(guest.getByRole("link", { name: "Save" }).first()).toBeVisible();
 
+  /* ---------------------------------------------------------------- back closes the photo */
+
+  // Back is the gesture people actually reach for to leave a full-screen photo, and it has
+  // to close the photo rather than the album — being ejected from the album on the one night
+  // it opens is the worst possible time for it.
+  await guest.goBack();
+  await expect(guest.getByRole("dialog", { name: "Photo" })).toBeHidden();
+  await expect(guest).toHaveURL(new RegExp(`/e/${joinCode}`));
+  await expect(guest.getByRole("button", { name: "Everyone" })).toBeVisible();
+
+  // And closing with the ✕ must spend the same entry, so one further back leaves the album
+  // instead of silently re-opening nothing.
+  await tiles.first().click();
+  await expect(guest.getByRole("dialog", { name: "Photo" })).toBeVisible();
+  await guest.getByRole("button", { name: "Close" }).click();
+  await expect(guest.getByRole("dialog", { name: "Photo" })).toBeHidden();
+  await expect(guest.getByRole("button", { name: "Everyone" })).toBeVisible();
+
   /* ---------------------------------------------------------------- host download */
 
   const zip = await host.request.get(

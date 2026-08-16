@@ -35,11 +35,14 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
 
   return (
     <>
-      <Link href="/dashboard" className="marking transition-colors hover:text-chalk">
+      <Link
+        href="/dashboard"
+        className="marking -ml-1 inline-flex h-11 items-center px-1 transition-colors hover:text-chalk"
+      >
         ← All events
       </Link>
 
-      <h1 className="display mt-6 text-[2.6rem] leading-[1.05] text-chalk">{event.name}</h1>
+      <h1 className="display mt-4 text-[2.6rem] text-chalk">{event.name}</h1>
       <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
         <EventPhaseBadge phase={phase} />
         <span className="marking text-dust">{config.label}</span>
@@ -89,7 +92,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
               >
                 {photoCount}
               </span>
-              <span className="display text-[1.5rem] text-ash">
+              <span className="display-md text-[1.5rem] text-ash">
                 photo{photoCount === 1 ? "" : "s"}
               </span>
             </p>
@@ -241,7 +244,7 @@ function Stat({
   return (
     <div className="border-b border-hair py-6 pr-6">
       <dt className="marking">{label}</dt>
-      <dd className="display tabular mt-2.5 text-[1.6rem] leading-none text-chalk">
+      <dd className="display-md tabular mt-2.5 text-[1.6rem] leading-none text-chalk">
         {value}
         {sub ? (
           <span className="ml-2 font-sans text-[12px] font-normal tracking-normal text-dust">

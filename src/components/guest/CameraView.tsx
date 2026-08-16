@@ -12,6 +12,9 @@ interface CameraViewProps {
   shotsLeft: number;
   onCaptured: (photo: ProcessedPhoto, previewUrl: string) => void;
   disabled?: boolean;
+  /** Covered by the album sheet: still streaming, but out of the tab order and unreadable
+      to a screen reader, so the layer on top is the only thing that exists. */
+  inert?: boolean;
 }
 
 /**
@@ -22,7 +25,7 @@ interface CameraViewProps {
  * than the screen, and handing someone a photo containing things that were never in their
  * viewfinder feels broken.
  */
-export function CameraView({ shotsLeft, onCaptured, disabled }: CameraViewProps) {
+export function CameraView({ shotsLeft, onCaptured, disabled, inert }: CameraViewProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -163,7 +166,7 @@ export function CameraView({ shotsLeft, onCaptured, disabled }: CameraViewProps)
   const out = shotsLeft <= 0;
 
   return (
-    <div ref={containerRef} className="absolute inset-0 overflow-hidden bg-void">
+    <div ref={containerRef} inert={inert} className="absolute inset-0 overflow-hidden bg-void">
       <video
         ref={videoRef}
         playsInline
@@ -185,7 +188,9 @@ export function CameraView({ shotsLeft, onCaptured, disabled }: CameraViewProps)
       ) : null}
 
       {permission === "starting" ? (
-        <p className="marking absolute inset-0 grid place-items-center">Waking the camera</p>
+        <p role="status" className="marking absolute inset-0 grid place-items-center">
+          Waking the camera
+        </p>
       ) : null}
 
       {permission === "denied" || permission === "unsupported" ? (
@@ -223,7 +228,8 @@ export function CameraView({ shotsLeft, onCaptured, disabled }: CameraViewProps)
           aria-pressed={torchOn}
           aria-label="Torch"
           className={cn(
-            "absolute top-[calc(var(--safe-top)+4rem)] left-5 grid h-11 w-11 place-items-center border backdrop-blur-md transition-colors",
+            "absolute top-[calc(var(--safe-top)+4rem)] left-5 grid h-11 w-11 place-items-center border backdrop-blur-md",
+            "transition-[background-color,border-color,transform] duration-200 active:scale-95 active:duration-[60ms]",
             torchOn
               ? "border-flame bg-flame text-void"
               : "border-chalk/25 bg-void/40 text-chalk",
@@ -263,7 +269,7 @@ export function CameraView({ shotsLeft, onCaptured, disabled }: CameraViewProps)
             onClick={() => setFacing((f) => (f === "environment" ? "user" : "environment"))}
             aria-label="Switch camera"
             disabled={permission !== "live"}
-            className="pointer-events-auto grid h-11 w-11 place-items-center border border-chalk/25 bg-void/40 text-chalk backdrop-blur-md disabled:opacity-30"
+            className="pointer-events-auto grid h-11 w-11 place-items-center border border-chalk/25 bg-void/40 text-chalk backdrop-blur-md transition-transform duration-200 active:scale-95 active:duration-[60ms] disabled:opacity-30"
           >
             <FlipIcon />
           </button>

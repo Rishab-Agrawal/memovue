@@ -57,7 +57,7 @@ export default async function DashboardPage() {
                   className="group grid grid-cols-[1fr_auto] items-baseline gap-x-6 gap-y-2 border-b border-hair py-6 transition-colors hover:bg-surface"
                 >
                   <span className="min-w-0">
-                    <span className="display block truncate text-[1.5rem] text-chalk transition-colors group-hover:text-flame">
+                    <span className="display-md block truncate text-[1.5rem] text-chalk transition-colors group-hover:text-flame">
                       {event.name}
                     </span>
                     <span className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -69,7 +69,7 @@ export default async function DashboardPage() {
                     </span>
                   </span>
                   <span className="text-right">
-                    <span className="display tabular block text-[1.25rem] leading-none text-chalk">
+                    <span className="display-md tabular block text-[1.25rem] leading-none text-chalk">
                       {event._count.photos}
                     </span>
                     <span className="marking mt-1.5 block text-dust">
@@ -95,7 +95,7 @@ function AccessGate({ status, name }: { status: string; name: string }) {
           We approve hosts by hand while MemoVue is in beta — usually within a day. We&rsquo;ll
           email you at the address on this account the moment you&rsquo;re in.
         </p>
-        <p className="mt-8 border-t border-hair pt-6 text-[15px] text-dust">
+        <p className="mt-8 border-t border-hair pt-6 text-[15px] text-ash">
           In a hurry?{" "}
           <a
             href="mailto:hello@memovue.com"
