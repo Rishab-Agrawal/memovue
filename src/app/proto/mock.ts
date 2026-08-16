@@ -8,7 +8,8 @@ import { PARTICIPANT_TIERS, SHOT_TIERS, type RevealMode } from "./rules";
  * countdown on every run and screenshots stay comparable.
  */
 
-export const NOW = new Date("2026-09-12T22:10:00+05:30");
+/** Late on the second day, so every countdown reads in hours and minutes rather than days. */
+export const NOW = new Date("2026-09-13T15:28:00+05:30");
 
 export const HOST = { name: "Rishab Agrawal", initials: "RA", firstName: "Rishab" };
 

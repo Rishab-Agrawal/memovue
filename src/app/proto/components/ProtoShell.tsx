@@ -21,7 +21,11 @@ export function ProtoShell({ children }: { children: ReactNode }) {
   if (FULL_WIDTH.has(pathname)) {
     return (
       <div className="flex min-h-dvh flex-col">
-        <div className="min-h-0 flex-1">{children}</div>
+        {/* The testid lets tests scope queries to the screen, so the bar's own label can
+            never be mistaken for content — "No active films" appears in both. */}
+        <div data-testid="screen" className="min-h-0 flex-1">
+          {children}
+        </div>
         <Suspense fallback={barFallback}>
           <ScreenBar />
         </Suspense>
@@ -31,7 +35,9 @@ export function ProtoShell({ children }: { children: ReactNode }) {
 
   return (
     <PhoneFrame>
-      <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">{children}</div>
+      <div data-testid="screen" className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
+        {children}
+      </div>
       <Suspense fallback={barFallback}>
         <ScreenBar />
       </Suspense>

@@ -18,6 +18,9 @@ export const SCREENS: Screen[] = [
   { path: "/proto/welcome", name: "Welcome", group: "Entry" },
   { path: "/proto/join", name: "Join film", group: "Entry" },
   { path: "/proto/join?v=invalid", name: "Join film — invalid link", group: "Entry" },
+
+  { path: "/proto/home?v=empty", name: "Home — no active films", group: "Home" },
+  { path: "/proto/home", name: "Home — active film", group: "Home" },
 ];
 
 export function screenAt(path: string): Screen | undefined {
