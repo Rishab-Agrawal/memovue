@@ -78,6 +78,24 @@ Stated here so they are not invented twice.
   and a 32px blur placeholder) before any upload. That lands under 1 MB in practice, costs the
   server nothing, and adds no perceptible delay. No ffmpeg, no server-side pipeline.
 
+## Naming
+
+**A shared photo collection is a "roll", not a "film".** Decided after the prototype was
+reviewed; everything below that says "film" describes the reference app, not ours.
+
+"Film" is Once's own word — their product is a film and their domain is `join.once.film` —
+so adopting it would make MemoVue read as a clone of the app it learned from. "Roll" keeps
+the disposable-camera metaphor the whole product rests on, and it makes "shots per person",
+the frame counter and "24 shots available" cohere with the noun instead of merely sitting
+near it.
+
+It also frees "event" to mean the actual occasion. The wedding is the event; the roll is
+what you shoot it on. Neither app draws that line as cleanly.
+
+Applies to UI copy, route segments (`/rolls/…`), component names and, when the backend
+lands, the Prisma model. The one word that stays is "album", which continues to mean a roll
+that has ended.
+
 ## Visual language
 
 Reference **shapes**, MemoVue **colour and type**.

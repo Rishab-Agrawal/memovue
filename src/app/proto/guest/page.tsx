@@ -5,7 +5,7 @@ import { useState } from "react";
 import { PillLink } from "../components/Chrome";
 import { Pencil } from "../components/Icons";
 import { InvitationCover } from "../components/InvitationCover";
-import { FILM, HOST, NOW, SHOTS_PER_PERSON } from "../mock";
+import { ROLL, HOST, NOW, SHOTS_PER_PERSON } from "../mock";
 import { formatCountdown } from "../rules";
 
 /**
@@ -18,9 +18,9 @@ export default function GuestInvitation() {
     <div className="h-full">
       <InvitationCover
         coverIndex={0}
-        title={FILM.title}
+        title={ROLL.title}
         hostName={HOST.firstName}
-        countdown={formatCountdown(FILM.finishAt.getTime() - NOW.getTime())}
+        countdown={formatCountdown(ROLL.finishAt.getTime() - NOW.getTime())}
         shots={SHOTS_PER_PERSON}
       >
         <label className="flex h-14 items-center gap-3 rounded-2xl bg-surface/85 px-4 backdrop-blur-sm focus-within:ring-1 focus-within:ring-flame">

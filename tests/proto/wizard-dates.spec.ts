@@ -15,7 +15,7 @@ test("the start step has no skip, and refuses dates beyond two years", async ({ 
   await expect(page.getByRole("button", { name: "Skip" })).toHaveCount(0);
   await expect(screen(page).getByRole("link", { name: /Next/ })).toBeVisible();
 
-  // The film starts Sep 2026, so Sep 2028 is the last reachable month. Twenty-five clicks
+  // The roll starts Sep 2026, so Sep 2028 is the last reachable month. Twenty-five clicks
   // forward lands past it, where no day is selectable.
   await screen(page).getByRole("button", { name: "Next month" }).click({ clickCount: 25 });
   await expect(screen(page).getByRole("button", { name: "15", exact: true })).toHaveCount(0);

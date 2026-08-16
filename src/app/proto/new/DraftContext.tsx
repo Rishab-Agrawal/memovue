@@ -2,11 +2,11 @@
 
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 
-import { COVER_PRESETS, DRAFT_DEFAULTS, FILM } from "../mock";
+import { COVER_PRESETS, DRAFT_DEFAULTS, ROLL } from "../mock";
 import type { RevealMode } from "../rules";
 
 /**
- * The film being created, shared across the six wizard steps.
+ * The roll being created, shared across the six wizard steps.
  *
  * This lives in the wizard's layout rather than in each page because App Router layouts keep
  * their state across navigations between the routes they wrap — so stepping forward and back
@@ -36,12 +36,12 @@ const initial: Draft = {
   title: DRAFT_DEFAULTS.title,
   startAt: DRAFT_DEFAULTS.startAt,
   finishAt: DRAFT_DEFAULTS.finishAt,
-  revealMode: FILM.revealMode,
-  delayHours: FILM.revealDelayHours,
+  revealMode: ROLL.revealMode,
+  delayHours: ROLL.revealDelayHours,
   coverIndex: COVER_PRESETS[0],
-  participantIndex: FILM.participantIndex,
-  shotIndex: FILM.shotIndex,
-  everyoneCanSee: FILM.everyoneCanSee,
+  participantIndex: ROLL.participantIndex,
+  shotIndex: ROLL.shotIndex,
+  everyoneCanSee: ROLL.everyoneCanSee,
 };
 
 export function DraftProvider({ children }: { children: ReactNode }) {

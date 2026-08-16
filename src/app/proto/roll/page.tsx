@@ -2,9 +2,9 @@
 
 import { useSearchParams } from "next/navigation";
 
-import { FilmBackdrop } from "./FilmBackdrop";
+import { RollBackdrop } from "./RollBackdrop";
 
-export default function FilmHome() {
+export default function RollHome() {
   const revealed = useSearchParams().get("v") === "revealed";
-  return <FilmBackdrop revealed={revealed} />;
+  return <RollBackdrop revealed={revealed} />;
 }

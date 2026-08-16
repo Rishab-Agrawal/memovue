@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
-import { FilmHeader } from "../../components/FilmHeader";
-import { FilmControls, PhotoGrid, VisibilityNotice } from "../../components/FilmParts";
+import { RollHeader } from "../../components/RollHeader";
+import { RollControls, PhotoGrid, VisibilityNotice } from "../../components/RollParts";
 import { formatDay } from "../../format";
-import { FILM, NOW, PHOTOS } from "../../mock";
+import { ROLL, NOW, PHOTOS } from "../../mock";
 import { formatDuration, revealAt } from "../../rules";
 
 type View = "before" | "after-host-only" | "after-everyone";
@@ -17,7 +17,7 @@ export default function GuestAlbum() {
   const revealed = view !== "before";
   const everyoneCanSee = view === "after-everyone";
 
-  const reveals = revealAt(FILM.finishAt, FILM.revealMode, FILM.revealDelayHours);
+  const reveals = revealAt(ROLL.finishAt, ROLL.revealMode, ROLL.revealDelayHours);
   const revealsIn = reveals ? formatDuration(reveals.getTime() - NOW.getTime()) : "";
 
   // With visibility off a guest sees only what they shot themselves. That is the whole
@@ -26,20 +26,20 @@ export default function GuestAlbum() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <FilmHeader
-        title={FILM.title}
+      <RollHeader
+        title={ROLL.title}
         coverIndex={0}
         moments={photos.length}
-        people={FILM.people}
+        people={ROLL.people}
         middleValue={
-          revealed ? formatDay(FILM.finishAt) : formatDuration(FILM.finishAt.getTime() - NOW.getTime())
+          revealed ? formatDay(ROLL.finishAt) : formatDuration(ROLL.finishAt.getTime() - NOW.getTime())
         }
         middleLabel={revealed ? "Ended" : "Left"}
         back="/proto/guest"
       />
 
       <div className="space-y-4 px-5 pt-4 pb-6">
-        <FilmControls
+        <RollControls
           revealed={revealed}
           cameraHref="/proto/guest/camera"
           inviteHref="/proto/guest/camera/invite"
@@ -78,7 +78,7 @@ export default function GuestAlbum() {
         />
 
         <p className="text-center text-[12px] text-dust">
-          Photos available until {formatDay(FILM.keptUntil)}
+          Photos available until {formatDay(ROLL.keptUntil)}
         </p>
       </div>
     </div>

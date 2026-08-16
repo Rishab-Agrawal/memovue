@@ -12,7 +12,7 @@ import { Person } from "../../components/Icons";
 import { Plate } from "../../components/Plate";
 import { Toggle } from "../../components/Toggle";
 import { WizardShell } from "../../components/WizardShell";
-import { COUPON, FILM } from "../../mock";
+import { COUPON, ROLL } from "../../mock";
 import { PARTICIPANT_TIERS, SHOT_TIERS, formatPrice, priceFor } from "../../rules";
 import { useDraft } from "../DraftContext";
 
@@ -44,7 +44,7 @@ export default function StepGuests() {
     <>
       <WizardShell
         step={6}
-        title="How many guests for your film?"
+        title="How many guests for your roll?"
         subtitle="Make sure all guests have a chance to take the most amazing photo from your event."
         back="/proto/new/card"
         next={{ label: "Create →", href: "/proto/new/guests" }}
@@ -149,7 +149,7 @@ export default function StepGuests() {
       >
         <p>
           MemoVue is invite-only while we&rsquo;re in beta. Enter the code you were given to
-          create this film.
+          create this roll.
         </p>
         <input
           value={code}
@@ -172,17 +172,17 @@ export default function StepGuests() {
       {/* --------------------------------------------------------------- created */}
       <Dialog
         open={stage === "created"}
-        title="Film Created!"
+        title="Roll Created!"
         actions={
-          <Pill variant="quiet" full onClick={() => router.push("/proto/film")}>
+          <Pill variant="quiet" full onClick={() => router.push("/proto/roll")}>
             OK
           </Pill>
         }
       >
-        <p>Your film &ldquo;{draft.title}&rdquo; is ready!</p>
-        <p className="tabular mt-4">Share Code: {FILM.code}</p>
+        <p>Your roll &ldquo;{draft.title}&rdquo; is ready!</p>
+        <p className="tabular mt-4">Share Code: {ROLL.code}</p>
         <p className="mt-4">Guests can join at:</p>
-        <p className="break-all text-chalk">{FILM.joinUrl}</p>
+        <p className="break-all text-chalk">{ROLL.joinUrl}</p>
       </Dialog>
     </>
   );

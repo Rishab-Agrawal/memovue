@@ -4,10 +4,10 @@ import { Camera, Download, Lock, Qr, Send } from "./Icons";
 import { Plate } from "./Plate";
 
 /**
- * The pieces below the cover, shared by the host's film home and the guest's album.
+ * The pieces below the cover, shared by the host's roll home and the guest's album.
  */
 
-export function FilmControls({
+export function RollControls({
   revealed,
   cameraHref,
   inviteHref,

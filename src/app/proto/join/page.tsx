@@ -7,7 +7,7 @@ import { BackButton, PillLink } from "../components/Chrome";
 import { Dialog } from "../components/Dialog";
 import { Plate } from "../components/Plate";
 
-export default function JoinFilm() {
+export default function JoinRoll() {
   const invalid = useSearchParams().get("v") === "invalid";
   const [link, setLink] = useState(invalid ? "frhbcs" : "");
 

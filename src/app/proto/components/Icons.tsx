@@ -150,7 +150,7 @@ export const Warning = (p: IconProps) => (
   </Svg>
 );
 
-export const Film = (p: IconProps) => (
+export const Roll = (p: IconProps) => (
   <Svg {...p}>
     <rect x="2.5" y="6.5" width="19" height="11" rx="3" />
     <ellipse cx="12" cy="12" rx="4.5" ry="4" />

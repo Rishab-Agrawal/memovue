@@ -2,24 +2,24 @@ import Link from "next/link";
 
 import { cn } from "@/lib/cn";
 
-import { Film, Person } from "./Icons";
+import { Roll, Person } from "./Icons";
 
 /**
  * Two items, not three. The reference carries a second product ("Tapes") in the middle of
- * this bar; we don't have one, so the bar is Films and the account and nothing else.
+ * this bar; we don't have one, so the bar is Rolls and the account and nothing else.
  */
-export function BottomNav({ current }: { current: "films" | "account" }) {
+export function BottomNav({ current }: { current: "rolls" | "account" }) {
   return (
     <nav className="flex h-14 shrink-0 items-center justify-between border-t border-hair bg-page/95 px-6 backdrop-blur">
       <Link
         href="/proto/home"
         className={cn(
           "marking flex items-center gap-2.5 transition-colors",
-          current === "films" ? "text-chalk" : "text-dust hover:text-ash",
+          current === "rolls" ? "text-chalk" : "text-dust hover:text-ash",
         )}
       >
-        <Film className="h-5 w-5" />
-        Films
+        <Roll className="h-5 w-5" />
+        Rolls
       </Link>
 
       <Link

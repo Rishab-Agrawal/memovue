@@ -11,8 +11,8 @@ export default function CameraInvite() {
       <CameraScreen />
 
       <Sheet
-        title="Invite guests to your film."
-        subtitle="Take a glimpse of your world through their lens. Invite your guests to make this film unforgettable."
+        title="Invite guests to your roll."
+        subtitle="Take a glimpse of your world through their lens. Invite your guests to make this roll unforgettable."
       >
         <div className="mt-5 border-t border-hair pt-6">
           <QrPlate className="mx-auto h-[190px] w-[190px] rounded-2xl" />

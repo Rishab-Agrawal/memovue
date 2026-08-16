@@ -1,20 +1,20 @@
 import { Sheet } from "../../components/Sheet";
-import { PARTICIPANT_CAP, PEOPLE, SHOTS_PER_PERSON, FILM } from "../../mock";
-import { FilmBackdrop } from "../FilmBackdrop";
+import { PARTICIPANT_CAP, PEOPLE, SHOTS_PER_PERSON, ROLL } from "../../mock";
+import { RollBackdrop } from "../RollBackdrop";
 
 /**
  * The reference opens an "Add Participants" upsell here — three price tiers for raising the
  * cap. We do not sell that, so the same tap answers the question it was really asking:
- * who has actually turned up, and how much film have they used.
+ * who has actually turned up, and how much roll have they used.
  */
 export default function People() {
   return (
     <div className="relative min-h-full">
-      <FilmBackdrop />
+      <RollBackdrop />
 
       <Sheet
         title="People"
-        subtitle={`${FILM.people} of ${PARTICIPANT_CAP} participants have joined.`}
+        subtitle={`${ROLL.people} of ${PARTICIPANT_CAP} participants have joined.`}
       >
         <ul className="mt-5 divide-y divide-hair border-t border-hair">
           {PEOPLE.map((person) => (

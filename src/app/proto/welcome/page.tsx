@@ -26,7 +26,7 @@ export default function Welcome() {
 
         <PillLink href="/proto/join" variant="quiet" full>
           <Qr className="h-5 w-5" />
-          Invited? Join film here
+          Invited? Join a roll
         </PillLink>
       </div>
 

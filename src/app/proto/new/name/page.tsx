@@ -16,7 +16,7 @@ export default function StepName() {
     <WizardShell
       step={1}
       title="What is the name of your event?"
-      subtitle="Choose the perfect title for your film. This title will be visible to all of your film guests."
+      subtitle="Choose the perfect title for your roll. This title will be visible to everyone you invite."
       back="/proto/home"
       next={{ label: "Next →", href: "/proto/new/start", inert: !draft.title.trim() }}
     >

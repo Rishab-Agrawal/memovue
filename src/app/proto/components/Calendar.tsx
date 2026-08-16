@@ -40,7 +40,7 @@ function utcDay(year: number, month: number, day: number) {
  *
  * Days outside the range render as plain text rather than buttons — the reference greys
  * them out, and making them genuinely non-interactive is what stops a host picking a
- * wedding date three years out or a finish date before the film opens.
+ * wedding date three years out or a finish date before the roll opens.
  */
 export function Calendar({
   value,

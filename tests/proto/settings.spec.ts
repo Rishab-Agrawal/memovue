@@ -2,8 +2,8 @@ import { expect, test } from "@playwright/test";
 
 import { screen } from "./helpers";
 
-test("film settings drops participants and shots, and keeps the dates", async ({ page }) => {
-  await page.goto("/proto/film/settings");
+test("roll settings drops participants and shots, and keeps the dates", async ({ page }) => {
+  await page.goto("/proto/roll/settings");
 
   await expect(screen(page).getByText("Name & Cover")).toBeVisible();
   await expect(screen(page).getByText("Start date")).toBeVisible();
@@ -14,8 +14,8 @@ test("film settings drops participants and shots, and keeps the dates", async ({
   await expect(screen(page).getByText("Shots per person")).toHaveCount(0);
 });
 
-test("the film settings rows show the film's current configuration", async ({ page }) => {
-  await page.goto("/proto/film/settings");
+test("the roll settings rows show the roll's current configuration", async ({ page }) => {
+  await page.goto("/proto/roll/settings");
 
   await expect(screen(page).getByText("Sep 12, 2026 at 6:00 PM")).toBeVisible();
   await expect(screen(page).getByText("Sep 13, 2026 at 11:00 PM")).toBeVisible();

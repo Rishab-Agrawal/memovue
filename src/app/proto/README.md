@@ -37,7 +37,7 @@ These behave for real, because a static screen cannot show whether the flow work
 | What | File |
 |---|---|
 | Prices, tiers, date limits, countdown wording | `rules.ts` |
-| Names, dates, counts, the film itself | `mock.ts` |
+| Names, dates, counts, the roll itself | `mock.ts` |
 | The coupon that works (`MEMOVUE100`) | `mock.ts` |
 | Which screens exist and their order | `screens.ts` |
 | Date and time formatting | `format.ts` |

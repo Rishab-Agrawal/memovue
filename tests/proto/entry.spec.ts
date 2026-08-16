@@ -6,7 +6,7 @@ test("welcome offers Google and the guest route, and nothing else", async ({ pag
   await page.goto("/proto/welcome");
 
   await expect(screen(page).getByText("Welcome to MemoVue")).toBeVisible();
-  await expect(screen(page).getByRole("link", { name: /Invited\? Join film here/ })).toBeVisible();
+  await expect(screen(page).getByRole("link", { name: /Invited\? Join a roll/ })).toBeVisible();
   await expect(screen(page).getByText("Google")).toBeVisible();
   await expect(page.getByText("Apple")).toHaveCount(0);
 });

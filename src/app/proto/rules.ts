@@ -44,7 +44,7 @@ export function startDateRange(now: Date): DateRange {
   return { min: startOfDay(now), max: startOfDay(max) };
 }
 
-/** A film that runs longer than two months is a mistake, not a plan. */
+/** A roll that runs longer than two months is a mistake, not a plan. */
 export function finishDateRange(startAt: Date): DateRange {
   const max = new Date(startAt);
   max.setUTCMonth(max.getUTCMonth() + 2);
@@ -63,7 +63,7 @@ export function isWithin(day: Date, range: DateRange): boolean {
   return at >= startOfDay(range.min).getTime() && at <= startOfDay(range.max).getTime();
 }
 
-/** `during` films have no reveal moment — the photos were never sealed. */
+/** `during` rolls have no reveal moment — the photos were never sealed. */
 export function revealAt(finishAt: Date, mode: RevealMode, delayHours: number): Date | null {
   if (mode === "during") return null;
   if (mode === "after") return new Date(finishAt);
@@ -72,7 +72,7 @@ export function revealAt(finishAt: Date, mode: RevealMode, delayHours: number): 
 
 /**
  * "7h 32m", with no trailing word. Needed on its own because the same span is read three
- * ways — "7h 32m left", "Reveals in 7h 32m", and bare under the word "Left" on the film
+ * ways — "7h 32m left", "Reveals in 7h 32m", and bare under the word "Left" on the roll
  * header. Baking "left" into the only formatter produced "Reveals in 7h 32m left".
  */
 export function formatDuration(ms: number): string {

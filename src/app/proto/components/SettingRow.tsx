@@ -6,7 +6,7 @@ import { cn } from "@/lib/cn";
 /**
  * One row of a settings list: icon, label, current value, chevron. The value is what makes
  * these rows worth reading — a list of labels alone tells a host nothing about how their
- * film is currently configured.
+ * roll is currently configured.
  */
 export function SettingRow({
   icon,

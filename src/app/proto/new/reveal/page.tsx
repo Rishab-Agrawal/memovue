@@ -97,7 +97,7 @@ export default function StepReveal() {
             glyph="+"
             onClick={() => update({ delayHours: Math.min(MAX_DELAY, draft.delayHours + 1) })}
           />
-          <span className="sr-only">hours after the film closes</span>
+          <span className="sr-only">hours after the roll closes</span>
         </div>
       ) : null}
     </WizardShell>

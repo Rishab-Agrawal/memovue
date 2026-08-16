@@ -14,7 +14,7 @@ import { HOST } from "../mock";
  *
  * "Website" sat next to Instagram under SOCIALS — pointless for us, because the thing it
  * would link to is the page you are already on. And the whole PARTNER section, whose only
- * row was "Have a discount code?", is gone: codes are entered when a film is created, which
+ * row was "Have a discount code?", is gone: codes are entered when a roll is created, which
  * is the moment they actually apply.
  */
 export default function AccountSettings() {
@@ -98,7 +98,7 @@ export default function AccountSettings() {
         <ul className="mt-3 space-y-2 pl-4">
           {[
             "Your account and profile",
-            "All films you created will be permanently deleted and cannot be recovered",
+            "All rolls you created will be permanently deleted and cannot be recovered",
             "Your participation in other events will no longer be attached to your account",
           ].map((line) => (
             <li key={line} className="list-disc">

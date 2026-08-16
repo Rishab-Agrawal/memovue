@@ -5,8 +5,8 @@ import { useDraft } from "../DraftContext";
 import { finishDateRange } from "../../rules";
 
 /**
- * The reference's copy here reads "The film opens now, and guests can capture photos until
- * the film closes at your chosen time." Ours cannot say that any more — the film now has a
+ * The reference's copy here reads "The roll opens now, and guests can capture photos until
+ * the roll closes at your chosen time." Ours cannot say that any more — the roll now has a
  * start of its own — so the sentence only covers the closing half.
  */
 export default function StepFinish() {
@@ -16,7 +16,7 @@ export default function StepFinish() {
     <DateStep
       step={3}
       title="When does your event finish?"
-      subtitle="Guests can capture photos until the film closes at your chosen time."
+      subtitle="Guests can capture photos until the roll closes at your chosen time."
       back="/proto/new/start"
       nextHref="/proto/new/reveal"
       value={draft.finishAt}

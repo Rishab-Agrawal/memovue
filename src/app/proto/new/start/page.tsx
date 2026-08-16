@@ -8,8 +8,8 @@ import { startDateRange } from "../../rules";
 /**
  * The step the reference does not have.
  *
- * Its films open the moment they are created, so it only ever asks when the event finishes.
- * A host printing a QR code two weeks before a wedding needs the film to exist now and open
+ * Its rolls open the moment they are created, so it only ever asks when the event finishes.
+ * A host printing a QR code two weeks before a wedding needs the roll to exist now and open
  * then, which is what this step is for. Bounded to two years out, because weddings get
  * booked that far ahead and nothing legitimate goes further.
  */

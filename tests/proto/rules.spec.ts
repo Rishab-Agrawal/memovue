@@ -51,11 +51,11 @@ test.describe("date ranges", () => {
 test.describe("reveal time", () => {
   const finish = new Date("2026-09-13T23:00:00Z");
 
-  test("during-event films never have a reveal moment", () => {
+  test("during-event rolls never have a reveal moment", () => {
     expect(revealAt(finish, "during", 12)).toBeNull();
   });
 
-  test("after-event films reveal exactly when the film closes", () => {
+  test("after-event rolls reveal exactly when the roll closes", () => {
     expect(revealAt(finish, "after", 12)?.toISOString()).toBe("2026-09-13T23:00:00.000Z");
   });
 
@@ -73,7 +73,7 @@ test.describe("countdown", () => {
     expect(formatCountdown(50 * minute)).toBe("50m left");
   });
 
-  test("a finished film says so instead of counting backwards", () => {
+  test("a finished roll says so instead of counting backwards", () => {
     expect(formatCountdown(0)).toBe("Ended");
     expect(formatCountdown(-minute)).toBe("Ended");
   });

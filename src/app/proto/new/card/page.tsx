@@ -16,8 +16,8 @@ export default function StepCard() {
   return (
     <WizardShell
       step={5}
-      title="Design your film invitation card."
-      subtitle="This cover is the first thing guests see when they are invited to your film."
+      title="Design your roll invitation card."
+      subtitle="This cover is the first thing guests see when they are invited to your roll."
       back="/proto/new/reveal"
       next={{ label: "Next →", href: "/proto/new/guests" }}
     >
@@ -43,7 +43,7 @@ export default function StepCard() {
         </div>
 
         <div className="mt-5 flex gap-3 border-t border-hair pt-5">
-          <PillLink href="/proto/film/settings/info" variant="quiet" full className="px-3 text-[13px]">
+          <PillLink href="/proto/roll/settings/info" variant="quiet" full className="px-3 text-[13px]">
             Edit Cover Image
           </PillLink>
           <PillLink href="/proto/new/card/preview" variant="quiet" full className="px-3 text-[13px]">

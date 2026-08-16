@@ -40,11 +40,11 @@ test("creating demands a valid coupon", async ({ page }) => {
   await screen(page).getByRole("button", { name: "Apply" }).click();
   // The copy uses a typographic apostrophe, so the assertion avoids the character entirely.
   await expect(screen(page).getByText(/valid or has already been used/)).toBeVisible();
-  await expect(screen(page).getByRole("heading", { name: "Film Created!" })).toHaveCount(0);
+  await expect(screen(page).getByRole("heading", { name: "Roll Created!" })).toHaveCount(0);
 
   await screen(page).getByLabel("Coupon code", { exact: true }).fill("MEMOVUE100");
   await screen(page).getByRole("button", { name: "Apply" }).click();
-  await expect(screen(page).getByRole("heading", { name: "Film Created!" })).toBeVisible();
+  await expect(screen(page).getByRole("heading", { name: "Roll Created!" })).toBeVisible();
   // The code appears twice — on its own line and inside the join URL.
   await expect(screen(page).getByText("Share Code: K7M2XQP9")).toBeVisible();
   await expect(screen(page).getByText("https://memovue.com/f/K7M2XQP9")).toBeVisible();

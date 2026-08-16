@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import { screen } from "./helpers";
 
 test("before the reveal nothing is downloadable and every tile is sealed", async ({ page }) => {
-  await page.goto("/proto/film");
+  await page.goto("/proto/roll");
 
   // Typographic apostrophe in the copy, so the assertion stops before it.
   await expect(screen(page).getByText(/Only the host can see everyone/)).toBeVisible();
@@ -13,7 +13,7 @@ test("before the reveal nothing is downloadable and every tile is sealed", async
 });
 
 test("after the reveal the camera gives way to Send and Save", async ({ page }) => {
-  await page.goto("/proto/film?v=revealed");
+  await page.goto("/proto/roll?v=revealed");
 
   await expect(screen(page).getByRole("link", { name: "Send" })).toBeVisible();
   await expect(screen(page).getByRole("link", { name: "Save" })).toBeVisible();
@@ -22,10 +22,10 @@ test("after the reveal the camera gives way to Send and Save", async ({ page }) 
 });
 
 test("People opens a roster rather than an upsell", async ({ page }) => {
-  await page.goto("/proto/film");
+  await page.goto("/proto/roll");
   await screen(page).getByRole("link", { name: /People/ }).click();
 
-  await expect(page).toHaveURL(/\/proto\/film\/people/);
+  await expect(page).toHaveURL(/\/proto\/roll\/people/);
 
   // Scoped to the roster: "Meera" also credits two of the photos behind the sheet.
   const roster = screen(page).getByRole("listitem");
@@ -36,10 +36,10 @@ test("People opens a roster rather than an upsell", async ({ page }) => {
 });
 
 test("the QR sheet can be saved", async ({ page }) => {
-  await page.goto("/proto/film/invite");
+  await page.goto("/proto/roll/invite");
 
   await expect(
-    screen(page).getByRole("heading", { name: "Invite guests to your film." }),
+    screen(page).getByRole("heading", { name: "Invite guests to your roll." }),
   ).toBeVisible();
 
   await screen(page).getByRole("link", { name: "Save QR image" }).click();

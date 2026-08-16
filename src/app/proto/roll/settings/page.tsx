@@ -10,48 +10,48 @@ import { SettingRow } from "../../components/SettingRow";
 import { Sheet } from "../../components/Sheet";
 import { Toggle } from "../../components/Toggle";
 import { formatDateTime } from "../../format";
-import { FILM } from "../../mock";
-import { FilmBackdrop } from "../FilmBackdrop";
+import { ROLL } from "../../mock";
+import { RollBackdrop } from "../RollBackdrop";
 
 const REVEAL_LABEL = { during: "During", after: "After", delay: "After + delay" } as const;
 
 /**
  * The reference carries two more rows here — Participants and Shots per person — both of
- * which open paid upgrades. We sell neither, and changing the shot count mid-film would
+ * which open paid upgrades. We sell neither, and changing the shot count mid-roll would
  * retroactively change what guests were promised, so both are gone.
  */
-export default function FilmSettings() {
+export default function RollSettings() {
   const confirming = useSearchParams().get("v") === "delete";
-  const [everyoneCanSee, setEveryoneCanSee] = useState(FILM.everyoneCanSee);
+  const [everyoneCanSee, setEveryoneCanSee] = useState(ROLL.everyoneCanSee);
 
   return (
     <div className="relative min-h-full">
-      <FilmBackdrop />
+      <RollBackdrop />
 
-      <Sheet title="Film Settings">
+      <Sheet title="Roll Settings">
         <div className="mt-5 space-y-2">
           <SettingRow
             icon={<Pencil className="h-5 w-5" />}
             label="Name & Cover"
-            value={FILM.title}
-            href="/proto/film/settings/info"
+            value={ROLL.title}
+            href="/proto/roll/settings/info"
           />
           <SettingRow
             icon={<CalendarIcon className="h-5 w-5" />}
             label="Start date"
-            value={formatDateTime(FILM.startAt)}
+            value={formatDateTime(ROLL.startAt)}
             href="/proto/new/start"
           />
           <SettingRow
             icon={<CalendarIcon className="h-5 w-5" />}
             label="Ending date"
-            value={formatDateTime(FILM.finishAt)}
+            value={formatDateTime(ROLL.finishAt)}
             href="/proto/new/finish"
           />
           <SettingRow
             icon={<Clock className="h-5 w-5" />}
             label="Reveal time"
-            value={REVEAL_LABEL[FILM.revealMode]}
+            value={REVEAL_LABEL[ROLL.revealMode]}
             href="/proto/new/reveal"
           />
 
@@ -71,7 +71,7 @@ export default function FilmSettings() {
         </div>
 
         <PillLink
-          href="/proto/film/settings?v=delete"
+          href="/proto/roll/settings?v=delete"
           full
           className="mt-6 border-0 bg-danger/10 text-danger hover:text-danger"
         >
@@ -82,10 +82,10 @@ export default function FilmSettings() {
 
       <Dialog
         open={confirming}
-        title="Delete this film?"
+        title="Delete this roll?"
         actions={
           <>
-            <PillLink href="/proto/film/settings" variant="quiet" full>
+            <PillLink href="/proto/roll/settings" variant="quiet" full>
               Cancel
             </PillLink>
             <Pill full className="bg-danger text-void hover:bg-danger">

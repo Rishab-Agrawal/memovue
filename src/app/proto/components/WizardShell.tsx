@@ -5,12 +5,12 @@ import { BackButton, PagerDots, Pill, PillLink } from "./Chrome";
 export const WIZARD_STEPS = 6;
 
 /**
- * Every step of the create-film wizard shares this frame, so it is written once: back
+ * Every step of the create-roll wizard shares this frame, so it is written once: back
  * button, centred title and subtitle, the step's own content, then the pager and the next
  * control.
  *
  * Note there is no Skip anywhere. The reference offers one on its date screen; skipping the
- * date would leave a film with no window to shoot in, which is not a state worth allowing.
+ * date would leave a roll with no window to shoot in, which is not a state worth allowing.
  */
 export function WizardShell({
   step,

@@ -1,45 +1,45 @@
 "use client";
 
-import { FilmHeader } from "../components/FilmHeader";
-import { FilmControls, PhotoGrid, VisibilityNotice } from "../components/FilmParts";
+import { RollHeader } from "../components/RollHeader";
+import { RollControls, PhotoGrid, VisibilityNotice } from "../components/RollParts";
 import { formatDay } from "../format";
-import { FILM, NOW, PHOTOS } from "../mock";
+import { ROLL, NOW, PHOTOS } from "../mock";
 import { formatDuration, revealAt } from "../rules";
 
 /**
- * The host's film home.
+ * The host's roll home.
  *
  * Pulled out of the page so the invite, people and settings routes can render it behind
  * their sheet — those are overlays on this screen, not separate destinations, and the
  * reference shows the cover through them.
  */
-export function FilmBackdrop({ revealed }: { revealed?: boolean }) {
-  const reveals = revealAt(FILM.finishAt, FILM.revealMode, FILM.revealDelayHours);
+export function RollBackdrop({ revealed }: { revealed?: boolean }) {
+  const reveals = revealAt(ROLL.finishAt, ROLL.revealMode, ROLL.revealDelayHours);
   const revealsIn = reveals ? formatDuration(reveals.getTime() - NOW.getTime()) : "";
-  const left = formatDuration(FILM.finishAt.getTime() - NOW.getTime());
+  const left = formatDuration(ROLL.finishAt.getTime() - NOW.getTime());
 
   return (
     <div className="flex min-h-full flex-col">
-      <FilmHeader
-        title={FILM.title}
+      <RollHeader
+        title={ROLL.title}
         coverIndex={0}
-        moments={FILM.moments}
-        people={FILM.people}
-        middleValue={revealed ? formatDay(FILM.finishAt) : left}
+        moments={ROLL.moments}
+        people={ROLL.people}
+        middleValue={revealed ? formatDay(ROLL.finishAt) : left}
         middleLabel={revealed ? "Ended" : "Left"}
         back="/proto/home"
-        settingsHref="/proto/film/settings"
-        peopleHref="/proto/film/people"
+        settingsHref="/proto/roll/settings"
+        peopleHref="/proto/roll/people"
       />
 
       <div className="space-y-4 px-5 pt-4 pb-6">
-        <FilmControls
+        <RollControls
           revealed={Boolean(revealed)}
           cameraHref="/proto/guest/camera"
-          inviteHref="/proto/film/invite"
+          inviteHref="/proto/roll/invite"
         />
 
-        {FILM.everyoneCanSee ? null : <VisibilityNotice />}
+        {ROLL.everyoneCanSee ? null : <VisibilityNotice />}
 
         <PhotoGrid
           photos={PHOTOS}
@@ -49,7 +49,7 @@ export function FilmBackdrop({ revealed }: { revealed?: boolean }) {
         />
 
         <p className="text-center text-[12px] text-dust">
-          Photos available until {formatDay(FILM.keptUntil)}
+          Photos available until {formatDay(ROLL.keptUntil)}
         </p>
       </div>
     </div>

@@ -13,7 +13,7 @@ export const NOW = new Date("2026-09-13T15:28:00Z");
 
 export const HOST = { name: "Rishab Agrawal", initials: "RA", firstName: "Rishab" };
 
-export const FILM = {
+export const ROLL = {
   title: "Aarav & Diya's Wedding",
   code: "K7M2XQP9",
   joinUrl: "https://memovue.com/f/K7M2XQP9",
@@ -29,8 +29,8 @@ export const FILM = {
   keptUntil: new Date("2026-10-13T23:00:00Z"),
 };
 
-export const PARTICIPANT_CAP = PARTICIPANT_TIERS[FILM.participantIndex];
-export const SHOTS_PER_PERSON = SHOT_TIERS[FILM.shotIndex];
+export const PARTICIPANT_CAP = PARTICIPANT_TIERS[ROLL.participantIndex];
+export const SHOTS_PER_PERSON = SHOT_TIERS[ROLL.shotIndex];
 
 /** Newest first, which is the order the album renders in. */
 export const PHOTOS = [
@@ -46,9 +46,9 @@ export const PEOPLE = [
 ];
 
 /**
- * What the create-film wizard opens with.
+ * What the create-roll wizard opens with.
  *
- * Deliberately not FILM's dates: that film started yesterday, and a film being created now
+ * Deliberately not ROLL's dates: that roll started yesterday, and a roll being created now
  * has to start in the future or the very first calendar would open with its own selection
  * greyed out. Saturday the 19th, running into Sunday night.
  */

@@ -4,11 +4,11 @@ import { BackButton } from "./Chrome";
 import { Plate } from "./Plate";
 
 /**
- * The cover, the title and the three figures, shared by the host's film home and the guest's
+ * The cover, the title and the three figures, shared by the host's roll home and the guest's
  * album — they are the same screen with different permissions, and were the same component
  * in the reference too.
  */
-export function FilmHeader({
+export function RollHeader({
   title,
   coverIndex,
   moments,
@@ -23,7 +23,7 @@ export function FilmHeader({
   coverIndex: number;
   moments: number;
   people: number;
-  /** The countdown while the film runs, the closing date once it has ended. */
+  /** The countdown while the roll runs, the closing date once it has ended. */
   middleValue: string;
   middleLabel: string;
   back: string;
@@ -42,7 +42,7 @@ export function FilmHeader({
         {settingsHref ? (
           <Link
             href={settingsHref}
-            aria-label="Film settings"
+            aria-label="Roll settings"
             className="flex h-12 w-12 items-center justify-center rounded-2xl bg-surface/70 text-[18px] text-chalk backdrop-blur-sm transition-colors hover:text-flame"
           >
             ⚙

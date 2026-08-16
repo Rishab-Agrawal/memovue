@@ -9,7 +9,7 @@ import { BackButton } from "../../components/Chrome";
 import { Counter } from "../../components/Counter";
 import { FlashOff, Flip, Qr } from "../../components/Icons";
 import { Plate } from "../../components/Plate";
-import { FILM, NOW, SHOTS_PER_PERSON } from "../../mock";
+import { ROLL, NOW, SHOTS_PER_PERSON } from "../../mock";
 import { formatCountdown } from "../../rules";
 
 type Phase = "idle" | "flash" | "hold" | "fly";
@@ -97,9 +97,9 @@ export function CameraScreen({ autoCapture }: { autoCapture?: boolean }) {
       <header className="flex items-center justify-between gap-3 px-4 pt-4">
         <BackButton href="/proto/guest" />
         <div className="min-w-0 text-center">
-          <p className="display-sm truncate text-[19px] text-chalk">{FILM.title}</p>
+          <p className="display-sm truncate text-[19px] text-chalk">{ROLL.title}</p>
           <p className="tabular text-[13px] text-dust">
-            {formatCountdown(FILM.finishAt.getTime() - NOW.getTime())}
+            {formatCountdown(ROLL.finishAt.getTime() - NOW.getTime())}
           </p>
         </div>
         <Link

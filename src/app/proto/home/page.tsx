@@ -10,7 +10,7 @@ import { PillLink } from "../components/Chrome";
 import { Camera, Clock, Qr } from "../components/Icons";
 import { Plate } from "../components/Plate";
 import { formatRange } from "../format";
-import { FILM, NOW, PAST_ALBUM } from "../mock";
+import { ROLL, NOW, PAST_ALBUM } from "../mock";
 import { formatCountdown } from "../rules";
 
 /** Just enough tilt to read as separate prints rather than one strip. */
@@ -49,24 +49,24 @@ export default function HostHome() {
           {empty ? (
             <div className="flex flex-col items-center gap-5 py-16">
               <span className="h-7 w-7 rounded-full bg-hair-bright" />
-              <p className="text-[15px] text-dust">No active films</p>
+              <p className="text-[15px] text-dust">No active rolls</p>
               <PillLink href="/proto/new/name" variant="flame">
-                + Create film
+                + Create roll
               </PillLink>
             </div>
           ) : (
             <Link
-              href="/proto/film"
+              href="/proto/roll"
               className="relative mt-4 block h-[260px] w-[200px] overflow-hidden rounded-3xl"
             >
               <Plate index={0} className="absolute inset-0" />
               <div className="absolute inset-0 bg-gradient-to-b from-void/70 via-transparent to-void/40" />
 
               <div className="absolute inset-x-0 top-0 p-4">
-                <p className="display-md line-clamp-2 text-[20px] text-chalk">{FILM.title}</p>
+                <p className="display-md line-clamp-2 text-[20px] text-chalk">{ROLL.title}</p>
                 <p className="tabular mt-1 flex items-center gap-1.5 text-[13px] text-chalk/70">
                   <Clock className="h-3.5 w-3.5" />
-                  {formatCountdown(FILM.finishAt.getTime() - NOW.getTime())}
+                  {formatCountdown(ROLL.finishAt.getTime() - NOW.getTime())}
                 </p>
               </div>
 
@@ -103,7 +103,7 @@ export default function HostHome() {
         </section>
       </div>
 
-      <BottomNav current="films" />
+      <BottomNav current="rolls" />
     </div>
   );
 }
