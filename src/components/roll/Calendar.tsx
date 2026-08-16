@@ -3,44 +3,19 @@
 import { useState } from "react";
 
 import { cn } from "@/lib/cn";
-
+import { MONTHS, WEEKDAYS, fromWall, monthGrid, sameWallDay, toWall } from "@/lib/format";
 import { isWithin, type DateRange } from "@/lib/roll-config";
-
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thur", "Fri", "Sat"];
-const MONTHS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
-
-/** UTC accessors throughout — see the note in `format.ts`. */
-function sameDay(a: Date, b: Date) {
-  return (
-    a.getUTCFullYear() === b.getUTCFullYear() &&
-    a.getUTCMonth() === b.getUTCMonth() &&
-    a.getUTCDate() === b.getUTCDate()
-  );
-}
-
-function utcDay(year: number, month: number, day: number) {
-  return new Date(Date.UTC(year, month, day));
-}
 
 /**
  * A month grid clamped to a range.
  *
- * Days outside the range render as plain text rather than buttons — the reference greys
- * them out, and making them genuinely non-interactive is what stops a host picking a
- * wedding date three years out or a finish date before the roll opens.
+ * Days outside the range render as plain text rather than buttons — the reference greys them
+ * out, and making them genuinely non-interactive is what stops a host picking a wedding date
+ * three years out or a finish date before the roll opens.
+ *
+ * Every date here is a wall-clock day in the app's zone, not a UTC one. A calendar that
+ * disagrees with the clock beside it by five and a half hours is a calendar that hands back
+ * the wrong day for anyone shooting after 6:30pm.
  */
 export function Calendar({
   value,
@@ -51,20 +26,23 @@ export function Calendar({
   onChange: (next: Date) => void;
   range: DateRange;
 }) {
-  const [cursor, setCursor] = useState(() => utcDay(value.getUTCFullYear(), value.getUTCMonth(), 1));
+  const [cursor, setCursor] = useState(() => {
+    const wall = toWall(value);
+    return { year: wall.year, month: wall.month };
+  });
 
-  const year = cursor.getUTCFullYear();
-  const month = cursor.getUTCMonth();
-  const firstWeekday = utcDay(year, month, 1).getUTCDay();
-  const daysInMonth = utcDay(year, month + 1, 0).getUTCDate();
+  const { firstWeekday, days } = monthGrid(cursor.year, cursor.month);
 
-  // Six rows of seven, so the grid never changes height as the months change under it.
+  // Six rows of seven, so the grid never changes height as months change under it.
   const cells: (Date | null)[] = [];
   for (let i = 0; i < firstWeekday; i += 1) cells.push(null);
-  for (let day = 1; day <= daysInMonth; day += 1) cells.push(utcDay(year, month, day));
+  for (let day = 1; day <= days; day += 1) cells.push(fromWall(cursor.year, cursor.month, day));
   while (cells.length < 42) cells.push(null);
 
-  const step = (delta: number) => setCursor(utcDay(year, month + delta, 1));
+  const step = (delta: number) => {
+    const next = new Date(Date.UTC(cursor.year, cursor.month + delta, 1));
+    setCursor({ year: next.getUTCFullYear(), month: next.getUTCMonth() });
+  };
 
   return (
     <div>
@@ -78,7 +56,7 @@ export function Calendar({
           ←
         </button>
         <p className="display-md text-[22px] text-chalk">
-          {MONTHS[month]} {year}
+          {MONTHS[cursor.month]} {cursor.year}
         </p>
         <button
           type="button"
@@ -100,13 +78,13 @@ export function Calendar({
         {cells.map((day, index) => {
           if (!day) return <span key={index} />;
 
+          const label = toWall(day).day;
           const selectable = isWithin(day, range);
-          const selected = sameDay(day, value);
 
           if (!selectable) {
             return (
               <span key={index} className="tabular py-2 text-[15px] text-hair-bright">
-                {day.getUTCDate()}
+                {label}
               </span>
             );
           }
@@ -118,10 +96,12 @@ export function Calendar({
               onClick={() => onChange(day)}
               className={cn(
                 "tabular mx-auto flex h-9 w-9 items-center justify-center rounded-2xl text-[15px] transition-colors",
-                selected ? "border border-flame text-flame" : "text-chalk hover:text-flame",
+                sameWallDay(day, value)
+                  ? "border border-flame text-flame"
+                  : "text-chalk hover:text-flame",
               )}
             >
-              {day.getUTCDate()}
+              {label}
             </button>
           );
         })}

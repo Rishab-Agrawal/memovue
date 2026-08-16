@@ -1,0 +1,87 @@
+import { expect, test } from "@playwright/test";
+
+import {
+  formatDateTime,
+  formatDuration,
+  fromWall,
+  monthGrid,
+  sameWallDay,
+  startOfWallDay,
+  toWall,
+} from "@/lib/format";
+import { finishDateRange, isWithin, startDateRange } from "@/lib/roll-config";
+
+/**
+ * The picker and the formatter have to agree on what "6 PM" means. When they didn't, a host
+ * in India picking 6:00 PM got a roll that opened at 11:30 PM.
+ */
+test.describe("wall clock", () => {
+  test("a picked time reads back as the same time", () => {
+    const instant = fromWall(2026, 8, 19, 18, 0); // 19 Sep 2026, 6:00 pm IST
+    expect(formatDateTime(instant)).toBe("19 Sep 2026 at 6:00 pm");
+
+    const wall = toWall(instant);
+    expect(wall.hour).toBe(18);
+    expect(wall.minute).toBe(0);
+    expect(wall.day).toBe(19);
+  });
+
+  test("the instant is genuinely offset, not just relabelled", () => {
+    // 6:00 pm in Kolkata is 12:30 UTC. If these matched, the zone was being ignored.
+    expect(fromWall(2026, 8, 19, 18, 0).toISOString()).toBe("2026-09-19T12:30:00.000Z");
+  });
+
+  test("late evening does not roll over to the next day", () => {
+    // The failure a UTC calendar produces: 11pm IST is already tomorrow in UTC, so the
+    // selected date jumps a day for anyone shooting after 6:30pm.
+    const lateNight = fromWall(2026, 8, 19, 23, 30);
+    expect(toWall(lateNight).day).toBe(19);
+    expect(sameWallDay(lateNight, fromWall(2026, 8, 19, 9, 0))).toBe(true);
+  });
+
+  test("startOfWallDay lands on local midnight", () => {
+    expect(startOfWallDay(fromWall(2026, 8, 19, 23, 30)).toISOString()).toBe(
+      "2026-09-18T18:30:00.000Z",
+    );
+  });
+
+  test("month grids know their shape", () => {
+    // September 2026 starts on a Tuesday and has 30 days.
+    expect(monthGrid(2026, 8)).toEqual({ firstWeekday: 2, days: 30 });
+    // February in a leap year.
+    expect(monthGrid(2028, 1).days).toBe(29);
+  });
+});
+
+test.describe("scheduling limits", () => {
+  const now = fromWall(2026, 8, 13, 12, 0);
+
+  test("a start date may be up to two years out", () => {
+    const range = startDateRange(now);
+    expect(isWithin(fromWall(2028, 8, 12, 10, 0), range)).toBe(true);
+    expect(isWithin(fromWall(2028, 8, 14, 10, 0), range)).toBe(false);
+    expect(isWithin(fromWall(2026, 8, 12, 10, 0), range)).toBe(false);
+  });
+
+  test("a roll may run for at most two months", () => {
+    const range = finishDateRange(fromWall(2026, 8, 19, 18, 0));
+    expect(isWithin(fromWall(2026, 9, 30, 18, 0), range)).toBe(true);
+    expect(isWithin(fromWall(2026, 10, 25, 18, 0), range)).toBe(false);
+    expect(isWithin(fromWall(2026, 8, 18, 18, 0), range)).toBe(false);
+  });
+
+  test("a roll starting today is allowed", () => {
+    expect(isWithin(now, startDateRange(now))).toBe(true);
+  });
+});
+
+test.describe("durations", () => {
+  const minute = 60_000;
+
+  test("reads in days, then hours, then minutes, with no trailing word", () => {
+    expect(formatDuration(3 * 24 * 60 * minute + 4 * 60 * minute)).toBe("3d 4h");
+    expect(formatDuration(7 * 60 * minute + 32 * minute)).toBe("7h 32m");
+    expect(formatDuration(50 * minute)).toBe("50m");
+    expect(formatDuration(0)).toBe("Ended");
+  });
+});

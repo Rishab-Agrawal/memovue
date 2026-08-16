@@ -1,3 +1,5 @@
+import { fromWall, startOfWallDay, toWall } from "./format";
+
 /**
  * The shape a host can give a roll: how many people, how many shots each, how far ahead it
  * can be scheduled, and what that costs.
@@ -47,27 +49,26 @@ export interface DateRange {
   max: Date;
 }
 
-function startOfDayUtc(date: Date): Date {
-  const copy = new Date(date);
-  copy.setUTCHours(0, 0, 0, 0);
-  return copy;
-}
-
+/** Bounds are wall-clock days in the app's zone, matching what the calendar draws. */
 export function startDateRange(now: Date = new Date()): DateRange {
-  const max = new Date(now);
-  max.setUTCFullYear(max.getUTCFullYear() + START_MAX_YEARS);
-  return { min: startOfDayUtc(now), max: startOfDayUtc(max) };
+  const wall = toWall(now);
+  return {
+    min: startOfWallDay(now),
+    max: fromWall(wall.year + START_MAX_YEARS, wall.month, wall.day),
+  };
 }
 
 export function finishDateRange(startsAt: Date): DateRange {
-  const max = new Date(startsAt);
-  max.setUTCMonth(max.getUTCMonth() + FINISH_MAX_MONTHS);
-  return { min: startOfDayUtc(startsAt), max: startOfDayUtc(max) };
+  const wall = toWall(startsAt);
+  return {
+    min: startOfWallDay(startsAt),
+    max: fromWall(wall.year, wall.month + FINISH_MAX_MONTHS, wall.day),
+  };
 }
 
 export function isWithin(day: Date, range: DateRange): boolean {
-  const at = startOfDayUtc(day).getTime();
-  return at >= startOfDayUtc(range.min).getTime() && at <= startOfDayUtc(range.max).getTime();
+  const at = startOfWallDay(day).getTime();
+  return at >= startOfWallDay(range.min).getTime() && at <= startOfWallDay(range.max).getTime();
 }
 
 /** Hours a host may add on top of the close before photos open. */
