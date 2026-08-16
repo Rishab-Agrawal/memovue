@@ -13,7 +13,13 @@ import { ScreenBar } from "./ScreenBar";
  */
 const FULL_WIDTH = new Set(["/proto/marketing"]);
 
+/**
+ * Both the screens and the bar read `useSearchParams` — screens to pick their variant, the
+ * bar to name itself — so both need a boundary above them or the build refuses to prerender
+ * the route. `next dev` does not enforce this; `next build` does.
+ */
 const barFallback = <div className="h-9 shrink-0 border-t border-hair-bright bg-void" />;
+const screenFallback = <div className="min-h-0 flex-1" />;
 
 export function ProtoShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -24,7 +30,7 @@ export function ProtoShell({ children }: { children: ReactNode }) {
         {/* The testid lets tests scope queries to the screen, so the bar's own label can
             never be mistaken for content — "No active films" appears in both. */}
         <div data-testid="screen" className="min-h-0 flex-1">
-          {children}
+          <Suspense fallback={screenFallback}>{children}</Suspense>
         </div>
         <Suspense fallback={barFallback}>
           <ScreenBar />
@@ -36,7 +42,7 @@ export function ProtoShell({ children }: { children: ReactNode }) {
   return (
     <PhoneFrame>
       <div data-testid="screen" className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
-        {children}
+        <Suspense fallback={screenFallback}>{children}</Suspense>
       </div>
       <Suspense fallback={barFallback}>
         <ScreenBar />
