@@ -17,6 +17,7 @@ export function FilmHeader({
   middleLabel,
   back,
   settingsHref,
+  peopleHref,
 }: {
   title: string;
   coverIndex: number;
@@ -28,6 +29,8 @@ export function FilmHeader({
   back: string;
   /** Absent for guests, who have no settings to open. */
   settingsHref?: string;
+  /** Absent for guests — the roster is the host's business, not theirs. */
+  peopleHref?: string;
 }) {
   return (
     <div className="relative h-[290px] shrink-0">
@@ -53,7 +56,11 @@ export function FilmHeader({
         <div className="mt-4 grid grid-cols-3 text-center">
           <Stat value={String(moments)} label="Moments" />
           <Stat value={middleValue} label={middleLabel} />
-          <Stat value={String(people)} label="People ›" href="/proto/film/people" />
+          <Stat
+            value={String(people)}
+            label={peopleHref ? "People ›" : "People"}
+            href={peopleHref}
+          />
         </div>
       </div>
     </div>

@@ -29,6 +29,7 @@ export function FilmBackdrop({ revealed }: { revealed?: boolean }) {
         middleLabel={revealed ? "Ended" : "Left"}
         back="/proto/home"
         settingsHref="/proto/film/settings"
+        peopleHref="/proto/film/people"
       />
 
       <div className="space-y-4 px-5 pt-4 pb-6">

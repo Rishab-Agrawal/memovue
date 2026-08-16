@@ -48,6 +48,18 @@ export const SCREENS: Screen[] = [
   { path: "/proto/guest/camera", name: "Camera", group: "Guest" },
   { path: "/proto/guest/camera?v=captured", name: "Camera — capture", group: "Guest" },
   { path: "/proto/guest/camera/invite", name: "Camera QR sheet", group: "Guest" },
+  { path: "/proto/guest/album", name: "Guest album — before reveal", group: "Guest" },
+  {
+    path: "/proto/guest/album?v=after-host-only",
+    name: "Guest album — revealed, host only",
+    group: "Guest",
+  },
+  {
+    path: "/proto/guest/album?v=after-everyone",
+    name: "Guest album — revealed, everyone",
+    group: "Guest",
+  },
+  { path: "/proto/guest/album/photo", name: "Photo viewer", group: "Guest" },
 ];
 
 export function screenAt(path: string): Screen | undefined {
