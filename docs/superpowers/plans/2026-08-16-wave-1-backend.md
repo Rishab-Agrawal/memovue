@@ -6,17 +6,19 @@
 **Spec:** `docs/superpowers/specs/2026-08-16-reference-ui-prototype-design.md`
 **Prototype (the visual reference, deleted by T5):** `src/app/proto/`
 
-## Cutover strategy
+## Deployment strategy
 
-Local dev currently points `DATABASE_URL` at the **production** Postgres. If the destructive
-migration runs there on day one, memovue.com breaks immediately and stays broken for the
-whole build.
+Build it like a new app, because that is what it is: no users, no data worth keeping, one
+database. There is no staging environment, no second database and no cutover ceremony.
 
-So: **provision a separate dev database first (T0).** Production keeps serving the current
-code, against the current schema, untouched, until a single cutover window at the end (T11).
-The live site's total downtime is the length of that window rather than the length of Wave 1.
+The production database is migrated at the start (destructive — the demo roll and its R2
+objects go; authorised). Local dev and production share it, as they already did. Work is
+pushed as it lands rather than held for one big release.
 
-Production data is discarded at cutover — the demo roll and its R2 objects. Authorised.
+The site is rough for a few days. That costs nothing: `/` is static and keeps rendering, and
+the routes that error in the meantime are routes nobody opens. Deploying continuously is
+also what makes the thing reviewable early, which is the point — the UI round starts sooner
+if there is something to look at sooner.
 
 ## Global constraints
 
@@ -320,13 +322,9 @@ State verification is not optional — without it the callback is an open CSRF l
 
 ## Tasks
 
-**T0 — Dev database.** Provision a Postgres service on Railway for development, point
-`.env.local` at it, leave production's alone. Verify `railway variable list` for
-`memovue-web` still shows the production URL and that memovue.com is up. *Nothing after this
-touches production until T11.*
-
-**T1 — Schema.** Rewrite `prisma/schema.prisma` to the above. `prisma migrate dev` against
-the dev database. The app will not compile after this; that is expected and T2–T7 fix it.
+**T1 — Schema.** Rewrite `prisma/schema.prisma` to the above. Squash the existing `init`
+migration — the schema is a wholesale replacement and there is no data to preserve — and
+reset the database. The app will not compile after this; that is expected and T2–T7 fix it.
 
 **T2 — Access model.** `src/lib/roll-access.ts` with the tests above, written first. Delete
 `src/lib/event-types.ts`. Fold `src/lib/reveal.ts` into `roll-access.ts` — one module owns
@@ -361,10 +359,9 @@ processed by the existing `src/lib/image.ts` path.
 routes and vocabulary; `global-setup.ts` seeds a user and mints a session cookie instead of
 signing in with a password.
 
-**T11 — Cutover.** *Requires explicit go-ahead.* Migrate the production database
-(destructive — the demo roll and its R2 objects go), push, watch the deployment to a
-terminal SUCCESS, sign in with Google on memovue.com, create a roll with a coupon, join it
-from a phone, take a photo, confirm it is sealed. Then hand it over for the UI round.
+**T11 — Verify on production.** Watch the deployment to a terminal SUCCESS, then walk it on
+memovue.com: sign in with Google, redeem a coupon, create a roll, join it from a phone by
+QR, take a photo, confirm it is sealed until the reveal. Then hand it over for the UI round.
 
 ---
 

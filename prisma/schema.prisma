@@ -1,6 +1,11 @@
 // MemoVue data model.
-// Guests never get accounts — they're identified by a signed cookie tied to a Guest row.
-// Hosts get real accounts, gated behind beta access until payments exist.
+//
+// A ROLL is one shared, time-boxed photo collection — the thing guests shoot on. The EVENT
+// is the occasion it happens at, and exists only in prose. Guests are identified by a signed
+// cookie tied to a Guest row; they may optionally attach that to an account later.
+//
+// Hosts sign in with Google. There are no passwords anywhere in this schema, deliberately:
+// a password column kept "for tests" is a backdoor with a friendly name.
 
 generator client {
   provider = "prisma-client-js"
@@ -15,29 +20,18 @@ enum Role {
   ADMIN
 }
 
-enum AccessStatus {
-  NONE
-  REQUESTED
-  APPROVED
-  DENIED
-}
-
-enum EventType {
-  WEDDING
-  BIRTHDAY
-  ANNIVERSARY
-  BABY_SHOWER
-  GRADUATION
-  PARTY
-  OFFSITE
-  TRIP
-  FESTIVAL
-  OTHER
-}
-
-enum EventStatus {
+enum RollStatus {
   ACTIVE
   ARCHIVED
+}
+
+enum RevealMode {
+  /// Photos are legible as they are taken. Nothing is ever sealed.
+  DURING
+  /// Everything opens the moment the roll closes.
+  AFTER
+  /// Everything opens `revealDelayHours` after the roll closes.
+  DELAY
 }
 
 enum PhotoStatus {
@@ -46,133 +40,143 @@ enum PhotoStatus {
 }
 
 model User {
-  id           String       @id @default(cuid())
-  email        String       @unique
-  passwordHash String
-  name         String
-  role         Role         @default(HOST)
-  accessStatus AccessStatus @default(NONE)
-  // Bumped on password change / "sign out everywhere" so live JWTs stop validating.
-  tokenVersion Int          @default(0)
-  createdAt    DateTime     @default(now())
+  id    String @id @default(cuid())
+  email String @unique
+  name  String
 
-  events        Event[]
-  accessRequest AccessRequest?
+  /// Google's stable `sub` claim. Nullable so a row can exist before its first sign-in —
+  /// which is how test fixtures and the email-matched admin migration work.
+  googleId  String? @unique
+  avatarUrl String?
 
-  @@index([accessStatus])
+  role Role @default(HOST)
+
+  /// Bumped by "sign out everywhere" so tokens already in the wild stop validating.
+  tokenVersion Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  rolls   Roll[]
+  guests  Guest[]
+  coupons Coupon[]
 }
 
-model Event {
+model Roll {
   id     String @id @default(cuid())
   code   String @unique
   hostId String
   host   User   @relation(fields: [hostId], references: [id], onDelete: Cascade)
 
   name String
-  type EventType
 
-  // Personalisation for the guest join screen. Which of these is used depends on `type`
-  // — see src/lib/event-types.ts, the single source of truth.
-  partnerA    String?
-  partnerB    String?
-  honoreeName String?
-  askRelation Boolean @default(true)
+  /// R2 key for an uploaded cover. Null falls back to `coverPreset`.
+  coverKey    String?
+  coverPreset Int     @default(0)
 
   maxGuests      Int
   photosPerGuest Int
 
-  // Capture window is startsAt .. revealAt. One reveal control, no separate end time.
-  startsAt         DateTime
-  revealDelayHours Int
-  revealAt         DateTime
-  revealedEarly    Boolean  @default(false)
+  /// false: a guest sees only their own frames, the host sees all.
+  everyoneCanSee Boolean @default(false)
 
-  status    EventStatus @default(ACTIVE)
-  // Set when the host is warned about retention cleanup; deletion is 30 days later.
-  deletionNoticeAt DateTime?
-  createdAt DateTime    @default(now())
+  /// Capture runs startsAt..finishesAt. The reveal is a separate moment — which is the
+  /// change from the previous model, where closing and revealing were one control.
+  startsAt   DateTime
+  finishesAt DateTime
+
+  revealMode       RevealMode @default(AFTER)
+  revealDelayHours Int        @default(0)
+
+  /// Derived from finishesAt + mode + delay on every write, never accepted from input.
+  /// Stored rather than computed so the retention job can query it without loading rows.
+  revealAt      DateTime
+  revealedEarly Boolean  @default(false)
+
+  status RollStatus @default(ACTIVE)
+
+  /// finishesAt + 30 days. What the deletion job reads.
+  keptUntil DateTime
+  /// Set when the host has been warned that deletion is coming.
+  warnedAt  DateTime?
+
+  createdAt DateTime @default(now())
 
   guests Guest[]
   photos Photo[]
+  coupon Coupon?
 
   @@index([hostId])
+  @@index([keptUntil])
 }
 
 model Guest {
-  id      String @id @default(cuid())
-  eventId String
-  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  rollId String
+  roll   Roll   @relation(fields: [rollId], references: [id], onDelete: Cascade)
 
   name String
-  // Case/whitespace-normalised form of `name`, so "Riya  Sharma" collides with "riya sharma".
+  /// Case/whitespace-normalised, so "Riya  Sharma" collides with "riya sharma".
   nameKey String
 
-  relation     String?
-  // Wedding/anniversary only: "A" | "B" | "BOTH".
-  relationSide String?
+  /// Set if the guest later creates an account. How a roll they attended reaches their
+  /// own home screen. Null for the overwhelming majority, who never sign up.
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   tokenVersion Int      @default(0)
   createdAt    DateTime @default(now())
 
   photos Photo[]
 
-  @@unique([eventId, nameKey])
-  @@index([eventId])
+  @@unique([rollId, nameKey])
+  @@index([rollId])
+  @@index([userId])
 }
 
 model Photo {
   id      String @id @default(cuid())
-  eventId String
-  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  rollId  String
+  roll    Roll   @relation(fields: [rollId], references: [id], onDelete: Cascade)
   guestId String
   guest   Guest  @relation(fields: [guestId], references: [id], onDelete: Cascade)
 
   fullKey    String
   previewKey String
-  // Tiny base64 JPEG (~32px wide) inlined so the pre-reveal blurred wall needs zero fetches.
+  /// Tiny base64 JPEG (~32px wide) inlined so the sealed wall needs zero fetches.
   blurData String @db.Text
 
   width  Int
   height Int
   bytes  Int
 
-  // PENDING once upload URLs are issued, READY once the client confirms both objects landed.
-  // Both states count against quota; stale PENDING rows are swept so a failed upload
-  // doesn't permanently eat one of the guest's shots.
+  /// PENDING once upload URLs are issued, READY once the client confirms both objects
+  /// landed. Both count against quota. Stale PENDING rows are swept by a job that does
+  /// not exist yet — see KNOWN-GAPS.
   status PhotoStatus @default(PENDING)
 
   takenAt   DateTime @default(now())
   createdAt DateTime @default(now())
 
-  @@index([eventId, takenAt])
+  @@index([rollId, takenAt])
   @@index([guestId])
   @@index([status, createdAt])
 }
 
-model AccessRequest {
-  id     String @id @default(cuid())
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+/// Single-use codes that gate roll creation while the product is invite-only. This replaced
+/// the old signup approval queue: anyone may hold an account now, but creating a roll costs
+/// a code, and we keep a record of who spent which one.
+model Coupon {
+  id   String  @id @default(cuid())
+  code String  @unique
+  note String?
 
-  eventKind     String
-  expectedDate  String?
-  guestEstimate String?
-  phone         String?
-  note          String?
+  /// All four are written together, in one transaction, at redemption.
+  redeemedById String?
+  redeemedBy   User?     @relation(fields: [redeemedById], references: [id], onDelete: SetNull)
+  redeemedAt   DateTime?
+  rollId       String?   @unique
+  roll         Roll?     @relation(fields: [rollId], references: [id], onDelete: SetNull)
 
-  status    AccessStatus @default(REQUESTED)
-  createdAt DateTime     @default(now())
-  decidedAt DateTime?
+  createdAt DateTime @default(now())
 
-  @@index([status])
-}
-
-model InviteCode {
-  id        String    @id @default(cuid())
-  code      String    @unique
-  note      String?
-  maxUses   Int       @default(1)
-  uses      Int       @default(0)
-  expiresAt DateTime?
-  createdAt DateTime  @default(now())
+  @@index([redeemedById])
 }
