@@ -1,4 +1,3 @@
-import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 
@@ -7,6 +6,7 @@ import { env } from "./env";
 const secret = new TextEncoder().encode(env.authSecret);
 
 const HOST_COOKIE = "mv_host";
+const OAUTH_STATE_COOKIE = "mv_oauth_state";
 const HOST_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 // Guests are asked for their name exactly once, so their session has to outlive the event
 // by a wide margin — they come back weeks later to see the revealed album.
@@ -19,14 +19,29 @@ const cookieBase = {
   path: "/",
 } as const;
 
-/* ------------------------------------------------------------------ passwords */
+/* ------------------------------------------------------------------ oauth state */
 
-export function hashPassword(password: string): Promise<string> {
-  return bcrypt.hash(password, 10);
+/**
+ * CSRF protection for the Google round trip.
+ *
+ * The cookie is the secret: Google echoes `state` back on the callback, and if it does not
+ * match what we set, the request did not start here. Without this the callback is an open
+ * login endpoint — anyone could hand a victim a link that signs them into an account the
+ * attacker controls.
+ */
+export async function startOAuthState(): Promise<string> {
+  const state = crypto.randomUUID();
+  const jar = await cookies();
+  jar.set(OAUTH_STATE_COOKIE, state, { ...cookieBase, maxAge: 60 * 10 });
+  return state;
 }
 
-export function verifyPassword(password: string, hash: string): Promise<boolean> {
-  return bcrypt.compare(password, hash);
+/** Single use: the cookie is cleared whether or not it matched. */
+export async function consumeOAuthState(returned: string | null): Promise<boolean> {
+  const jar = await cookies();
+  const expected = jar.get(OAUTH_STATE_COOKIE)?.value;
+  jar.delete(OAUTH_STATE_COOKIE);
+  return Boolean(expected && returned && expected === returned);
 }
 
 /* ------------------------------------------------------------------ host session */

@@ -8,7 +8,7 @@ import { prisma } from "./prisma";
  * Cached per request so a page and its nested layouts don't each hit the database.
  *
  * The cookie is signed, but we still load the user to compare `tokenVersion` — that's what
- * makes changing a password actually invalidate sessions already out in the wild.
+ * makes "sign out everywhere" actually invalidate sessions already out in the wild.
  */
 export const getCurrentUser = cache(async () => {
   const claims = await readHostClaims();
@@ -20,8 +20,8 @@ export const getCurrentUser = cache(async () => {
       id: true,
       email: true,
       name: true,
+      avatarUrl: true,
       role: true,
-      accessStatus: true,
       tokenVersion: true,
       createdAt: true,
     },
@@ -35,18 +35,22 @@ export type CurrentUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>
 
 export async function requireHost(): Promise<CurrentUser> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/welcome");
   return user;
 }
 
 export async function requireAdmin(): Promise<CurrentUser> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
-  if (user.role !== "ADMIN") redirect("/dashboard");
+  if (!user) redirect("/welcome");
+  if (user.role !== "ADMIN") redirect("/rolls");
   return user;
 }
 
-/** Hosts can only create events once we've let them into the beta. */
-export function canCreateEvents(user: CurrentUser): boolean {
-  return user.accessStatus === "APPROVED";
-}
+/*
+ * There is deliberately no `canCreateHosts`/`canCreateRolls` check here any more.
+ *
+ * Access used to be a property of the account: you asked for beta access, an admin approved
+ * you, and `accessStatus` gated everything. With Google sign-in anyone can hold an account,
+ * so the gate moved to the act that actually costs us something — creating a roll, which
+ * spends a single-use coupon. See `redeemCoupon`.
+ */

@@ -63,3 +63,6 @@ next-env.d.ts
 /.claude/
 /skills-lock.json
 /uiux-reference/
+
+# Playwright session state, minted per run by tests/global-setup.ts
+tests/.auth/
