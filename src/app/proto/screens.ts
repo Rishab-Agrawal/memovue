@@ -14,6 +14,10 @@ export interface Screen {
  */
 export const SCREENS: Screen[] = [
   { path: "/proto/marketing", name: "Marketing home", group: "Marketing" },
+
+  { path: "/proto/welcome", name: "Welcome", group: "Entry" },
+  { path: "/proto/join", name: "Join film", group: "Entry" },
+  { path: "/proto/join?v=invalid", name: "Join film — invalid link", group: "Entry" },
 ];
 
 export function screenAt(path: string): Screen | undefined {
