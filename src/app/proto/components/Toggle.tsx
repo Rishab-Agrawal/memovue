@@ -12,19 +12,25 @@ export function Toggle({
   onChange,
   labelOn,
   labelOff,
+  name,
 }: {
   on: boolean;
   onChange: (next: boolean) => void;
-  labelOn: string;
-  labelOff: string;
+  /** Omit both to render the switch alone — the settings row supplies its own label. */
+  labelOn?: string;
+  labelOff?: string;
+  /** The accessible name when there is no visible label. */
+  name?: string;
 }) {
+  const visible = labelOn && labelOff ? (on ? labelOn : labelOff) : null;
+
   return (
     <div className="flex items-center gap-4">
       <button
         type="button"
         role="switch"
         aria-checked={on}
-        aria-label={on ? labelOn : labelOff}
+        aria-label={name ?? (on ? labelOn : labelOff)}
         onClick={() => onChange(!on)}
         className={cn(
           "relative h-[34px] w-[60px] shrink-0 rounded-full transition-colors",
@@ -38,7 +44,7 @@ export function Toggle({
           )}
         />
       </button>
-      <p className="text-[15px] text-chalk">{on ? labelOn : labelOff}</p>
+      {visible ? <p className="text-[15px] text-chalk">{visible}</p> : null}
     </div>
   );
 }

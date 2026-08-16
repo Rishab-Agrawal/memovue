@@ -37,6 +37,12 @@ export const SCREENS: Screen[] = [
   { path: "/proto/film/people", name: "People sheet", group: "Film" },
   { path: "/proto/film/invite", name: "Invite guests", group: "Film" },
   { path: "/proto/film/invite?v=saved", name: "QR saved", group: "Film" },
+
+  { path: "/proto/film/settings", name: "Film settings", group: "Settings" },
+  { path: "/proto/film/settings?v=delete", name: "Delete film dialog", group: "Settings" },
+  { path: "/proto/film/settings/info", name: "Edit film info", group: "Settings" },
+  { path: "/proto/account", name: "Account settings", group: "Settings" },
+  { path: "/proto/account?v=delete", name: "Delete account dialog", group: "Settings" },
 ];
 
 export function screenAt(path: string): Screen | undefined {
