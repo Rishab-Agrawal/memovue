@@ -70,14 +70,24 @@ export function revealAt(finishAt: Date, mode: RevealMode, delayHours: number): 
   return new Date(finishAt.getTime() + delayHours * 3_600_000);
 }
 
-export function formatCountdown(msRemaining: number): string {
-  if (msRemaining <= 0) return "Ended";
+/**
+ * "7h 32m", with no trailing word. Needed on its own because the same span is read three
+ * ways — "7h 32m left", "Reveals in 7h 32m", and bare under the word "Left" on the film
+ * header. Baking "left" into the only formatter produced "Reveals in 7h 32m left".
+ */
+export function formatDuration(ms: number): string {
+  if (ms <= 0) return "Ended";
 
-  const minutes = Math.floor(msRemaining / 60_000);
+  const minutes = Math.floor(ms / 60_000);
   const hours = Math.floor(minutes / 60);
   const days = Math.floor(hours / 24);
 
-  if (days >= 1) return `${days}d ${hours % 24}h left`;
-  if (hours >= 1) return `${hours}h ${minutes % 60}m left`;
-  return `${minutes}m left`;
+  if (days >= 1) return `${days}d ${hours % 24}h`;
+  if (hours >= 1) return `${hours}h ${minutes % 60}m`;
+  return `${minutes}m`;
+}
+
+export function formatCountdown(msRemaining: number): string {
+  if (msRemaining <= 0) return "Ended";
+  return `${formatDuration(msRemaining)} left`;
 }

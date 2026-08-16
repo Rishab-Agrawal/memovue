@@ -1,4 +1,10 @@
-/** Stub. Replaced by the real film home in the film-home task. */
+"use client";
+
+import { useSearchParams } from "next/navigation";
+
+import { FilmBackdrop } from "./FilmBackdrop";
+
 export default function FilmHome() {
-  return <div className="px-5 py-8 text-[15px] text-dust">Film home — not built yet.</div>;
+  const revealed = useSearchParams().get("v") === "revealed";
+  return <FilmBackdrop revealed={revealed} />;
 }

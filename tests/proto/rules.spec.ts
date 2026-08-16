@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import {
   finishDateRange,
   formatCountdown,
+  formatDuration,
   formatPrice,
   isWithin,
   priceFor,
@@ -75,5 +76,13 @@ test.describe("countdown", () => {
   test("a finished film says so instead of counting backwards", () => {
     expect(formatCountdown(0)).toBe("Ended");
     expect(formatCountdown(-minute)).toBe("Ended");
+  });
+
+  test("the bare duration carries no trailing word", () => {
+    // "Reveals in {duration}" and "{duration} left" read from the same span, so the word
+    // has to live at the call site rather than inside the formatter.
+    expect(formatDuration(7 * 60 * minute + 32 * minute)).toBe("7h 32m");
+    expect(formatDuration(50 * minute)).toBe("50m");
+    expect(formatDuration(0)).toBe("Ended");
   });
 });
