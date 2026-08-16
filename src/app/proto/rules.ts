@@ -40,20 +40,21 @@ export interface DateRange {
 /** Weddings get booked years ahead, so the window is generous. Settings can still move it. */
 export function startDateRange(now: Date): DateRange {
   const max = new Date(now);
-  max.setFullYear(max.getFullYear() + 2);
+  max.setUTCFullYear(max.getUTCFullYear() + 2);
   return { min: startOfDay(now), max: startOfDay(max) };
 }
 
 /** A film that runs longer than two months is a mistake, not a plan. */
 export function finishDateRange(startAt: Date): DateRange {
   const max = new Date(startAt);
-  max.setMonth(max.getMonth() + 2);
+  max.setUTCMonth(max.getUTCMonth() + 2);
   return { min: startOfDay(startAt), max: startOfDay(max) };
 }
 
+/** UTC, like everything else here — see the note in `format.ts`. */
 function startOfDay(date: Date): Date {
   const copy = new Date(date);
-  copy.setHours(0, 0, 0, 0);
+  copy.setUTCHours(0, 0, 0, 0);
   return copy;
 }
 

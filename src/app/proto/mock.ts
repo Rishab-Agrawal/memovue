@@ -1,4 +1,4 @@
-import { PARTICIPANT_TIERS, SHOT_TIERS, type RevealMode } from "./rules";
+﻿import { PARTICIPANT_TIERS, SHOT_TIERS, type RevealMode } from "./rules";
 
 /**
  * Every piece of fake data the prototype shows. One file on purpose: changing a name, a
@@ -9,7 +9,7 @@ import { PARTICIPANT_TIERS, SHOT_TIERS, type RevealMode } from "./rules";
  */
 
 /** Late on the second day, so every countdown reads in hours and minutes rather than days. */
-export const NOW = new Date("2026-09-13T15:28:00+05:30");
+export const NOW = new Date("2026-09-13T15:28:00Z");
 
 export const HOST = { name: "Rishab Agrawal", initials: "RA", firstName: "Rishab" };
 
@@ -17,8 +17,8 @@ export const FILM = {
   title: "Aarav & Diya's Wedding",
   code: "K7M2XQP9",
   joinUrl: "https://memovue.com/f/K7M2XQP9",
-  startAt: new Date("2026-09-12T18:00:00+05:30"),
-  finishAt: new Date("2026-09-13T23:00:00+05:30"),
+  startAt: new Date("2026-09-12T18:00:00Z"),
+  finishAt: new Date("2026-09-13T23:00:00Z"),
   revealMode: "after" as RevealMode,
   revealDelayHours: 12,
   participantIndex: 3, // 50
@@ -26,7 +26,7 @@ export const FILM = {
   everyoneCanSee: false,
   moments: 2,
   people: 2,
-  keptUntil: new Date("2026-10-13T23:00:00+05:30"),
+  keptUntil: new Date("2026-10-13T23:00:00Z"),
 };
 
 export const PARTICIPANT_CAP = PARTICIPANT_TIERS[FILM.participantIndex];
@@ -34,16 +34,29 @@ export const SHOTS_PER_PERSON = SHOT_TIERS[FILM.shotIndex];
 
 /** Newest first, which is the order the album renders in. */
 export const PHOTOS = [
-  { id: "p4", by: "Meera", takenAt: new Date("2026-09-12T21:58:00+05:30"), plate: 3 },
-  { id: "p3", by: "You", takenAt: new Date("2026-09-12T21:31:00+05:30"), plate: 1 },
-  { id: "p2", by: "You", takenAt: new Date("2026-09-12T20:14:00+05:30"), plate: 4 },
-  { id: "p1", by: "Meera", takenAt: new Date("2026-09-12T19:02:00+05:30"), plate: 2 },
+  { id: "p4", by: "Meera", takenAt: new Date("2026-09-12T21:58:00Z"), plate: 3 },
+  { id: "p3", by: "You", takenAt: new Date("2026-09-12T21:31:00Z"), plate: 1 },
+  { id: "p2", by: "You", takenAt: new Date("2026-09-12T20:14:00Z"), plate: 4 },
+  { id: "p1", by: "Meera", takenAt: new Date("2026-09-12T19:02:00Z"), plate: 2 },
 ];
 
 export const PEOPLE = [
   { name: "You", shotsUsed: 2 },
   { name: "Meera", shotsUsed: 2 },
 ];
+
+/**
+ * What the create-film wizard opens with.
+ *
+ * Deliberately not FILM's dates: that film started yesterday, and a film being created now
+ * has to start in the future or the very first calendar would open with its own selection
+ * greyed out. Saturday the 19th, running into Sunday night.
+ */
+export const DRAFT_DEFAULTS = {
+  title: "Aarav & Diya's Wedding",
+  startAt: new Date("2026-09-19T18:00:00Z"),
+  finishAt: new Date("2026-09-20T23:00:00Z"),
+};
 
 /** Indices into the Plate component's gradient set. */
 export const COVER_PRESETS = [0, 1, 2, 3, 4];
@@ -54,7 +67,7 @@ export const COUPON = "MEMOVUE100";
 /** The finished album shown under ALBUMS on the home screen. */
 export const PAST_ALBUM = {
   title: "Diwali at Meera's",
-  from: new Date("2026-08-08T19:00:00+05:30"),
-  to: new Date("2026-08-09T02:00:00+05:30"),
+  from: new Date("2026-08-08T19:00:00Z"),
+  to: new Date("2026-08-09T02:00:00Z"),
   plates: [0, 2, 4, 1],
 };

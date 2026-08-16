@@ -1,12 +1,16 @@
 /**
  * Date and time display.
  *
- * Every formatter pins its locale AND its time zone. Without the time zone a date rendered
- * on the server and re-rendered on the client disagree the moment the two are in different
- * zones, and React reports a hydration mismatch on a screen whose only crime was showing a
- * countdown. The mock data is written in +05:30, so that is the zone the prototype reads in.
+ * The whole prototype reads and writes dates in UTC — the mock instants are written with a
+ * `Z`, every formatter here pins `timeZone: "UTC"`, and the screens use the `getUTC*`
+ * accessors. That is not a claim about where anyone is; it is the cheapest way to guarantee
+ * the server and the browser agree.
+ *
+ * Mixing them is the bug this avoids: a date formatted in one zone and read back with
+ * `getHours()` in another produces a time picker that shows 6:00 PM and sets 12:30 PM, and
+ * a hydration mismatch on any screen showing a countdown.
  */
-const ZONE = "Asia/Kolkata";
+const ZONE = "UTC";
 const LOCALE = "en-US";
 
 function parts(date: Date, options: Intl.DateTimeFormatOptions) {
