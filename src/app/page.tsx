@@ -63,11 +63,11 @@ export default function MarketingHome() {
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="flex items-center justify-between border-b border-hair px-6 py-3 sm:px-10">
-        <Link href="/proto/marketing" aria-label="MemoVue home" className="flex h-11 items-center">
+        <Link href="/" aria-label="MemoVue home" className="flex h-11 items-center">
           <Logo />
         </Link>
         <Link
-          href="/proto/welcome"
+          href="/welcome"
           className="marking flex h-11 items-center px-1 transition-colors hover:text-chalk"
         >
           Get started
@@ -97,7 +97,7 @@ export default function MarketingHome() {
                 className="animate-rise mt-9 flex flex-wrap items-center gap-x-6 gap-y-2"
                 style={{ animationDelay: "220ms" }}
               >
-                <ButtonLink href="/proto/welcome" size="lg">
+                <ButtonLink href="/welcome" size="lg">
                   Get started
                 </ButtonLink>
               </div>
@@ -194,7 +194,7 @@ export default function MarketingHome() {
             <p className="max-w-sm text-[16px] leading-relaxed text-ash">
               You can&rsquo;t be in every room. Your guests are.
             </p>
-            <ButtonLink href="/proto/welcome" size="lg" className="mt-2">
+            <ButtonLink href="/welcome" size="lg" className="mt-2">
               Get started
             </ButtonLink>
           </div>
@@ -208,7 +208,7 @@ export default function MarketingHome() {
             {[
               ["Terms", "/terms"],
               ["Privacy", "/privacy"],
-              ["Join", "/proto/join"],
+              ["Join", "/join"],
             ].map(([label, href]) => (
               <Link
                 key={href}
