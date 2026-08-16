@@ -20,6 +20,9 @@ const r2AccessKeyId = process.env.R2_ACCESS_KEY_ID;
 const r2SecretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
 const r2Bucket = process.env.R2_BUCKET;
 
+const googleClientId = process.env.GOOGLE_CLIENT_ID;
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
 export const env = {
   appUrl: (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, ""),
 
@@ -40,6 +43,23 @@ export const env = {
           secretAccessKey: r2SecretAccessKey,
           bucket: r2Bucket,
           endpoint: `https://${r2AccountId}.r2.cloudflarestorage.com`,
+        }
+      : null,
+
+  /**
+   * Google sign-in. Nullable like `r2` so a fresh clone still boots without credentials —
+   * the sign-in route reports it as unconfigured rather than the whole app failing to start.
+   *
+   * The redirect URI is derived from `appUrl` and must match the one registered on the
+   * OAuth client character for character, so changing APP_URL means adding the new URI in
+   * Google Cloud Console too.
+   */
+  google:
+    googleClientId && googleClientSecret
+      ? {
+          clientId: googleClientId,
+          clientSecret: googleClientSecret,
+          redirectUri: `${(process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "")}/api/auth/google/callback`,
         }
       : null,
 
