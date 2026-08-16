@@ -56,7 +56,8 @@ const pillBase =
   // A wrapped label turns a pill into a rounded paragraph. Nothing here is long enough to
   // need two lines, so nothing gets them.
   "font-medium whitespace-nowrap transition-colors select-none " +
-  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flame";
+  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flame " +
+  "disabled:pointer-events-none disabled:opacity-40";
 
 const pillVariants: Record<PillVariant, string> = {
   // The reference's primary is a white pill. Ours stays white where it sits on a photograph,

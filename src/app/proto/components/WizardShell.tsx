@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { BackButton, PagerDots, PillLink } from "./Chrome";
+import { BackButton, PagerDots, Pill, PillLink } from "./Chrome";
 
 export const WIZARD_STEPS = 6;
 
@@ -18,6 +18,7 @@ export function WizardShell({
   subtitle,
   back,
   next,
+  onNext,
   children,
 }: {
   step: number;
@@ -25,6 +26,8 @@ export function WizardShell({
   subtitle: string;
   back: string;
   next: { label: string; href: string; inert?: boolean };
+  /** When given, the control acts instead of navigating — the last step opens a dialog. */
+  onNext?: () => void;
   children: ReactNode;
 }) {
   return (
@@ -44,9 +47,15 @@ export function WizardShell({
         <div className="pointer-events-none absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-center">
           <PagerDots count={WIZARD_STEPS} current={step} />
         </div>
-        <PillLink href={next.href} variant="light" inert={next.inert} className="relative">
-          {next.label}
-        </PillLink>
+        {onNext ? (
+          <Pill variant="light" onClick={onNext} disabled={next.inert} className="relative">
+            {next.label}
+          </Pill>
+        ) : (
+          <PillLink href={next.href} variant="light" inert={next.inert} className="relative">
+            {next.label}
+          </PillLink>
+        )}
       </div>
     </div>
   );
