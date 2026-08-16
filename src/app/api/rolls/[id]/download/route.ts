@@ -3,7 +3,7 @@ import type { Readable } from "node:stream";
 import { Readable as NodeReadable } from "node:stream";
 
 import { prisma } from "@/lib/prisma";
-import { isRevealed } from "@/lib/reveal";
+import { isOpen } from "@/lib/roll-access";
 import { getCurrentUser } from "@/lib/session";
 import { getObjectStream } from "@/lib/storage";
 
@@ -24,20 +24,28 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const user = await getCurrentUser();
   if (!user) return Response.json({ error: "unauthorised" }, { status: 401 });
 
-  const event = await prisma.event.findFirst({
+  const roll = await prisma.roll.findFirst({
     where: { id, hostId: user.id },
-    select: { id: true, name: true, startsAt: true, revealAt: true },
+    select: {
+      id: true,
+      name: true,
+      startsAt: true,
+      finishesAt: true,
+      revealAt: true,
+      revealMode: true,
+      revealedEarly: true,
+    },
   });
-  if (!event) return Response.json({ error: "not_found" }, { status: 404 });
+  if (!roll) return Response.json({ error: "not_found" }, { status: 404 });
 
-  // The host waits with everyone else — otherwise the promise the guests were given
-  // ("nobody sees anything until reveal") isn't actually true.
-  if (!isRevealed(event)) {
+  // The host waits with everyone else unless they chose DURING — otherwise the promise
+  // the guests were shown on their own screen would not be true.
+  if (!isOpen(roll)) {
     return Response.json({ error: "not_revealed" }, { status: 403 });
   }
 
   const photos = await prisma.photo.findMany({
-    where: { eventId: id, status: "READY" },
+    where: { rollId: id, status: "READY" },
     orderBy: { takenAt: "asc" },
     select: { id: true, fullKey: true, takenAt: true, guest: { select: { name: true } } },
   });
@@ -75,7 +83,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   return new Response(NodeReadable.toWeb(archive) as ReadableStream, {
     headers: {
       "content-type": "application/zip",
-      "content-disposition": `attachment; filename="${safeSegment(event.name)}-memovue.zip"`,
+      "content-disposition": `attachment; filename="${safeSegment(roll.name)}-memovue.zip"`,
       "cache-control": "no-store",
     },
   });

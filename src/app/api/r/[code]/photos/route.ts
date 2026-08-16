@@ -3,6 +3,7 @@ import { nanoid } from "nanoid";
 import { getGuestContext } from "@/lib/guest-context";
 import { prisma } from "@/lib/prisma";
 import { clientIp, rateLimit } from "@/lib/ratelimit";
+import { visiblePhotoWhere } from "@/lib/roll-access";
 import { photoKey, presignDownload, presignUpload } from "@/lib/storage";
 import { photoInitSchema } from "@/lib/validation";
 
@@ -19,7 +20,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
   const context = await getGuestContext(code);
   if (!context) return Response.json({ error: "not_joined" }, { status: 401 });
 
-  if (context.phase !== "capturing") {
+  if (!context.capturing) {
     return Response.json({ error: "not_shooting" }, { status: 403 });
   }
   if (context.shotsLeft <= 0) {
@@ -36,13 +37,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
   if (!parsed.success) return Response.json({ error: "bad_request" }, { status: 400 });
 
   const photoId = nanoid();
-  const fullKey = photoKey(context.event.id, photoId, "full");
-  const previewKey = photoKey(context.event.id, photoId, "preview");
+  const fullKey = photoKey(context.roll.id, photoId, "full");
+  const previewKey = photoKey(context.roll.id, photoId, "preview");
 
   await prisma.photo.create({
     data: {
       id: photoId,
-      eventId: context.event.id,
+      rollId: context.roll.id,
       guestId: context.guest.id,
       fullKey,
       previewKey,
@@ -73,7 +74,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
 
   const context = await getGuestContext(code);
   if (!context) return Response.json({ error: "not_joined" }, { status: 401 });
-  if (context.phase !== "revealed") {
+  if (!context.open) {
     return Response.json({ error: "not_revealed" }, { status: 403 });
   }
 
@@ -82,11 +83,17 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
   const guestId = url.searchParams.get("guestId");
   const take = 48;
 
+  /*
+    The ownership filter comes from `visiblePhotoWhere`, not from this route.
+
+    A guest may narrow the list to one photographer with `?guestId=`, but they cannot widen
+    it: the base clause already restricts them to their own frames when visibility is off,
+    and spreading the query param afterwards can only ever intersect with that.
+  */
   const photos = await prisma.photo.findMany({
     where: {
-      eventId: context.event.id,
-      status: "READY",
-      ...(guestId ? { guestId } : {}),
+      ...visiblePhotoWhere(context.roll, { kind: "guest", guestId: context.guest.id }),
+      ...(guestId && context.roll.everyoneCanSee ? { guestId } : {}),
     },
     orderBy: [{ takenAt: "desc" }, { id: "desc" }],
     take: take + 1,

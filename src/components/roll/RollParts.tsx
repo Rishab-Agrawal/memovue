@@ -11,10 +11,14 @@ export function RollControls({
   revealed,
   cameraHref,
   inviteHref,
+  onCamera,
 }: {
   revealed: boolean;
   cameraHref: string;
   inviteHref: string;
+  /** When given, the camera closes a sheet instead of navigating — the guest app keeps its
+      viewfinder alive underneath rather than tearing the stream down and back up. */
+  onCamera?: () => void;
 }) {
   if (revealed) {
     return (
@@ -27,13 +31,24 @@ export function RollControls({
 
   return (
     <div className="flex gap-3">
-      <Link
-        href={cameraHref}
-        aria-label="Take a photo"
-        className="flex h-14 flex-1 items-center justify-center rounded-full bg-chalk text-void transition-colors hover:bg-white"
-      >
-        <Camera className="h-6 w-6" />
-      </Link>
+      {onCamera ? (
+        <button
+          type="button"
+          onClick={onCamera}
+          aria-label="Take a photo"
+          className="flex h-14 flex-1 items-center justify-center rounded-full bg-chalk text-void transition-colors hover:bg-white"
+        >
+          <Camera className="h-6 w-6" />
+        </button>
+      ) : (
+        <Link
+          href={cameraHref}
+          aria-label="Take a photo"
+          className="flex h-14 flex-1 items-center justify-center rounded-full bg-chalk text-void transition-colors hover:bg-white"
+        >
+          <Camera className="h-6 w-6" />
+        </Link>
+      )}
 
       <Link
         href={inviteHref}

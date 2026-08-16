@@ -1,59 +1,132 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 
 import { RollHeader } from "@/components/roll/RollHeader";
-import { RollControls, PhotoGrid, VisibilityNotice } from "@/components/roll/RollParts";
-import { formatDay } from "@/lib/format";
-import { ROLL, NOW, PHOTOS } from "@/lib/mock-REMOVED";
-import { formatDuration } from "@/lib/format";
-import { computeRevealAt } from "@/lib/roll-access";
+import { RollControls, VisibilityNotice } from "@/components/roll/RollParts";
+import { formatDay, formatDuration } from "@/lib/format";
+import { useNow } from "@/lib/useNow";
 
-type View = "before" | "after-host-only" | "after-everyone";
+import { PhotoViewer } from "./PhotoViewer";
 
-export default function GuestAlbum() {
-  const view = (useSearchParams().get("v") ?? "before") as View;
+export interface FeedPhoto {
+  id: string;
+  blurData: string;
+  by: string | null;
+  mine: boolean;
+  takenAt?: string;
+}
 
-  const revealed = view !== "before";
-  const everyoneCanSee = view === "after-everyone";
+export interface Feed {
+  phase: "scheduled" | "capturing" | "closed" | "revealed";
+  open: boolean;
+  capturing: boolean;
+  rollName: string;
+  hostName: string;
+  coverPreset: number;
+  everyoneCanSee: boolean;
+  revealAt: string;
+  finishesAt: string;
+  keptUntil: string;
+  totalPhotos: number;
+  guestCount: number;
+  me: { id: string; name: string; shotsLeft: number; shotsUsed: number; photosPerGuest: number };
+  photos: FeedPhoto[];
+}
 
-  const reveals = revealAt(ROLL.finishAt, ROLL.revealMode, ROLL.revealDelayHours);
-  const revealsIn = reveals ? formatDuration(reveals.getTime() - NOW.getTime()) : "";
+/**
+ * What a guest sees of the roll.
+ *
+ * The seal is enforced on the server — before the reveal the feed carries blur placeholders
+ * and no image ids that resolve to bytes — so this component does not have to be careful. It
+ * renders what it is given.
+ */
+export function AlbumView({
+  code,
+  onRevealed,
+  onOpenCamera,
+}: {
+  code: string;
+  onRevealed?: () => void;
+  onOpenCamera?: () => void;
+}) {
+  const [feed, setFeed] = useState<Feed | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<FeedPhoto | null>(null);
+  const now = useNow();
 
-  // With visibility off a guest sees only what they shot themselves. That is the whole
-  // difference between the two revealed states, and the reason both are worth walking.
-  const photos = everyoneCanSee ? PHOTOS : PHOTOS.filter((photo) => photo.by === "You");
+  const load = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/r/${code}/feed`, { cache: "no-store" });
+      if (!response.ok) {
+        setError("We couldn't load this roll.");
+        return;
+      }
+      const next = (await response.json()) as Feed;
+      setFeed((previous) => {
+        // The seal lifting while someone is looking at the wall is the moment the whole
+        // product exists for, so the page refreshes itself rather than waiting for a tap.
+        if (previous && !previous.open && next.open) onRevealed?.();
+        return next;
+      });
+    } catch {
+      setError("We couldn't load this roll.");
+    }
+  }, [code, onRevealed]);
+
+  useEffect(() => {
+    /*
+      Polling, not push. The seal lifting is a server-side clock event with no request behind
+      it, so something has to ask — and twenty seconds is close enough that a guest watching
+      the wall at reveal time sees it open on its own.
+
+      The rule below objects to state being set from an effect. That is exactly what a fetch
+      does, and there is no render-time way to read a value that does not exist yet.
+    */
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void load();
+    const timer = setInterval(load, 20_000);
+    return () => clearInterval(timer);
+  }, [load]);
+
+  if (error) {
+    return <p className="px-5 py-10 text-center text-[15px] text-ash">{error}</p>;
+  }
+  if (!feed) {
+    return <p className="px-5 py-10 text-center text-[15px] text-dust">Loading…</p>;
+  }
+
+  const revealsIn = formatDuration(new Date(feed.revealAt).getTime() - now);
 
   return (
     <div className="flex min-h-full flex-col">
       <RollHeader
-        title={ROLL.title}
-        coverIndex={0}
-        moments={photos.length}
-        people={ROLL.people}
+        title={feed.rollName}
+        coverIndex={feed.coverPreset}
+        moments={feed.totalPhotos}
+        people={feed.guestCount}
         middleValue={
-          revealed ? formatDay(ROLL.finishAt) : formatDuration(ROLL.finishAt.getTime() - NOW.getTime())
+          feed.open
+            ? formatDay(new Date(feed.finishesAt))
+            : formatDuration(new Date(feed.finishesAt).getTime() - now)
         }
-        middleLabel={revealed ? "Ended" : "Left"}
-        back="/proto/guest"
+        middleLabel={feed.open ? "Ended" : "Left"}
+        back="/"
       />
 
       <div className="space-y-4 px-5 pt-4 pb-6">
-        <RollControls
-          revealed={revealed}
-          cameraHref="/proto/guest/camera"
-          inviteHref="/proto/guest/camera/invite"
-        />
+        {onOpenCamera && feed.capturing ? (
+          <RollControls revealed={feed.open} cameraHref="#" inviteHref="#" onCamera={onOpenCamera} />
+        ) : null}
 
         {/*
-          Kept from the reference, and the one place the prototype leaves the palette. A
-          banner that has to interrupt cannot be drawn in the same two colours as everything
-          around it; this is the only element on any screen whose job is to be noticed
-          rather than to recede.
+          Kept from the reference, and the one place the app leaves its palette. A banner
+          whose job is to interrupt cannot be drawn in the same two colours as everything
+          around it.
         */}
         <Link
-          href="/proto/welcome"
+          href="/welcome"
           className="flex items-center gap-4 rounded-2xl bg-[#f2e4bd] px-4 py-4 text-void"
         >
           <span className="flex-1">
@@ -69,19 +142,63 @@ export default function GuestAlbum() {
           </span>
         </Link>
 
-        {everyoneCanSee ? null : <VisibilityNotice />}
+        {feed.everyoneCanSee ? null : <VisibilityNotice />}
 
-        <PhotoGrid
-          photos={photos}
-          sealed={!revealed}
-          revealsIn={revealsIn}
-          photoHref="/proto/guest/album/photo"
-        />
+        {feed.photos.length === 0 ? (
+          <p className="py-10 text-center text-[15px] text-dust">
+            Nothing shot yet. Be the first.
+          </p>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            {feed.photos.map((photo) => (
+              <button
+                key={photo.id}
+                type="button"
+                disabled={!feed.open}
+                aria-label={photo.by ? `Photo by ${photo.by}` : "Hidden photo"}
+                onClick={() => feed.open && setViewing(photo)}
+                className="relative block aspect-[4/5] overflow-hidden rounded-2xl bg-void"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={
+                    feed.open
+                      ? `/api/r/${code}/photos/${photo.id}/full`
+                      : (photo.blurData || undefined)
+                  }
+                  alt=""
+                  className="h-full w-full object-cover"
+                  style={feed.open ? undefined : { filter: "blur(14px) saturate(0.6)" }}
+                />
+
+                {!feed.open ? (
+                  <span className="tabular absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-void/60 px-3 py-1.5 text-[13px] whitespace-nowrap text-chalk">
+                    Reveals in {revealsIn}
+                  </span>
+                ) : null}
+
+                {photo.by ? (
+                  <span className="absolute bottom-3 left-3 text-[15px] text-chalk italic drop-shadow">
+                    {photo.by}
+                  </span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+        )}
 
         <p className="text-center text-[12px] text-dust">
-          Photos available until {formatDay(ROLL.keptUntil)}
+          Photos available until {formatDay(new Date(feed.keptUntil))}
         </p>
       </div>
+
+      {viewing ? (
+        <PhotoViewer
+          code={code}
+          photo={viewing}
+          onClose={() => setViewing(null)}
+        />
+      ) : null}
     </div>
   );
 }

@@ -4,14 +4,16 @@ import { PillLink } from "@/components/roll/Chrome";
 import { InvitationCover } from "@/components/roll/InvitationCover";
 import { WizardShell } from "@/components/roll/WizardShell";
 import { formatCountdown } from "@/lib/format";
+import { useNow } from "@/lib/useNow";
 import { SHOT_TIERS } from "@/lib/roll-config";
 
 import { useDraft } from "../DraftContext";
 
 export default function StepCard() {
   const { draft, hostName } = useDraft();
+  const now = useNow();
 
-  const countdown = formatCountdown(draft.finishesAt.getTime() - Date.now());
+  const countdown = formatCountdown(draft.finishesAt.getTime() - now);
   const shots = SHOT_TIERS[draft.shotIndex];
 
   return (

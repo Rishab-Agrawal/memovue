@@ -1,30 +1,28 @@
-import type { Viewport } from "next";
 import { redirect } from "next/navigation";
 
 import { GuestApp } from "@/components/guest/GuestApp";
 import { getGuestContext } from "@/lib/guest-context";
 
-export const metadata = { title: "Your event" };
+export const dynamic = "force-dynamic";
 
-// The camera runs edge to edge behind the notch and home indicator.
-export const viewport: Viewport = {
-  themeColor: "#0a090b",
-  viewportFit: "cover",
-};
+export async function generateMetadata({ params }: PageProps<"/e/[code]">) {
+  const { code } = await params;
+  const context = await getGuestContext(code);
+  return { title: context ? context.roll.name : "MemoVue" };
+}
 
-export default async function GuestEventPage({ params }: { params: Promise<{ code: string }> }) {
+export default async function GuestRollPage({ params }: PageProps<"/e/[code]">) {
   const { code } = await params;
 
   const context = await getGuestContext(code);
-  // No valid session for this event — send them through the join screen, which handles
-  // "event doesn't exist" and "hasn't started" on its own.
+  // No session for this roll — the join screen is where a name gets attached to a camera.
   if (!context) redirect(`/join/${code}`);
 
   return (
     <GuestApp
-      code={context.event.code}
-      eventName={context.event.name}
-      phase={context.phase}
+      code={context.roll.code}
+      rollName={context.roll.name}
+      capturing={context.capturing}
       shotsLeft={context.shotsLeft}
     />
   );

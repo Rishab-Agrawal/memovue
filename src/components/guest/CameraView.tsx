@@ -1,128 +1,266 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/cn";
+import { type ProcessedPhoto, decode, processCapture } from "@/lib/image";
 
-import { BackButton } from "@/components/roll/Chrome";
 import { Counter } from "@/components/roll/Counter";
-import { FlashOff, Flip, Qr } from "@/components/roll/Icons";
-import { Plate } from "@/components/roll/Plate";
-import { ROLL, NOW, SHOTS_PER_PERSON } from "@/lib/mock-REMOVED";
-import { formatCountdown } from "@/lib/format";
+import { FlashOff, Flip } from "@/components/roll/Icons";
 
+type Facing = "environment" | "user";
+type Permission = "idle" | "starting" | "live" | "denied" | "unsupported";
 type Phase = "idle" | "flash" | "hold" | "fly";
 
 const FLASH_MS = 90;
-const HOLD_MS = 700;
+const HOLD_MS = 600;
 const FLIGHT_MS = 420;
 
+interface CameraViewProps {
+  shotsLeft: number;
+  disabled?: boolean;
+  inert?: boolean;
+  onCaptured: (photo: ProcessedPhoto) => void;
+  onOpenAlbum: () => void;
+  latestThumb?: string | null;
+}
+
 /**
- * The camera.
+ * The viewfinder.
  *
- * There is no keep/retake step: the reference has none, and neither do we. Tapping the
- * shutter spends a shot, holds the frame for a beat so you see what you got, then throws it
- * into the gallery thumbnail. That throw is the only confirmation, and it is what makes the
- * count on the dial feel like it cost something.
- *
- * The flight is measured rather than guessed — the frame and the thumbnail report their own
- * boxes, so the photo lands on the thumbnail at any screen size instead of near it.
+ * Two things it does that a naive implementation gets wrong. The frame is cropped to what
+ * was actually on screen — the sensor is wider than the viewport, and handing someone a
+ * photo containing things that were never in their viewfinder feels broken. And there is no
+ * keep/retake step: the shutter spends a shot, holds the frame for a beat, then throws it
+ * into the gallery thumbnail. That throw is the only confirmation, which is what makes the
+ * number on the dial feel like it cost something.
  */
-export function CameraScreen({ autoCapture }: { autoCapture?: boolean }) {
-  // Explicitly `number`: SHOT_TIERS is `as const`, so the inferred type would be the literal
-  // union of the six tiers and decrementing it would not typecheck.
-  const [shotsLeft, setShotsLeft] = useState<number>(SHOTS_PER_PERSON);
+export function CameraView({
+  shotsLeft,
+  disabled,
+  inert,
+  onCaptured,
+  onOpenAlbum,
+  latestThumb,
+}: CameraViewProps) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
+  const thumbRef = useRef<HTMLButtonElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const [facing, setFacing] = useState<Facing>("environment");
+  const [permission, setPermission] = useState<Permission>("idle");
+  const [torchOn, setTorchOn] = useState(false);
+  const [hasTorch, setHasTorch] = useState(false);
   const [phase, setPhase] = useState<Phase>("idle");
+  const [frozen, setFrozen] = useState<string | null>(null);
   const [flight, setFlight] = useState<{ x: number; y: number; scale: number } | null>(null);
 
-  const frameRef = useRef<HTMLDivElement>(null);
-  const thumbRef = useRef<HTMLAnchorElement>(null);
-  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const stop = useCallback(() => {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+  }, []);
 
   useEffect(() => {
     const pending = timers.current;
     return () => pending.forEach(clearTimeout);
   }, []);
 
-  const capture = useCallback(() => {
-    if (phase !== "idle" || shotsLeft === 0) return;
+  useEffect(() => {
+    let cancelled = false;
 
-    const spend = () => setShotsLeft((left) => Math.max(0, left - 1));
+    async function start() {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setPermission("unsupported");
+        return;
+      }
+      setPermission("starting");
+      stop();
 
-    // Travel and scale are what cause vestibular trouble, so reduced motion skips the
-    // flight entirely rather than playing it faster.
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      spend();
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: facing, width: { ideal: 2560 }, height: { ideal: 1440 } },
+          audio: false,
+        });
+        if (cancelled) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play().catch(() => {});
+        }
+
+        const track = stream.getVideoTracks()[0];
+        const capabilities = track.getCapabilities?.() as { torch?: boolean } | undefined;
+        setHasTorch(Boolean(capabilities?.torch));
+        setTorchOn(false);
+        setPermission("live");
+      } catch {
+        if (!cancelled) setPermission("denied");
+      }
+    }
+
+    void start();
+    return () => {
+      cancelled = true;
+      stop();
+    };
+  }, [facing, stop]);
+
+  async function toggleTorch() {
+    const track = streamRef.current?.getVideoTracks()[0];
+    if (!track) return;
+    const next = !torchOn;
+    try {
+      // `torch` is a real constraint on Android Chrome but isn't in the DOM typings yet.
+      await track.applyConstraints({
+        advanced: [{ torch: next }],
+      } as unknown as MediaTrackConstraints);
+      setTorchOn(next);
+    } catch {
+      setHasTorch(false);
+    }
+  }
+
+  function runFlight(preview: string) {
+    const frame = frameRef.current?.getBoundingClientRect();
+    const thumb = thumbRef.current?.getBoundingClientRect();
+
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduced || !frame || !thumb) {
+      setFrozen(null);
+      setPhase("idle");
       return;
     }
 
-    const frame = frameRef.current?.getBoundingClientRect();
-    const thumb = thumbRef.current?.getBoundingClientRect();
-    if (frame && thumb) {
-      setFlight({
-        x: thumb.left + thumb.width / 2 - (frame.left + frame.width / 2),
-        y: thumb.top + thumb.height / 2 - (frame.top + frame.height / 2),
-        scale: thumb.width / frame.width,
-      });
-    }
+    setFlight({
+      x: thumb.left + thumb.width / 2 - (frame.left + frame.width / 2),
+      y: thumb.top + thumb.height / 2 - (frame.top + frame.height / 2),
+      scale: thumb.width / frame.width,
+    });
+    setFrozen(preview);
+    setPhase("hold");
 
-    setPhase("flash");
     timers.current.push(
-      setTimeout(() => setPhase("hold"), FLASH_MS),
       setTimeout(() => setPhase("fly"), HOLD_MS),
       setTimeout(() => {
         setPhase("idle");
+        setFrozen(null);
         setFlight(null);
-        spend();
       }, HOLD_MS + FLIGHT_MS),
     );
-  }, [phase, shotsLeft]);
+  }
 
-  // `?v=captured` exists so the animation is reachable from the screen index rather than
-  // only by tapping.
-  const fired = useRef(false);
-  useEffect(() => {
-    if (!autoCapture || fired.current) return;
-    fired.current = true;
-    const timer = setTimeout(capture, 400);
-    return () => clearTimeout(timer);
-  }, [autoCapture, capture]);
+  async function capture() {
+    const video = videoRef.current;
+    const frame = frameRef.current;
+    if (!video || !frame || phase !== "idle" || disabled || shotsLeft <= 0) return;
 
+    setPhase("flash");
+    navigator.vibrate?.(12);
+
+    try {
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      const cw = frame.clientWidth;
+      const ch = frame.clientHeight;
+
+      // Mirror of CSS `object-fit: cover` — work out which slice of the sensor was actually
+      // on screen, and keep only that.
+      const scale = Math.max(cw / vw, ch / vh);
+      const sw = Math.min(vw, cw / scale);
+      const sh = Math.min(vh, ch / scale);
+
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(sw);
+      canvas.height = Math.round(sh);
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Canvas unavailable");
+
+      if (facing === "user") {
+        // The preview is mirrored, so the saved frame is too — otherwise the photo you get
+        // is not the one you framed.
+        context.translate(canvas.width, 0);
+        context.scale(-1, 1);
+      }
+      context.drawImage(video, (vw - sw) / 2, (vh - sh) / 2, sw, sh, 0, 0, canvas.width, canvas.height);
+
+      const processed = await processCapture(canvas);
+      onCaptured(processed);
+
+      timers.current.push(
+        setTimeout(() => runFlight(canvas.toDataURL("image/jpeg", 0.6)), FLASH_MS),
+      );
+    } catch {
+      setPhase("idle");
+    }
+  }
+
+  async function handleFilePick(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    const bitmap = await decode(file);
+    const processed = await processCapture(
+      bitmap as CanvasImageSource & { width: number; height: number },
+    );
+    onCaptured(processed);
+  }
+
+  const out = shotsLeft <= 0;
   const flying = phase === "hold" || phase === "fly";
 
   return (
-    // PAGE rather than VOID so the counter's pure-black housing has something to sit against.
-    <div className="flex h-full flex-col bg-page">
-      <header className="flex items-center justify-between gap-3 px-4 pt-4">
-        <BackButton href="/proto/guest" />
-        <div className="min-w-0 text-center">
-          <p className="display-sm truncate text-[19px] text-chalk">{ROLL.title}</p>
-          <p className="tabular text-[13px] text-dust">
-            {formatCountdown(ROLL.finishAt.getTime() - NOW.getTime())}
-          </p>
-        </div>
-        <Link
-          href="/proto/guest/camera/invite"
-          aria-label="Invite guests"
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-surface text-chalk transition-colors hover:text-flame"
-        >
-          <Qr className="h-5 w-5" />
-        </Link>
-      </header>
-
-      {/* --------------------------------------------------------------- viewfinder */}
+    <div inert={inert} className="flex h-full flex-col bg-page">
       <div className="flex flex-1 items-center px-4 py-4">
-        <div ref={frameRef} className="relative aspect-[4/5] w-full">
-          <Plate index={6} className="absolute inset-0 rounded-[2rem]" />
+        <div ref={frameRef} className="relative aspect-[4/5] w-full overflow-hidden rounded-[2rem] bg-void">
+          <video
+            ref={videoRef}
+            playsInline
+            muted
+            autoPlay
+            className={cn(
+              "h-full w-full object-cover",
+              facing === "user" && "-scale-x-100",
+              permission !== "live" && "opacity-0",
+            )}
+          />
 
-          {phase === "flash" ? (
-            <span className="absolute inset-0 rounded-[2rem] bg-white" />
+          {permission === "denied" || permission === "unsupported" ? (
+            <div className="absolute inset-0 grid place-items-center px-8 text-center">
+              <div>
+                <p className="text-[15px] leading-relaxed text-ash">
+                  {permission === "unsupported"
+                    ? "This browser can't open the camera."
+                    : "MemoVue needs camera access to take photos."}
+                </p>
+                <label className="mt-4 inline-flex h-11 cursor-pointer items-center rounded-full bg-chalk px-5 text-[14px] font-medium text-void">
+                  Choose a photo instead
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={handleFilePick}
+                    className="sr-only"
+                  />
+                </label>
+              </div>
+            </div>
           ) : null}
 
-          {flying ? (
-            <div
-              className="pointer-events-none absolute inset-0 overflow-hidden rounded-[2rem]"
+          {phase === "flash" ? <span className="absolute inset-0 bg-white" /> : null}
+
+          {flying && frozen ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={frozen}
+              alt=""
+              className="pointer-events-none absolute inset-0 h-full w-full rounded-[2rem] object-cover"
               style={{
                 transition: `transform ${FLIGHT_MS}ms var(--ease-out-soft), opacity ${FLIGHT_MS}ms ease`,
                 transform:
@@ -131,40 +269,44 @@ export function CameraScreen({ autoCapture }: { autoCapture?: boolean }) {
                     : "none",
                 opacity: phase === "fly" ? 0.15 : 1,
               }}
-            >
-              <Plate index={6} className="absolute inset-0" />
-            </div>
+            />
           ) : null}
         </div>
       </div>
 
-      {/* ----------------------------------------------------------------- controls */}
       <div className="flex items-center justify-between px-8">
-        <button type="button" aria-label="Flash off" className="tap text-chalk">
+        <button
+          type="button"
+          aria-label={torchOn ? "Turn flash off" : "Turn flash on"}
+          aria-pressed={torchOn}
+          onClick={toggleTorch}
+          disabled={!hasTorch}
+          className={cn("tap transition-colors", torchOn ? "text-flame" : "text-chalk", !hasTorch && "opacity-30")}
+        >
           <FlashOff className="h-6 w-6" />
         </button>
 
-        <div className="flex items-center rounded-full bg-page p-1">
-          {["1x", "2x"].map((zoom, index) => (
-            <button
-              key={zoom}
-              type="button"
-              className={cn(
-                "tabular h-9 w-12 rounded-full text-[14px] transition-colors",
-                index === 0 ? "bg-surface text-chalk" : "text-dust",
-              )}
-            >
-              {zoom}
-            </button>
-          ))}
-        </div>
+        <label className="tap cursor-pointer text-[13px] text-dust">
+          Upload
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleFilePick}
+            className="sr-only"
+            disabled={out}
+          />
+        </label>
 
-        <button type="button" aria-label="Flip camera" className="tap text-chalk">
+        <button
+          type="button"
+          aria-label="Flip camera"
+          onClick={() => setFacing((f) => (f === "environment" ? "user" : "environment"))}
+          className="tap text-chalk"
+        >
           <Flip className="h-6 w-6" />
         </button>
       </div>
 
-      {/* ------------------------------------------------------------------- shutter */}
       <div className="flex items-center justify-between px-6 pt-6 pb-8">
         <Counter value={shotsLeft} />
 
@@ -172,19 +314,29 @@ export function CameraScreen({ autoCapture }: { autoCapture?: boolean }) {
           type="button"
           aria-label="Take photo"
           onClick={capture}
-          disabled={shotsLeft === 0}
+          disabled={out || disabled || phase !== "idle"}
           className="h-[88px] w-[88px] rounded-full border-4 border-chalk bg-surface transition-transform active:scale-95 disabled:opacity-40"
         />
 
-        <Link
+        <button
           ref={thumbRef}
-          href="/proto/guest/album"
+          type="button"
+          onClick={onOpenAlbum}
           aria-label="Open album"
-          className="flex h-[72px] w-[72px] items-center justify-center overflow-hidden rounded-2xl bg-surface"
+          className="h-[72px] w-[72px] overflow-hidden rounded-2xl bg-surface"
         >
-          <Plate index={1} className="h-full w-full" />
-        </Link>
+          {latestThumb ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src={latestThumb} alt="" className="h-full w-full object-cover" />
+          ) : null}
+        </button>
       </div>
+
+      {out ? (
+        <p className="px-8 pb-6 text-center text-[14px] leading-relaxed text-flame">
+          That&rsquo;s all your shots. Everything opens for everyone at reveal time.
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 
 import { BottomNav } from "@/components/roll/BottomNav";
-import { Pill, PillLink } from "@/components/roll/Chrome";
+import { Pill } from "@/components/roll/Chrome";
 import { Dialog } from "@/components/roll/Dialog";
 import { Instagram, Logout, Mail, Pencil, Trash, Warning } from "@/components/roll/Icons";
 import { SettingRow } from "@/components/roll/SettingRow";

@@ -1,61 +1,71 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { BackButton, PillLink } from "@/components/roll/Chrome";
-import { Dialog } from "@/components/roll/Dialog";
-import { Plate } from "@/components/roll/Plate";
+import { BackButton, Pill } from "@/components/roll/Chrome";
+import { Qr } from "@/components/roll/Icons";
+import { normalizeCode } from "@/lib/codes";
 
-export default function JoinRoll() {
-  const invalid = useSearchParams().get("v") === "invalid";
-  const [link, setLink] = useState(invalid ? "frhbcs" : "");
+export default function JoinARoll() {
+  const router = useRouter();
+  const [input, setInput] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  /**
+   * Accepts a whole invitation link or just the code, because people paste whichever they
+   * happen to have. A pasted URL's last path segment is the code.
+   */
+  const go = () => {
+    const raw = input.trim();
+    const candidate = raw.includes("/") ? (raw.split(/[/?#]/).filter(Boolean).pop() ?? "") : raw;
+    const code = normalizeCode(candidate);
+
+    if (code.length !== 6) {
+      setError("That doesn't look like an invitation. Check the link and try again.");
+      return;
+    }
+    router.push(`/join/${code}`);
+  };
 
   return (
-    <div className="relative flex min-h-full flex-col">
-      {/* The camera feed. A plate rather than a real getUserMedia stream — the prototype
-          should never ask for a permission it does nothing with. */}
-      <div className="relative flex-1">
-        <Plate index={5} className="absolute inset-0" />
-        <div className="absolute inset-x-0 top-0 p-4">
-          <BackButton href="/proto/welcome" />
-        </div>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="h-[200px] w-[200px] rounded-3xl border-2 border-dashed border-flame/70" />
+    <div className="flex min-h-dvh flex-col px-5 pt-4 pb-8">
+      <BackButton href="/welcome" />
+
+      <div className="flex flex-1 flex-col items-center justify-center gap-6 text-center">
+        <span className="flex h-20 w-20 items-center justify-center rounded-3xl bg-surface text-flame">
+          <Qr className="h-9 w-9" />
+        </span>
+        <div>
+          <h1 className="display text-[28px] text-chalk">Point your camera at the QR</h1>
+          <p className="mx-auto mt-3 max-w-[18rem] text-[15px] leading-relaxed text-ash">
+            Your phone&rsquo;s own camera app will open the roll. If someone sent you a link
+            instead, paste it below.
+          </p>
         </div>
       </div>
 
-      <div className="space-y-4 bg-page px-5 py-6">
+      <div className="space-y-4">
         <p className="marking">Or paste invitation link</p>
 
         <input
-          value={link}
-          onChange={(event) => setLink(event.target.value)}
-          placeholder="Paste link"
+          value={input}
+          onChange={(event) => {
+            setInput(event.target.value);
+            setError(null);
+          }}
+          onKeyDown={(event) => event.key === "Enter" && go()}
+          placeholder="Paste link or code"
           aria-label="Invitation link"
           className="h-14 w-full rounded-2xl bg-surface px-4 text-chalk placeholder:text-dust focus:outline-none focus-visible:ring-1 focus-visible:ring-flame"
         />
 
-        <PillLink
-          href={link.trim() ? "/proto/guest" : "/proto/join?v=invalid"}
-          variant="light"
-          full
-        >
-          Join →
-        </PillLink>
-      </div>
+        {error ? <p className="text-[13px] text-danger">{error}</p> : null}
 
-      <Dialog
-        open={invalid}
-        title="Invalid link"
-        actions={
-          <PillLink href="/proto/join" variant="quiet" full>
-            OK
-          </PillLink>
-        }
-      >
-        Please scan a QR code or paste a valid invitation link.
-      </Dialog>
+        <Pill variant="light" full disabled={!input.trim()} onClick={go}>
+          Join →
+        </Pill>
+      </div>
     </div>
   );
 }

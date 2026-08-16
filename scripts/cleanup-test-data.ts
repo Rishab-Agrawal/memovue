@@ -1,5 +1,5 @@
 /**
- * Removes events created by the Playwright suite, along with their R2 objects.
+ * Removes rolls created by the Playwright suite, along with their R2 objects.
  *
  * The suite creates a real event and uploads real photos on every run, so without this the
  * database and bucket accumulate junk. The test host account itself is kept — the suite
@@ -23,19 +23,19 @@ async function main() {
   });
 
   try {
-    const events = await prisma.event.findMany({
+    const rolls = await prisma.roll.findMany({
       where: { host: { email: TEST_HOST_EMAIL } },
       select: { id: true, name: true },
     });
 
-    if (events.length === 0) {
+    if (rolls.length === 0) {
       console.log("Nothing to clean up.");
       return;
     }
 
-    const eventIds = events.map((event) => event.id);
+    const rollIds = rolls.map((roll) => roll.id);
     const photos = await prisma.photo.findMany({
-      where: { eventId: { in: eventIds } },
+      where: { rollId: { in: rollIds } },
       select: { fullKey: true, previewKey: true },
     });
 
@@ -61,8 +61,8 @@ async function main() {
       }
     }
 
-    await prisma.event.deleteMany({ where: { id: { in: eventIds } } });
-    console.log(`Removed ${events.length} test event(s) and ${keys.length} object(s).`);
+    await prisma.roll.deleteMany({ where: { id: { in: rollIds } } });
+    console.log(`Removed ${rolls.length} test event(s) and ${keys.length} object(s).`);
   } finally {
     await prisma.$disconnect();
   }

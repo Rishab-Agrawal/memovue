@@ -14,6 +14,9 @@ export const TEST_HOST = {
   name: "Playwright Host",
 };
 
+/** Creating a roll costs a code, so the suite needs one waiting for it. */
+export const TEST_COUPON = "PLAYWRGHT";
+
 export const STORAGE_STATE = path.join("tests", ".auth", "host.json");
 
 /**
@@ -36,6 +39,11 @@ export default async function globalSetup() {
       update: { name: TEST_HOST.name },
       select: { id: true, tokenVersion: true },
     });
+
+    // Reset rather than upsert: a coupon is single-use, so a run that already spent it has
+    // to get a fresh one or every subsequent run fails at roll creation.
+    await prisma.coupon.deleteMany({ where: { code: TEST_COUPON } });
+    await prisma.coupon.create({ data: { code: TEST_COUPON, note: "playwright" } });
 
     const secret = new TextEncoder().encode(
       process.env.AUTH_SECRET ?? "memovue-dev-secret-not-for-production",

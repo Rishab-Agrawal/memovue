@@ -1,22 +1,31 @@
+import "server-only";
+
 import { readGuestClaims } from "./auth";
 import { normalizeCode } from "./codes";
 import { prisma } from "./prisma";
-import { type EventPhase, eventPhase } from "./reveal";
+import { type RollPhase, isCapturing, isOpen, rollPhase } from "./roll-access";
 
 export interface GuestContext {
-  event: NonNullable<Awaited<ReturnType<typeof findEvent>>>;
-  guest: { id: string; name: string; relation: string | null; relationSide: string | null };
-  phase: EventPhase;
+  roll: NonNullable<Awaited<ReturnType<typeof findRoll>>>;
+  guest: { id: string; name: string };
+  phase: RollPhase;
+  /** Whether photographs in this roll are legible yet. */
+  open: boolean;
+  /** Whether the shutter still works. */
+  capturing: boolean;
   shotsUsed: number;
   shotsLeft: number;
 }
 
-function findEvent(code: string) {
-  return prisma.event.findUnique({ where: { code: normalizeCode(code) } });
+function findRoll(code: string) {
+  return prisma.roll.findUnique({
+    where: { code: normalizeCode(code) },
+    include: { host: { select: { name: true } } },
+  });
 }
 
-export async function getEventByCode(code: string) {
-  return findEvent(code);
+export async function getRollByJoinCode(code: string) {
+  return findRoll(code);
 }
 
 /**
@@ -27,41 +36,31 @@ export async function getEventByCode(code: string) {
  * whoever actually owns the name.
  */
 export async function getGuestContext(code: string): Promise<GuestContext | null> {
-  const event = await findEvent(code);
-  if (!event) return null;
+  const roll = await findRoll(code);
+  if (!roll) return null;
 
-  const claims = await readGuestClaims(event.code);
-  if (!claims || claims.eventId !== event.id) return null;
+  const claims = await readGuestClaims(roll.code);
+  if (!claims || claims.eventId !== roll.id) return null;
 
   const guest = await prisma.guest.findUnique({
     where: { id: claims.guestId },
-    select: {
-      id: true,
-      name: true,
-      relation: true,
-      relationSide: true,
-      eventId: true,
-      tokenVersion: true,
-    },
+    select: { id: true, name: true, rollId: true, tokenVersion: true },
   });
-  if (!guest || guest.eventId !== event.id || guest.tokenVersion !== claims.tokenVersion) {
+  if (!guest || guest.rollId !== roll.id || guest.tokenVersion !== claims.tokenVersion) {
     return null;
   }
 
-  // In-flight uploads count against the quota too, otherwise a guest could hold the
-  // shutter down and issue far more upload URLs than they're entitled to.
+  // In-flight uploads count against the quota too, otherwise a guest could hold the shutter
+  // down and issue far more upload URLs than they are entitled to.
   const shotsUsed = await prisma.photo.count({ where: { guestId: guest.id } });
 
   return {
-    event,
-    guest: {
-      id: guest.id,
-      name: guest.name,
-      relation: guest.relation,
-      relationSide: guest.relationSide,
-    },
-    phase: eventPhase(event),
+    roll,
+    guest: { id: guest.id, name: guest.name },
+    phase: rollPhase(roll),
+    open: isOpen(roll),
+    capturing: isCapturing(roll),
     shotsUsed,
-    shotsLeft: Math.max(0, event.photosPerGuest - shotsUsed),
+    shotsLeft: Math.max(0, roll.photosPerGuest - shotsUsed),
   };
 }
