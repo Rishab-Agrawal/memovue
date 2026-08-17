@@ -3,11 +3,11 @@ import Link from "next/link";
 import { Logo } from "@/components/ui/Logo";
 import { BottomNav } from "@/components/roll/BottomNav";
 import { PillLink } from "@/components/roll/Chrome";
+import { Cover } from "@/components/roll/Cover";
 import { Camera, Clock, Qr } from "@/components/roll/Icons";
-import { Plate } from "@/components/roll/Plate";
 import { formatRange } from "@/lib/format";
 import { formatDuration } from "@/lib/format";
-import { listRollsForHost } from "@/lib/rolls";
+import { coverUrlsFor, listRollsForHost } from "@/lib/rolls";
 import { requireHost } from "@/lib/session";
 
 export const metadata = { title: "Your rolls" };
@@ -19,6 +19,7 @@ const TILT = ["-rotate-2", "rotate-1", "-rotate-1", "rotate-2"];
 export default async function RollsHome() {
   const user = await requireHost();
   const { active, albums } = await listRollsForHost(user.id);
+  const covers = await coverUrlsFor([...active, ...albums]);
   const now = new Date();
 
   return (
@@ -59,7 +60,11 @@ export default async function RollsHome() {
                   href={`/rolls/${roll.id}`}
                   className="relative block h-[260px] w-[200px] shrink-0 overflow-hidden rounded-3xl"
                 >
-                  <Plate index={roll.coverPreset} className="absolute inset-0" />
+                  <Cover
+                    url={covers.get(roll.id)}
+                    preset={roll.coverPreset}
+                    className="absolute inset-0"
+                  />
                   <div className="absolute inset-0 bg-gradient-to-b from-void/70 via-transparent to-void/40" />
 
                   <div className="absolute inset-x-0 top-0 p-4">
@@ -96,9 +101,13 @@ export default async function RollsHome() {
                   <div className="mt-3 flex">
                     {Array.from({ length: Math.min(4, Math.max(1, roll._count.photos)) }).map(
                       (_, index) => (
-                        <Plate
+                        // Only the front print is the real cover; the ones behind it stay
+                        // gradients, so the stack still reads as a stack rather than as the
+                        // same photograph shuffled four times.
+                        <Cover
                           key={index}
-                          index={roll.coverPreset + index}
+                          url={index === 0 ? covers.get(roll.id) : null}
+                          preset={roll.coverPreset + index}
                           className={`-ml-3 h-[104px] w-[84px] shrink-0 rounded-2xl ring-1 ring-void/60 first:ml-0 ${TILT[index % TILT.length]}`}
                         />
                       ),

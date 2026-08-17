@@ -1,45 +1,99 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
-
-import { cn } from "@/lib/cn";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 import { BackButton, Pill } from "@/components/roll/Chrome";
+import { CoverChoice } from "@/components/roll/CoverChoice";
 import { Pencil } from "@/components/roll/Icons";
-import { Plate } from "@/components/roll/Plate";
+import { CoverError, prepareCover, removeCover, uploadCover } from "@/lib/cover-upload";
 
 import { updateInfoAction } from "../../actions";
-
-const PRESETS = [0, 1, 2, 3, 4];
 
 export function EditInfoForm({
   rollId,
   name: initialName,
   coverPreset: initialCover,
+  coverUrl: initialCoverUrl,
 }: {
   rollId: string;
   name: string;
   coverPreset: number;
+  coverUrl: string | null;
 }) {
   const router = useRouter();
   const [name, setName] = useState(initialName);
   const [cover, setCover] = useState(initialCover);
+
+  /*
+    Two pieces of cover state, because a picked photo is not an uploaded one.
+
+    `previewUrl` is what the host is looking at — either the signed URL of the cover already
+    on the roll, or a local object URL for one they have just picked. `picked` is the blob
+    that still has to travel. Save reconciles them.
+  */
+  const [previewUrl, setPreviewUrl] = useState<string | null>(initialCoverUrl);
+  const [picked, setPicked] = useState<Blob | null>(null);
+  const [removed, setRemoved] = useState(false);
+
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const [pending, startTransition] = useTransition();
+
+  // Every object URL this screen mints, so none of them outlive it.
+  const minted = useRef<string[]>([]);
+  useEffect(() => {
+    const urls = minted.current;
+    return () => urls.forEach((url) => URL.revokeObjectURL(url));
+  }, []);
+
+  const pick = async (file: File) => {
+    setError(null);
+    setBusy(true);
+    try {
+      const prepared = await prepareCover(file);
+      minted.current.push(prepared.previewUrl);
+      setPicked(prepared.blob);
+      setPreviewUrl(prepared.previewUrl);
+      setRemoved(false);
+    } catch (cause) {
+      setError(cause instanceof CoverError ? cause.message : "We couldn't use that image.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const dropCover = () => {
+    setPicked(null);
+    setPreviewUrl(null);
+    // Only a cover that was already on the roll needs deleting server-side; discarding one
+    // that never left this screen is purely local.
+    setRemoved(Boolean(initialCoverUrl));
+  };
 
   const save = () => {
     setError(null);
     startTransition(async () => {
+      try {
+        if (picked) await uploadCover(rollId, picked);
+        else if (removed) await removeCover(rollId);
+      } catch (cause) {
+        setError(cause instanceof CoverError ? cause.message : "We couldn't save that cover.");
+        return;
+      }
+
       const result = await updateInfoAction(rollId, { name, coverPreset: cover });
       if (!result.ok) {
         setError(result.error);
         return;
       }
+
       router.push(`/rolls/${rollId}/settings`);
       router.refresh();
     });
   };
+
+  const working = pending || busy;
 
   return (
     <div className="flex min-h-dvh flex-col px-5 pt-4 pb-6">
@@ -66,37 +120,25 @@ export function EditInfoForm({
       <div className="mt-7 border-t border-hair pt-6">
         <p className="marking">Cover image</p>
 
-        <div className="mt-4 flex items-center gap-5">
-          <Plate index={cover} className="h-[200px] w-[110px] shrink-0 rounded-2xl" />
-          <p className="text-[14px] leading-relaxed text-ash">
-            Pick one of the covers below. Uploading your own is coming.
-          </p>
-        </div>
-
-        <div className="mt-6 flex gap-2.5">
-          {PRESETS.map((preset) => (
-            <button
-              key={preset}
-              type="button"
-              aria-label={`Cover ${preset + 1}`}
-              aria-pressed={preset === cover}
-              onClick={() => setCover(preset)}
-              className={cn(
-                "rounded-xl",
-                preset === cover && "ring-2 ring-flame ring-offset-2 ring-offset-page",
-              )}
-            >
-              <Plate index={preset} className="h-[128px] w-[68px] rounded-xl" />
-            </button>
-          ))}
+        <div className="mt-4">
+          <CoverChoice
+            previewUrl={previewUrl}
+            preset={cover}
+            busy={busy}
+            error={error}
+            onPickFile={(file) => void pick(file)}
+            onPickPreset={(preset) => {
+              setCover(preset);
+              dropCover();
+            }}
+            onRemoveUpload={dropCover}
+          />
         </div>
       </div>
 
-      {error ? <p className="mt-4 text-[13px] text-danger">{error}</p> : null}
-
       <div className="flex-1" />
 
-      <Pill variant="light" full className="mt-8" disabled={pending} onClick={save}>
+      <Pill variant="light" full className="mt-8" disabled={working} onClick={save}>
         {pending ? "Saving…" : "Save"}
       </Pill>
     </div>

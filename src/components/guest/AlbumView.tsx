@@ -25,6 +25,7 @@ export interface Feed {
   rollName: string;
   hostName: string;
   coverPreset: number;
+  coverUrl: string | null;
   everyoneCanSee: boolean;
   revealAt: string;
   finishesAt: string;
@@ -104,6 +105,7 @@ export function AlbumView({
       <RollHeader
         title={feed.rollName}
         coverIndex={feed.coverPreset}
+        coverUrl={feed.coverUrl}
         moments={feed.totalPhotos}
         people={feed.guestCount}
         middleValue={

@@ -38,6 +38,11 @@ export default function TermsPage() {
         licence exists only to run the service and ends when the photo is deleted.
       </p>
       <p>
+        The same applies to a cover image a host uploads: it stays yours, and you grant us
+        only what is needed to show it to the people you invite. Upload one you have the right
+        to use.
+      </p>
+      <p>
         <strong>We will never sell your photos, use them to advertise, publish them, or train
         any model on them.</strong>
       </p>

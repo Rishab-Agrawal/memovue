@@ -20,6 +20,7 @@ export default function CardPreview() {
     <div className="relative h-dvh">
       <InvitationCover
         coverIndex={draft.coverPreset}
+        coverUrl={draft.coverPreviewUrl}
         title={draft.name || "Your roll"}
         hostName={hostName}
         countdown={formatCountdown(draft.finishesAt.getTime() - now)}

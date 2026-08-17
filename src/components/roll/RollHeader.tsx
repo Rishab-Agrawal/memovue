@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { BackButton } from "@/components/roll/Chrome";
-import { Plate } from "@/components/roll/Plate";
+import { Cover } from "@/components/roll/Cover";
 
 /**
  * The cover, the title and the three figures, shared by the host's roll home and the guest's
@@ -11,6 +11,7 @@ import { Plate } from "@/components/roll/Plate";
 export function RollHeader({
   title,
   coverIndex,
+  coverUrl,
   moments,
   people,
   middleValue,
@@ -21,6 +22,8 @@ export function RollHeader({
 }: {
   title: string;
   coverIndex: number;
+  /** The host's uploaded cover, if they set one. Null falls back to the preset. */
+  coverUrl?: string | null;
   moments: number;
   people: number;
   /** The countdown while the roll runs, the closing date once it has ended. */
@@ -34,7 +37,7 @@ export function RollHeader({
 }) {
   return (
     <div className="relative h-[290px] shrink-0">
-      <Plate index={coverIndex} className="absolute inset-0" />
+      <Cover url={coverUrl} preset={coverIndex} className="absolute inset-0" />
       <div className="absolute inset-0 bg-gradient-to-b from-void/60 via-transparent to-void/85" />
 
       <div className="absolute inset-x-0 top-0 flex items-start justify-between p-4">

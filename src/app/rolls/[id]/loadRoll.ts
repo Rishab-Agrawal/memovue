@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
 import { isOpen } from "@/lib/roll-access";
-import { getRollForHost } from "@/lib/rolls";
+import { coverUrlFor, getRollForHost } from "@/lib/rolls";
 import { requireHost } from "@/lib/session";
 
 import type { BackdropPhoto, BackdropRoll } from "./RollBackdrop";
@@ -25,6 +25,7 @@ export async function loadRoll(id: string): Promise<{
   if (!found) notFound();
 
   const open = isOpen(found);
+  const coverUrl = await coverUrlFor(found);
 
   const photos = await prisma.photo.findMany({
     where: { rollId: found.id, status: "READY" },
@@ -37,6 +38,7 @@ export async function loadRoll(id: string): Promise<{
       id: found.id,
       name: found.name,
       coverPreset: found.coverPreset,
+      coverUrl,
       startsAt: found.startsAt,
       finishesAt: found.finishesAt,
       revealAt: found.revealAt,

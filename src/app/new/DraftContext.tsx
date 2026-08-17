@@ -22,6 +22,15 @@ export interface Draft {
   revealMode: RevealMode;
   delayHours: number;
   coverPreset: number;
+  /**
+   * A cover the host picked, already resized, waiting for a roll to belong to.
+   *
+   * It is held here rather than uploaded on selection because there is nothing to upload it
+   * to yet — the roll is not written until the last step, and a staging area for covers of
+   * rolls that were never created is a bucket that fills up with nothing.
+   */
+  coverBlob: Blob | null;
+  coverPreviewUrl: string | null;
   participantIndex: number;
   shotIndex: number;
   everyoneCanSee: boolean;
@@ -30,6 +39,9 @@ export interface Draft {
 type DraftContextValue = {
   draft: Draft;
   update: (patch: Partial<Draft>) => void;
+  /** Replaces the picked cover, revoking whatever object URL it displaces. */
+  setCover: (blob: Blob, previewUrl: string) => void;
+  clearCover: () => void;
   /** Shown on the invitation card as "Invited by …". */
   hostName: string;
 };
@@ -68,6 +80,8 @@ export function DraftProvider({
       revealMode: "AFTER",
       delayHours: 12,
       coverPreset: 0,
+      coverBlob: null,
+      coverPreviewUrl: null,
       participantIndex: 3,
       shotIndex: 3,
       everyoneCanSee: false,
@@ -79,6 +93,20 @@ export function DraftProvider({
       draft,
       hostName,
       update: (patch: Partial<Draft>) => setDraft((current) => ({ ...current, ...patch })),
+
+      /*
+        Revoking happens here, outside the updater, rather than inside it. A state updater is
+        supposed to be pure and React may run it twice; releasing a URL is a side effect and
+        belongs on the event, not on the render.
+      */
+      setCover: (blob: Blob, previewUrl: string) => {
+        if (draft.coverPreviewUrl) URL.revokeObjectURL(draft.coverPreviewUrl);
+        setDraft((current) => ({ ...current, coverBlob: blob, coverPreviewUrl: previewUrl }));
+      },
+      clearCover: () => {
+        if (draft.coverPreviewUrl) URL.revokeObjectURL(draft.coverPreviewUrl);
+        setDraft((current) => ({ ...current, coverBlob: null, coverPreviewUrl: null }));
+      },
     }),
     [draft, hostName],
   );

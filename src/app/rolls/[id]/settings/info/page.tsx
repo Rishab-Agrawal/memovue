@@ -7,5 +7,12 @@ export default async function EditInfoPage({ params }: PageProps<"/rolls/[id]/se
   const { id } = await params;
   const { roll } = await loadRoll(id);
 
-  return <EditInfoForm rollId={roll.id} name={roll.name} coverPreset={roll.coverPreset} />;
+  return (
+    <EditInfoForm
+      rollId={roll.id}
+      name={roll.name}
+      coverPreset={roll.coverPreset}
+      coverUrl={roll.coverUrl}
+    />
+  );
 }

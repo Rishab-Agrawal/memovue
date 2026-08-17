@@ -2,8 +2,8 @@ import type { ReactNode } from "react";
 
 import { cn } from "@/lib/cn";
 
+import { Cover } from "@/components/roll/Cover";
 import { Camera, Clock, Person } from "@/components/roll/Icons";
-import { Plate } from "@/components/roll/Plate";
 
 /**
  * The first thing a guest sees. It appears three times — shrunk inside a phone mock on the
@@ -12,6 +12,7 @@ import { Plate } from "@/components/roll/Plate";
  */
 export function InvitationCover({
   coverIndex,
+  coverUrl,
   title,
   hostName,
   countdown,
@@ -20,6 +21,8 @@ export function InvitationCover({
   children,
 }: {
   coverIndex: number;
+  /** The host's uploaded cover, if they set one. Null falls back to the preset. */
+  coverUrl?: string | null;
   title: string;
   hostName: string;
   countdown: string;
@@ -29,7 +32,7 @@ export function InvitationCover({
 }) {
   return (
     <div className="relative flex h-full flex-col justify-end overflow-hidden">
-      <Plate index={coverIndex} className="absolute inset-0" />
+      <Cover url={coverUrl} preset={coverIndex} className="absolute inset-0" />
       <div className="absolute inset-0 bg-gradient-to-t from-void via-void/45 to-transparent" />
 
       <div className={cn("relative", mini ? "px-3 pb-3" : "px-5 pb-6")}>

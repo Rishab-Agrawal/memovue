@@ -39,6 +39,15 @@ export const Camera = (p: IconProps) => (
   </Svg>
 );
 
+/** A picture in a frame — picking an image from the library, as against taking one. */
+export const Photo = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3" y="4.5" width="18" height="15" rx="2.5" />
+    <circle cx="8.5" cy="10" r="1.6" />
+    <path d="M3.5 16.5 8 12.6a1.6 1.6 0 0 1 2.1 0l3.3 2.9M13 15.2l2.4-2.1a1.6 1.6 0 0 1 2.1 0l3 2.6" />
+  </Svg>
+);
+
 export const Clock = (p: IconProps) => (
   <Svg {...p}>
     <circle cx="12" cy="12" r="8.5" />

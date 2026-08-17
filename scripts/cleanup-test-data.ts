@@ -39,7 +39,17 @@ async function main() {
       select: { fullKey: true, previewKey: true },
     });
 
-    const keys = photos.flatMap((photo) => [photo.fullKey, photo.previewKey]);
+    // Covers as well as photos: a roll can carry an uploaded cover, and it lives in the
+    // bucket under its own key rather than as a Photo row.
+    const covers = await prisma.roll.findMany({
+      where: { id: { in: rollIds }, coverKey: { not: null } },
+      select: { coverKey: true },
+    });
+
+    const keys = [
+      ...photos.flatMap((photo) => [photo.fullKey, photo.previewKey]),
+      ...covers.map((roll) => roll.coverKey!),
+    ];
 
     if (keys.length > 0 && process.env.R2_ACCOUNT_ID) {
       const client = new S3Client({

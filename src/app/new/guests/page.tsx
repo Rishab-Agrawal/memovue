@@ -12,6 +12,7 @@ import { Person } from "@/components/roll/Icons";
 import { Plate } from "@/components/roll/Plate";
 import { Toggle } from "@/components/roll/Toggle";
 import { WizardShell } from "@/components/roll/WizardShell";
+import { uploadCover } from "@/lib/cover-upload";
 import { PARTICIPANT_TIERS, SHOT_TIERS, formatPrice, priceFor } from "@/lib/roll-config";
 
 import { createRollAction } from "../actions";
@@ -27,6 +28,7 @@ export default function StepGuests() {
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<{ id: string; code: string; name: string } | null>(null);
+  const [coverFailed, setCoverFailed] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const price = priceFor(draft.participantIndex, draft.shotIndex);
@@ -39,6 +41,21 @@ export default function StepGuests() {
         setError(result.error);
         return;
       }
+
+      /*
+        The cover goes up after the roll exists, because until this moment there was nothing
+        to attach it to. A failure here is reported but not fatal: the coupon has been spent
+        and the roll is real, so sending the host back to the wizard would cost them a code
+        over a picture they can set again from the roll's own settings in two taps.
+      */
+      if (draft.coverBlob) {
+        try {
+          await uploadCover(result.rollId, draft.coverBlob);
+        } catch {
+          setCoverFailed(true);
+        }
+      }
+
       setCreated({ id: result.rollId, code: result.code, name: result.name });
       setStage("created");
     });
@@ -176,8 +193,15 @@ export default function StepGuests() {
         <p className="tabular mt-4">Share Code: {created?.code}</p>
         <p className="mt-4">Guests can join at:</p>
         <p className="break-all text-chalk">
-          {typeof window === "undefined" ? "" : window.location.origin}/j/{created?.code}
+          {typeof window === "undefined" ? "" : window.location.origin}/join/{created?.code}
         </p>
+
+        {coverFailed ? (
+          <p className="mt-4 text-danger">
+            Your cover photo didn&rsquo;t upload. The roll is using a preset — you can set the
+            photo again from its settings.
+          </p>
+        ) : null}
       </Dialog>
     </>
   );

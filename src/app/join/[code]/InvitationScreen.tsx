@@ -18,6 +18,7 @@ export function InvitationScreen({
   title,
   hostName,
   coverPreset,
+  coverUrl,
   shots,
   countdown,
   phase,
@@ -27,6 +28,7 @@ export function InvitationScreen({
   title: string;
   hostName: string;
   coverPreset: number;
+  coverUrl: string | null;
   shots: number;
   countdown: string;
   phase: RollPhase;
@@ -52,6 +54,7 @@ export function InvitationScreen({
     <div className="h-dvh">
       <InvitationCover
         coverIndex={coverPreset}
+        coverUrl={coverUrl}
         title={title}
         hostName={hostName}
         countdown={scheduled ? `Opens ${formatDateTime(new Date(opensAt))}` : countdown}

@@ -1,6 +1,7 @@
 import { getGuestContext } from "@/lib/guest-context";
 import { prisma } from "@/lib/prisma";
 import { visiblePhotoWhere } from "@/lib/roll-access";
+import { coverUrlFor } from "@/lib/rolls";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
     rollName: roll.name,
     hostName: roll.host.name,
     coverPreset: roll.coverPreset,
+    // Re-signed on every poll, so the album's cover never goes stale mid-event the way a
+    // URL minted once at page load would after an hour on the same screen.
+    coverUrl: await coverUrlFor(roll),
     everyoneCanSee: roll.everyoneCanSee,
     revealAt: roll.revealAt.toISOString(),
     finishesAt: roll.finishesAt.toISOString(),

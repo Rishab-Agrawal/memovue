@@ -70,6 +70,26 @@ export async function decode(source: Blob): Promise<ImageBitmap | HTMLImageEleme
   }
 }
 
+/**
+ * A roll cover, from a photo the host picked out of their library.
+ *
+ * One derivative, not three: a cover has no archive copy to keep and nothing to seal, so
+ * there is no full/preview/blur split. It is deliberately smaller than a captured photo —
+ * covers are decoration behind a title, and every guest landing on the invitation pays for
+ * whatever this weighs.
+ *
+ * No cropping. The cover renders at three different aspect ratios (a tall invitation, a
+ * wide-ish header, a card in a list) and `object-fit: cover` centres it at each; baking one
+ * crop in here would just be the wrong crop in the other two places.
+ */
+export async function processCover(
+  source: CanvasImageSource & { width: number; height: number },
+): Promise<{ blob: Blob; width: number; height: number }> {
+  const size = scaleToFit(source.width, source.height, UPLOAD_LIMITS.coverMaxEdge);
+  const blob = await toBlob(drawTo(source, size.width, size.height), UPLOAD_LIMITS.coverQuality);
+  return { blob, width: size.width, height: size.height };
+}
+
 export async function processCapture(
   source: CanvasImageSource & { width: number; height: number },
 ): Promise<ProcessedPhoto> {

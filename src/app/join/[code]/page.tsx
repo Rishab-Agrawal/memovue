@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { formatCountdown } from "@/lib/format";
 import { getGuestContext, getRollByJoinCode } from "@/lib/guest-context";
 import { rollPhase } from "@/lib/roll-access";
+import { coverUrlFor } from "@/lib/rolls";
 
 import { InvitationScreen } from "./InvitationScreen";
 
@@ -41,6 +42,7 @@ export default async function JoinRollPage({ params }: PageProps<"/join/[code]">
       title={roll.name}
       hostName={roll.host.name}
       coverPreset={roll.coverPreset}
+      coverUrl={await coverUrlFor(roll)}
       shots={roll.photosPerGuest}
       countdown={formatCountdown(roll.finishesAt.getTime() - now.getTime())}
       phase={rollPhase(roll, now)}

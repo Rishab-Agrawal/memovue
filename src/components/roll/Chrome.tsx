@@ -5,7 +5,7 @@ import { cn } from "@/lib/cn";
 
 /**
  * The shapes the reference uses everywhere: a squircle back button, pager dots, and pill
- * buttons. Rounded and filled, unlike the rest of MemoVue — under /proto the reference's
+ * buttons. Rounded and filled, unlike the rest of MemoVue — on these screens the reference's
  * geometry wins and only the palette and typeface are ours.
  */
 

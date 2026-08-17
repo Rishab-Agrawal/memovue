@@ -17,7 +17,8 @@ export default function PrivacyPage() {
         <strong>If you host a roll:</strong> your name, email address and profile picture, as
         Google gives them to us when you sign in. <strong>We never see or store a
         password</strong> — sign-in happens on Google&rsquo;s side and we only receive the
-        result. Plus the rolls you create and the coupon code you used to create them.
+        result. Plus the rolls you create, the coupon code you used to create them, and any
+        cover image you upload for a roll.
       </p>
       <p>
         <strong>If you join a roll as a guest:</strong> the display name you type, the photos

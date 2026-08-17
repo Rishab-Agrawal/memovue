@@ -6,6 +6,7 @@ import { rollCode } from "./codes";
 import { CouponError, claimCoupon } from "./coupons";
 import { prisma } from "./prisma";
 import { computeKeptUntil, computeRevealAt, isOpen } from "./roll-access";
+import { coverKey, deleteObjects, presignDownload, storageConfigured } from "./storage";
 
 /**
  * Everything that reads or writes a roll.
@@ -150,6 +151,43 @@ export async function updateRollInfo(id: string, hostId: string, data: {
   await prisma.roll.updateMany({ where: { id, hostId }, data });
 }
 
+/* ------------------------------------------------------------------ covers */
+
+/**
+ * A short-lived link to the roll's own cover, or null when it is using a preset.
+ *
+ * Signed per render like every other image in the app, so the bucket stays private and a
+ * copied cover URL stops working within the hour rather than outliving the roll.
+ */
+export async function coverUrlFor(roll: { coverKey: string | null }): Promise<string | null> {
+  if (!roll.coverKey || !storageConfigured) return null;
+  return presignDownload(roll.coverKey, { expiresIn: 3600 });
+}
+
+/** Signs a batch of covers concurrently, for screens that list rolls. */
+export async function coverUrlsFor<T extends { id: string; coverKey: string | null }>(
+  rolls: T[],
+): Promise<Map<string, string | null>> {
+  const signed = await Promise.all(rolls.map((roll) => coverUrlFor(roll)));
+  return new Map(rolls.map((roll, index) => [roll.id, signed[index]]));
+}
+
+/** Adopts an already-uploaded cover. The key is recomputed here, never taken from input. */
+export async function setRollCover(id: string, hostId: string): Promise<void> {
+  await prisma.roll.updateMany({ where: { id, hostId }, data: { coverKey: coverKey(id) } });
+}
+
+/** Drops back to the preset gradient and removes the uploaded bytes. */
+export async function clearRollCover(id: string, hostId: string): Promise<void> {
+  const cleared = await prisma.roll.updateMany({
+    where: { id, hostId },
+    data: { coverKey: null },
+  });
+  if (cleared.count > 0 && storageConfigured) {
+    await deleteObjects([coverKey(id)]);
+  }
+}
+
 export async function updateRollVisibility(id: string, hostId: string, everyoneCanSee: boolean) {
   await prisma.roll.updateMany({ where: { id, hostId }, data: { everyoneCanSee } });
 }
@@ -184,7 +222,13 @@ export async function revealRollNow(id: string, hostId: string) {
 }
 
 export async function deleteRoll(id: string, hostId: string) {
-  await prisma.roll.deleteMany({ where: { id, hostId } });
+  const deleted = await prisma.roll.deleteMany({ where: { id, hostId } });
+
+  // The cover is the one object this module puts in the bucket, so it is the one this module
+  // takes back out. Photo objects are still orphaned on delete — see KNOWN-GAPS.
+  if (deleted.count > 0 && storageConfigured) {
+    await deleteObjects([coverKey(id)]).catch(() => {});
+  }
 }
 
 /** The count the roll header shows. Sealed rolls still report how many are waiting. */

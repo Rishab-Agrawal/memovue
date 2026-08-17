@@ -14,4 +14,13 @@ export const UPLOAD_LIMITS = {
   previewQuality: 0.7,
   /** Hard server-side ceiling per object; the client targets well under this. */
   maxBytes: 12 * 1024 * 1024,
+
+  /** Long edge of a roll cover. Smaller than a photo: it sits behind a title, not in an album. */
+  coverMaxEdge: 1440,
+  coverQuality: 0.82,
+  /**
+   * What the confirm step will accept for a cover. The client encodes well under this; the
+   * ceiling exists because a presigned PUT can't cap what a determined caller uploads.
+   */
+  coverMaxBytes: 8 * 1024 * 1024,
 } as const;

@@ -7,6 +7,7 @@ export interface BackdropRoll {
   id: string;
   name: string;
   coverPreset: number;
+  coverUrl: string | null;
   startsAt: Date;
   finishesAt: Date;
   revealAt: Date;
@@ -47,6 +48,7 @@ export function RollBackdrop({
       <RollHeader
         title={roll.name}
         coverIndex={roll.coverPreset}
+        coverUrl={roll.coverUrl}
         moments={roll.photoCount}
         people={roll.guestCount}
         middleValue={open ? formatDay(roll.finishesAt) : formatDuration(roll.finishesAt.getTime() - now.getTime())}

@@ -1,6 +1,7 @@
 import {
   DeleteObjectsCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -50,6 +51,21 @@ export function photoKey(eventId: string, photoId: string, variant: PhotoVariant
   return `${prefix}/${eventId}/${photoId}/${variant}.jpg`;
 }
 
+/**
+ * A roll's cover, at a fixed key so re-uploading overwrites in place.
+ *
+ * Deliberately not `covers/{rollId}/{nanoid}.jpg`: a unique key per upload means every
+ * replaced cover leaves an object nobody will ever delete, and the only way to find those
+ * again is a sweeper that does not exist. Signed read URLs carry a fresh signature on every
+ * request, so a browser never serves the previous image from cache despite the stable key.
+ *
+ * The client never supplies this — both the upload and the confirm recompute it from the
+ * roll id, so there is no key for a request to point somewhere it shouldn't.
+ */
+export function coverKey(rollId: string): string {
+  return `${prefix}/covers/${rollId}/cover.jpg`;
+}
+
 /** Short-lived upload URL, locked to the exact content type the client declared. */
 export function presignUpload(key: string, contentType: string): Promise<string> {
   return getSignedUrl(
@@ -78,6 +94,23 @@ export function presignDownload(
     }),
     { expiresIn },
   );
+}
+
+/**
+ * Size and type of an object that was uploaded straight to R2.
+ *
+ * A presigned PUT pins the content type but cannot cap the body — S3 only enforces a length
+ * range through POST policies, which presigned PUTs don't have. So the confirm step measures
+ * what actually landed instead of trusting what the client said it would send. Returns null
+ * if the object isn't there.
+ */
+export async function headObject(key: string): Promise<{ bytes: number } | null> {
+  try {
+    const res = await s3().send(new HeadObjectCommand({ Bucket: bucket(), Key: key }));
+    return { bytes: res.ContentLength ?? 0 };
+  } catch {
+    return null;
+  }
 }
 
 export async function getObjectStream(key: string) {
