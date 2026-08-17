@@ -48,7 +48,9 @@ test.describe("public pages", () => {
 
   test("a bad join code fails gracefully rather than crashing", async ({ page }) => {
     await page.goto("/join/ZZZZZZ");
-    await expect(page.getByRole("heading", { name: /couldn't find that roll/i })).toBeVisible();
+    // The apostrophe on the page is a typographic one, so match around it rather than
+    // guessing which character it is.
+    await expect(page.getByRole("heading", { name: /find that roll/i })).toBeVisible();
   });
 
   test("host pages are gated behind sign-in", async ({ page }) => {

@@ -1,6 +1,36 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
+
+import { MONTHS, toWall } from "@/lib/format";
 
 import { STORAGE_STATE, TEST_COUPON } from "./global-setup";
+
+/**
+ * Puts the roll's start in the past, on the wizard's start step.
+ *
+ * The wizard defaults to the coming Saturday at 6pm, so a roll created straight through the
+ * defaults has not opened yet and its guests are told to come back later — which is correct
+ * behaviour and useless for testing the camera. Today at midnight is the earliest the range
+ * allows, and it is always behind us.
+ *
+ * It drives the real calendar and the real time wheel, so the picker bugs these two controls
+ * shipped with — a tap selecting the previous day, and the wheel editing UTC while the button
+ * beside it displayed IST — would fail this rather than hiding behind fixed dates.
+ */
+async function startTodayAtMidnight(page: Page) {
+  await expect(page).toHaveURL(/\/new\/start$/);
+
+  const today = toWall(new Date());
+  await page
+    .getByRole("button", { name: `${today.day} ${MONTHS[today.month]} ${today.year}` })
+    .click();
+
+  await page.getByRole("button", { name: /(am|pm)$/ }).click();
+  await page.getByRole("option", { name: "00", exact: true }).first().click();
+  await page.getByRole("option", { name: "00", exact: true }).last().click();
+  await page.getByRole("button", { name: "Done" }).click();
+
+  await expect(page.getByRole("button", { name: /12:00 am/ })).toBeVisible();
+}
 
 /**
  * One roll, end to end: a host creates it, a guest shoots it, and nothing is legible until
@@ -22,7 +52,9 @@ test.describe("a roll from creation to reveal", () => {
     await page.getByLabel("Event name").fill("Playwright Roll");
     await page.getByRole("link", { name: /Next/ }).click();
 
-    // Start, finish, reveal and the invitation card all keep their defaults.
+    await startTodayAtMidnight(page);
+
+    // Finish, reveal and the invitation card all keep their defaults.
     for (const step of ["finish", "reveal", "card", "guests"]) {
       await page.getByRole("link", { name: /Next/ }).click();
       await expect(page).toHaveURL(new RegExp(`/new/${step}$`));
@@ -85,6 +117,25 @@ test.describe("a roll from creation to reveal", () => {
     // No keep/retake: the shot is spent the moment the shutter fires.
     await expect(page.getByText(/Keep it/i)).toHaveCount(0);
     await expect(page.getByTestId("shots-left")).toHaveText(String(before - 1));
+
+    /*
+      Wait for the photo to actually land in R2 before letting the next test look at the roll.
+
+      The counter above drops as soon as the shot is *reserved*, which is deliberate — the
+      reservation is what stops a guest issuing more upload URLs than they have shots. But the
+      row stays PENDING until the bytes arrive, and a PENDING row appears in no grid. Without
+      this the next test raced the upload and saw an empty album.
+    */
+    const code = page.url().split("/").pop();
+    await expect
+      .poll(
+        async () => {
+          const feed = await page.request.get(`/api/r/${code}/feed`);
+          return ((await feed.json()) as { totalPhotos: number }).totalPhotos;
+        },
+        { timeout: 30_000, message: "the captured photo never finished uploading" },
+      )
+      .toBeGreaterThan(0);
 
     await context.close();
   });

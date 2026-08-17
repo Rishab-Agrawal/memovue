@@ -128,7 +128,7 @@ export async function drainQueue(code: string): Promise<void> {
         let previewUrl: string;
 
         if (!photoId) {
-          const response = await fetch(`/api/e/${code}/photos`, {
+          const response = await fetch(`/api/r/${code}/photos`, {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({ contentType: "image/jpeg" }),
@@ -142,7 +142,7 @@ export async function drainQueue(code: string): Promise<void> {
           // Persist the reservation before uploading a single byte.
           await database.put(STORE, { ...item, photoId });
         } else {
-          const response = await fetch(`/api/e/${code}/photos/${photoId}`, { method: "PUT" });
+          const response = await fetch(`/api/r/${code}/photos/${photoId}`, { method: "PUT" });
           const data = await response.json().catch(() => ({}));
           if (!response.ok) throw Object.assign(new Error(data.error ?? "resign_failed"), data);
 
@@ -156,7 +156,7 @@ export async function drainQueue(code: string): Promise<void> {
 
         await Promise.all([putObject(fullUrl, item.full), putObject(previewUrl, item.preview)]);
 
-        const confirm = await fetch(`/api/e/${code}/photos/${photoId}`, {
+        const confirm = await fetch(`/api/r/${code}/photos/${photoId}`, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
