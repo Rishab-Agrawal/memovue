@@ -78,7 +78,8 @@ export function Calendar({
         {cells.map((day, index) => {
           if (!day) return <span key={index} />;
 
-          const label = toWall(day).day;
+          const wall = toWall(day);
+          const label = wall.day;
           const selectable = isWithin(day, range);
 
           if (!selectable) {
@@ -89,16 +90,20 @@ export function Calendar({
             );
           }
 
+          const selected = sameWallDay(day, value);
+
           return (
             <button
               key={index}
               type="button"
+              // The visible label is a bare number; on its own it announces as "17, button"
+              // with no month and no indication of what is currently chosen.
+              aria-label={`${label} ${MONTHS[wall.month]} ${wall.year}`}
+              aria-pressed={selected}
               onClick={() => onChange(day)}
               className={cn(
                 "tabular mx-auto flex h-9 w-9 items-center justify-center rounded-2xl text-[15px] transition-colors",
-                sameWallDay(day, value)
-                  ? "border border-flame text-flame"
-                  : "text-chalk hover:text-flame",
+                selected ? "border border-flame text-flame" : "text-chalk hover:text-flame",
               )}
             >
               {label}

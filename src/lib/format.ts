@@ -91,6 +91,32 @@ export function sameWallDay(a: Date, b: Date): boolean {
   return x.year === y.year && x.month === y.month && x.day === y.day;
 }
 
+/**
+ * The two edits a date picker makes: change the day, keep the time — or the reverse.
+ *
+ * They exist as named operations rather than as arithmetic inside a component because doing
+ * this by hand is a trap. `new Date(instant).setUTCHours(h, m)` looks like "keep the day, set
+ * the time", and is not: midnight in Kolkata is 18:30 UTC on the *previous* date, so writing a
+ * UTC hour onto it silently moves the instant back a day. That is not a rounding error anyone
+ * spots in review — it is a calendar that hands back yesterday.
+ *
+ * Both rebuild the instant from wall-clock fields, so the day and the time that come out are
+ * the day and the time a person in India would have read off the screen.
+ */
+
+/** The time of day from `value`, moved onto the wall-clock day that `day` falls on. */
+export function withWallDay(value: Date, day: Date): Date {
+  const target = toWall(day);
+  const { hour, minute } = toWall(value);
+  return fromWall(target.year, target.month, target.day, hour, minute);
+}
+
+/** The wall-clock day from `value`, at a new wall-clock time. */
+export function withWallTime(value: Date, hour: number, minute: number): Date {
+  const { year, month, day } = toWall(value);
+  return fromWall(year, month, day, hour, minute);
+}
+
 /** Days in a month, and which weekday it opens on — what a calendar grid needs. */
 export function monthGrid(year: number, month: number) {
   return {

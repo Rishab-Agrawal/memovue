@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/cn";
 
@@ -14,18 +14,22 @@ const pad = (n: number) => String(n).padStart(2, "0");
 /**
  * Two scrolling columns with the centre row banded, matching the reference's picker.
  *
- * Selection is by tap rather than by momentum scroll: the prototype is for reading the flow,
- * and a hand-rolled inertial wheel would be a day of work that teaches nothing about whether
- * the screen order is right.
+ * Selection is by tap rather than by momentum scroll: a hand-rolled inertial wheel is a day
+ * of work, and tapping a number is unambiguous on a phone in a way that flinging past it is
+ * not.
+ *
+ * **Mount it only while it is open.** `hour` and `minute` seed a draft that the wheel edits
+ * until Done or Cancel, and a draft is only correct for the opening it was seeded for — so
+ * its lifetime has to be that opening. Rendering this permanently behind an `open` flag is
+ * what previously froze the draft at whatever the time was on first render, which made the
+ * picker appear to ignore the value it was given and made Cancel keep the change.
  */
 export function TimeWheel({
-  open,
   hour,
   minute,
   onDone,
   onCancel,
 }: {
-  open: boolean;
   hour: number;
   minute: number;
   onDone: (hour: number, minute: number) => void;
@@ -33,8 +37,6 @@ export function TimeWheel({
 }) {
   const [draftHour, setDraftHour] = useState(hour);
   const [draftMinute, setDraftMinute] = useState(minute);
-
-  if (!open) return null;
 
   return (
     <div className="animate-fade absolute inset-0 z-40 flex items-center justify-center bg-void/70 px-6 backdrop-blur-sm">
@@ -70,6 +72,19 @@ export function TimeWheel({
   );
 }
 
+/**
+ * One column of the wheel, with a standing invariant: **the banded centre row is the selected
+ * row.**
+ *
+ * Without that, the band is decoration that contradicts the thing it sits on. A column of 24
+ * hours opens scrolled to the top, so a roll set for 18:00 showed the band over `02` — the
+ * picker appeared to have forgotten the time it was handed, and the number a host was about
+ * to trust was not the number that would be saved.
+ *
+ * So the column scrolls its selection to the centre: instantly on open, and smoothly when a
+ * new value is tapped. Offsets come from measured geometry rather than from repeating the
+ * 44px row height as a constant, so restyling a row cannot quietly desynchronise the two.
+ */
 function Column({
   label,
   values,
@@ -81,21 +96,40 @@ function Column({
   value: number;
   onSelect: (next: number) => void;
 }) {
+  const listRef = useRef<HTMLDivElement>(null);
+  const selectedRef = useRef<HTMLButtonElement>(null);
+  // Distinguishes opening the picker from choosing within it: the first should not animate.
+  const settled = useRef(false);
+
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    const option = selectedRef.current;
+    if (!list || !option) return;
+
+    const top = option.offsetTop - (list.clientHeight - option.clientHeight) / 2;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    list.scrollTo({ top, behavior: settled.current && !reduced ? "smooth" : "auto" });
+    settled.current = true;
+  }, [value]);
+
   return (
     <div
+      ref={listRef}
       role="listbox"
       aria-label={label}
-      className="no-scrollbar relative h-[176px] w-16 snap-y snap-mandatory overflow-y-auto py-[66px]"
+      className="no-scrollbar relative h-[176px] w-16 overflow-y-auto py-[66px]"
     >
       {values.map((entry) => (
         <button
           key={entry}
+          ref={entry === value ? selectedRef : undefined}
           type="button"
           role="option"
           aria-selected={entry === value}
           onClick={() => onSelect(entry)}
           className={cn(
-            "tabular flex h-11 w-full snap-center items-center justify-center text-[20px] transition-colors",
+            "tabular flex h-11 w-full items-center justify-center text-[20px] transition-colors",
             entry === value ? "text-chalk" : "text-dust hover:text-ash",
           )}
         >

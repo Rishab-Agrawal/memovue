@@ -8,6 +8,8 @@ import {
   sameWallDay,
   startOfWallDay,
   toWall,
+  withWallDay,
+  withWallTime,
 } from "@/lib/format";
 import { finishDateRange, isWithin, startDateRange } from "@/lib/roll-config";
 
@@ -50,6 +52,78 @@ test.describe("wall clock", () => {
     expect(monthGrid(2026, 8)).toEqual({ firstWeekday: 2, days: 30 });
     // February in a leap year.
     expect(monthGrid(2028, 1).days).toBe(29);
+  });
+});
+
+/**
+ * What the two date pickers do when you tap them.
+ *
+ * These shipped built out of `setUTCHours` on the underlying instant, which reads like "keep
+ * the day, change the time" and is not. Midnight in Kolkata is 18:30 UTC on the day *before*,
+ * so writing a UTC hour onto a freshly picked date walked it backwards: tapping the 20th
+ * selected the 19th, for every time of day earlier than 6:30 pm. The same mix-up fed the time
+ * wheel UTC hours while the button beside it displayed IST, so a host who chose 8:00 pm got a
+ * roll that opened at 1:30 am the next morning.
+ */
+test.describe("editing a picked date", () => {
+  test("tapping a day keeps the time and lands on the day tapped", () => {
+    const current = fromWall(2026, 8, 19, 18, 0); // 19 Sep, 6:00 pm
+    const tapped = fromWall(2026, 8, 20); // the host taps the 20th
+
+    const next = withWallDay(current, tapped);
+
+    expect(toWall(next).day).toBe(20);
+    expect(formatDateTime(next)).toBe("20 Sep 2026 at 6:00 pm");
+  });
+
+  test("no time of day walks the date backwards", () => {
+    const tapped = fromWall(2026, 8, 20);
+
+    // Every hour, including the ones either side of the 18:30 boundary that caused this.
+    for (let hour = 0; hour < 24; hour += 1) {
+      const current = fromWall(2026, 8, 19, hour, 45);
+      const next = withWallDay(current, tapped);
+
+      expect(toWall(next).day, `at ${hour}:45`).toBe(20);
+      expect(toWall(next).hour, `at ${hour}:45`).toBe(hour);
+      expect(toWall(next).minute, `at ${hour}:45`).toBe(45);
+    }
+  });
+
+  test("choosing a time keeps the day and sets the time chosen", () => {
+    const current = fromWall(2026, 8, 19, 18, 0);
+    const next = withWallTime(current, 20, 30);
+
+    expect(formatDateTime(next)).toBe("19 Sep 2026 at 8:30 pm");
+  });
+
+  test("a time before 5:30 am stays on the day the host is looking at", () => {
+    // The mirror of the other boundary: early-morning IST is still the previous UTC day.
+    const current = fromWall(2026, 8, 19, 18, 0);
+    const next = withWallTime(current, 2, 15);
+
+    expect(toWall(next).day).toBe(19);
+    expect(formatDateTime(next)).toBe("19 Sep 2026 at 2:15 am");
+  });
+
+  test("what the wheel is handed is what it hands back", () => {
+    // The picker seeds itself from `toWall(value)` and returns through `withWallTime`, so
+    // opening it and pressing Done without touching anything must be a no-op.
+    for (const hour of [0, 5, 12, 18, 23]) {
+      for (const minute of [0, 30, 59]) {
+        const value = fromWall(2026, 8, 19, hour, minute);
+        const wall = toWall(value);
+
+        expect(withWallTime(value, wall.hour, wall.minute).getTime()).toBe(value.getTime());
+      }
+    }
+  });
+
+  test("moving day then time composes to exactly what was asked for", () => {
+    const start = fromWall(2026, 8, 19, 18, 0);
+    const moved = withWallTime(withWallDay(start, fromWall(2026, 9, 3)), 9, 15);
+
+    expect(formatDateTime(moved)).toBe("3 Oct 2026 at 9:15 am");
   });
 });
 
