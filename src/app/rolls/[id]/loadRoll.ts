@@ -36,6 +36,7 @@ export async function loadRoll(id: string): Promise<{
   return {
     roll: {
       id: found.id,
+      code: found.code,
       name: found.name,
       coverPreset: found.coverPreset,
       coverUrl,

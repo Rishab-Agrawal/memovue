@@ -310,11 +310,19 @@ export function CameraView({
       <div className="flex items-center justify-between px-6 pt-6 pb-8">
         <Counter value={shotsLeft} />
 
+        {/*
+          Disabled until the stream is actually live.
+
+          `capture` already refuses to run without a video frame, so tapping early did
+          nothing at all — no shot, no error, no flash. A control that silently declines is
+          worse than one that is visibly not ready yet, and the gap is widest on exactly the
+          phone this matters on, where the camera takes a moment to come up.
+        */}
         <button
           type="button"
           aria-label="Take photo"
           onClick={capture}
-          disabled={out || disabled || phase !== "idle"}
+          disabled={out || disabled || phase !== "idle" || permission !== "live"}
           className="h-[88px] w-[88px] rounded-full border-4 border-chalk bg-surface transition-transform active:scale-95 disabled:opacity-40"
         />
 

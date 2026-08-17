@@ -83,6 +83,26 @@ test.describe("a roll from creation to reveal", () => {
     rollUrl = page.url();
   });
 
+  /**
+   * The host's own controls have to lead somewhere.
+   *
+   * A host shoots their own roll by joining it like anyone else, so the camera button goes to
+   * the guest app — which is keyed on the roll's six-character code, not its id. Built from
+   * the id it normalised to a 25-character string that matched no roll, and the button on the
+   * host's own roll screen dead-ended.
+   */
+  test("the host's camera button reaches the roll", async ({ page }) => {
+    await page.goto(rollUrl);
+
+    const camera = page.getByRole("link", { name: "Take a photo" });
+    await expect(camera).toHaveAttribute("href", joinUrl.replace("/join/", "/e/"));
+
+    await camera.click();
+    // No guest session on this device yet, so the camera hands off to the join screen.
+    await expect(page).toHaveURL(joinUrl);
+    await expect(page.getByPlaceholder("Enter your name")).toBeVisible();
+  });
+
   test("the same coupon cannot be spent twice", async ({ page }) => {
     await page.goto("/new/name");
     await page.getByLabel("Event name").fill("Second Roll");

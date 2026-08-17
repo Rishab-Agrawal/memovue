@@ -5,6 +5,8 @@ import { isOpen } from "@/lib/roll-access";
 
 export interface BackdropRoll {
   id: string;
+  /** The six characters on the QR. The guest-facing routes key on this, not on `id`. */
+  code: string;
   name: string;
   coverPreset: number;
   coverUrl: string | null;
@@ -61,7 +63,10 @@ export function RollBackdrop({
       <div className="space-y-4 px-5 pt-4 pb-6">
         <RollControls
           revealed={open}
-          cameraHref={`/e/${roll.id}`}
+          // The camera is the guest app, and a host shoots their own roll by joining it like
+          // anyone else — so this is the roll's code, not its id. Built from the id, it
+          // normalised to a 25-character string matching no roll and dead-ended.
+          cameraHref={`/e/${roll.code}`}
           inviteHref={`/rolls/${roll.id}/invite`}
         />
 
