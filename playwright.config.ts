@@ -4,11 +4,8 @@ const BASE_URL = process.env.TEST_BASE_URL ?? "http://localhost:3000";
 
 export default defineConfig({
   testDir: "./tests",
-  // A screenshot pass over the guest flow, for looking at design changes. It asserts almost
-  // nothing and creates a real event every run, so it's opt-in:
-  //   npx playwright test tests/shots.spec.ts
   // Unit specs have their own config and need neither a database nor a server.
-  testIgnore: ["**/shots.spec.ts", "**/unit/**"],
+  testIgnore: ["**/unit/**"],
   globalSetup: "./tests/global-setup.ts",
   fullyParallel: false,
   workers: 1,

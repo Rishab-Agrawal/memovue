@@ -7,11 +7,10 @@ import {
   deleteRoll,
   revealRollNow,
   updateRollInfo,
-  updateRollSchedule,
   updateRollVisibility,
 } from "@/lib/rolls";
 import { requireHost } from "@/lib/session";
-import { editRollSchema, fieldErrors, rollScheduleSchema } from "@/lib/validation";
+import { editRollSchema, fieldErrors } from "@/lib/validation";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -37,29 +36,6 @@ export async function updateInfoAction(
   }
 
   await updateRollInfo(rollId, user.id, parsed.data);
-  revalidatePath(`/rolls/${rollId}`);
-  return { ok: true };
-}
-
-export async function updateScheduleAction(
-  rollId: string,
-  input: Record<string, unknown>,
-): Promise<ActionResult> {
-  const user = await requireHost();
-
-  const parsed = rollScheduleSchema.safeParse(input);
-  if (!parsed.success) {
-    return { ok: false, error: Object.values(fieldErrors(parsed.error))[0] ?? "Invalid" };
-  }
-
-  const data = parsed.data;
-  await updateRollSchedule(rollId, user.id, {
-    startsAt: new Date(data.startsAt),
-    finishesAt: new Date(data.finishesAt),
-    revealMode: data.revealMode,
-    revealDelayHours: data.revealDelayHours,
-  });
-
   revalidatePath(`/rolls/${rollId}`);
   return { ok: true };
 }

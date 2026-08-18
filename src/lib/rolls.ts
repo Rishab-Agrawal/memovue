@@ -118,13 +118,6 @@ export async function getRollForHost(id: string, hostId: string) {
   });
 }
 
-export async function getRollByCode(code: string) {
-  return prisma.roll.findUnique({
-    where: { code },
-    select: { ...rollSummary, host: { select: { name: true } } },
-  });
-}
-
 /** Who has joined, and how much film each has spent. */
 export async function listParticipants(rollId: string) {
   const guests = await prisma.guest.findMany({
@@ -192,31 +185,6 @@ export async function updateRollVisibility(id: string, hostId: string, everyoneC
   await prisma.roll.updateMany({ where: { id, hostId }, data: { everyoneCanSee } });
 }
 
-/**
- * Rescheduling recomputes both derived columns. Letting `revealAt` drift from `finishesAt`
- * would leave a roll that closes on Tuesday and opens according to Monday's arithmetic.
- */
-export async function updateRollSchedule(
-  id: string,
-  hostId: string,
-  data: {
-    startsAt: Date;
-    finishesAt: Date;
-    revealMode: RevealMode;
-    revealDelayHours: number;
-  },
-) {
-  await prisma.roll.updateMany({
-    where: { id, hostId },
-    data: {
-      ...data,
-      revealDelayHours: data.revealMode === "DELAY" ? data.revealDelayHours : 0,
-      revealAt: computeRevealAt(data.finishesAt, data.revealMode, data.revealDelayHours),
-      keptUntil: computeKeptUntil(data.finishesAt),
-    },
-  });
-}
-
 export async function revealRollNow(id: string, hostId: string) {
   await prisma.roll.updateMany({ where: { id, hostId }, data: { revealedEarly: true } });
 }
@@ -225,15 +193,10 @@ export async function deleteRoll(id: string, hostId: string) {
   const deleted = await prisma.roll.deleteMany({ where: { id, hostId } });
 
   // The cover is the one object this module puts in the bucket, so it is the one this module
-  // takes back out. Photo objects are still orphaned on delete — see KNOWN-GAPS.
+  // takes back out. Photo objects are still orphaned on delete.
   if (deleted.count > 0 && storageConfigured) {
     await deleteObjects([coverKey(id)]).catch(() => {});
   }
-}
-
-/** The count the roll header shows. Sealed rolls still report how many are waiting. */
-export async function countPhotos(rollId: string) {
-  return prisma.photo.count({ where: { rollId, status: "READY" } });
 }
 
 export { isOpen };

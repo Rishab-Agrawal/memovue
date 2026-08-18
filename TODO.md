@@ -3,25 +3,16 @@
 Things that need you, not code. Only open items live here — anything finished gets deleted
 rather than archived.
 
-## Change the admin password
-
-`rishabsecond@gmail.com` is live in production with the password set during the build
-session (`memovue-dev-2026`), and it is an admin account because it matches `ADMIN_EMAIL`.
-
-Change it at `/account`. **There is still no password-reset flow** (see `KNOWN-GAPS.md`), so
-put the new one somewhere you will find it. Delete this section once done.
-
 ## Turn on HSTS
 
-Wait until around 18 August — roughly two weeks of stable HTTPS — then enable it in
-Cloudflare under SSL/TLS → Edge Certificates. It is deliberately hard to undo, because
-browsers cache the policy, so it is worth being sure first.
+Enable it in Cloudflare under SSL/TLS → Edge Certificates. It was worth waiting for a couple
+of weeks of stable HTTPS first, and that has passed. It is deliberately hard to undo, because
+browsers cache the policy, so be sure before switching it on.
 
 ## Housekeeping
 
-- Delete the demo event *Aarav & Diya's Wedding* from your dashboard when you are done with it
 - Run `npm run cleanup:test` occasionally if you point the Playwright suite at production,
-  since each run creates a real event and uploads real photos
+  since each run creates a real roll and uploads real photos
 
 ## If you ever add a second email sender
 
@@ -36,5 +27,4 @@ both.
 Not urgent while the beta is free, but do not launch paid without them:
 
 - Payments (India and international)
-- Replace manual approval with self-serve signup
-- Decide what the free tier is, if any
+- Decide whether roll creation stays gated behind a coupon, and what the free tier is

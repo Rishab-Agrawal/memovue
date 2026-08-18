@@ -68,24 +68,6 @@ interface CommonProps {
   children: ReactNode;
 }
 
-export function Button({
-  variant = "primary",
-  size = "md",
-  full,
-  className,
-  children,
-  ...props
-}: CommonProps & ComponentPropsWithoutRef<"button">) {
-  return (
-    <button
-      className={cn(base, variants[variant], sizes[size], full && "w-full", className)}
-      {...props}
-    >
-      {children}
-    </button>
-  );
-}
-
 export function ButtonLink({
   variant = "primary",
   size = "md",

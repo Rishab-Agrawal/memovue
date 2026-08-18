@@ -149,8 +149,9 @@ model Photo {
   bytes  Int
 
   /// PENDING once upload URLs are issued, READY once the client confirms both objects
-  /// landed. Both count against quota. Stale PENDING rows are swept by a job that does
-  /// not exist yet — see KNOWN-GAPS.
+  /// landed. Both count against quota, which is what stops one photo costing two shots.
+  /// A row whose upload never completes keeps its reservation forever: there is no sweeper,
+  /// though the `[status, createdAt]` index below exists for one.
   status PhotoStatus @default(PENDING)
 
   takenAt   DateTime @default(now())
