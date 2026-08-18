@@ -3,7 +3,7 @@
 import { DateStep } from "../DateStep";
 import { useDraft } from "../DraftContext";
 
-import { startDateRange } from "@/lib/roll-config";
+import { clampFinish, startDateRange } from "@/lib/roll-config";
 
 /**
  * The step the reference does not have.
@@ -24,7 +24,12 @@ export default function StepStart() {
       back="/new/name"
       nextHref="/new/finish"
       value={draft.startsAt}
-      onChange={(startsAt) => update({ startsAt })}
+      // Moving the start can strand the finish on either side of it — too close, or beyond
+      // the two-month ceiling — so the pair is corrected together rather than leaving a
+      // combination that only fails at the very end, after the coupon dialog.
+      onChange={(startsAt) =>
+        update({ startsAt, finishesAt: clampFinish(startsAt, draft.finishesAt) })
+      }
       range={startDateRange()}
     />
   );

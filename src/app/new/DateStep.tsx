@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Calendar } from "@/components/roll/Calendar";
 import { TimeWheel } from "@/components/roll/TimeWheel";
 import { WizardShell } from "@/components/roll/WizardShell";
-import { formatTime, toWall, withWallDay, withWallTime } from "@/lib/format";
+import { formatTime, sameWallDay, toWall, withWallDay, withWallTime } from "@/lib/format";
 import type { DateRange } from "@/lib/roll-config";
 
 /**
@@ -21,6 +21,7 @@ export function DateStep({
   value,
   onChange,
   range,
+  notBefore,
 }: {
   step: number;
   title: string;
@@ -30,6 +31,8 @@ export function DateStep({
   value: Date;
   onChange: (next: Date) => void;
   range: DateRange;
+  /** The earliest instant this screen may return. The finish has one; the start does not. */
+  notBefore?: Date;
 }) {
   const [pickingTime, setPickingTime] = useState(false);
 
@@ -41,10 +44,26 @@ export function DateStep({
     accessors meant tapping a date selected the day before it, and picking a time set one five
     and a half hours off. See `withWallDay` / `withWallTime`.
   */
+  const commit = (next: Date) => {
+    // The calendar works in whole days and keeps the time of day, so tapping the earliest
+    // permitted day can still land before the floor within it. One clamp on the way out
+    // covers both controls.
+    onChange(notBefore && next.getTime() < notBefore.getTime() ? notBefore : next);
+  };
+
   const setTime = (hour: number, minute: number) => {
-    onChange(withWallTime(value, hour, minute));
+    commit(withWallTime(value, hour, minute));
     setPickingTime(false);
   };
+
+  /*
+    A floor only bites on the day it falls on. On any later day every hour is available, and
+    passing one down regardless would hide the small hours of a two-day event.
+  */
+  const floor =
+    notBefore && sameWallDay(value, notBefore)
+      ? { hour: toWall(notBefore).hour, minute: toWall(notBefore).minute }
+      : null;
 
   return (
     <>
@@ -57,7 +76,7 @@ export function DateStep({
       >
         <Calendar
           value={value}
-          onChange={(day) => onChange(withWallDay(value, day))}
+          onChange={(day) => commit(withWallDay(value, day))}
           range={range}
         />
 
@@ -83,6 +102,7 @@ export function DateStep({
         <TimeWheel
           hour={toWall(value).hour}
           minute={toWall(value).minute}
+          floor={floor}
           onDone={setTime}
           onCancel={() => setPickingTime(false)}
         />

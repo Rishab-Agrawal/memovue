@@ -11,7 +11,14 @@ import {
   withWallDay,
   withWallTime,
 } from "@/lib/format";
-import { finishDateRange, isWithin, startDateRange } from "@/lib/roll-config";
+import {
+  MIN_ROLL_MINUTES,
+  clampFinish,
+  earliestFinish,
+  finishDateRange,
+  isWithin,
+  startDateRange,
+} from "@/lib/roll-config";
 
 /**
  * The picker and the formatter have to agree on what "6 PM" means. When they didn't, a host
@@ -146,6 +153,84 @@ test.describe("scheduling limits", () => {
 
   test("a roll starting today is allowed", () => {
     expect(isWithin(now, startDateRange(now))).toBe(true);
+  });
+});
+
+/**
+ * A roll has to last half an hour.
+ *
+ * The date and the time are picked on separate controls, so "the finish must come after the
+ * start" was satisfied by a 3am start and a 2am finish on the same day: both screens looked
+ * reasonable and the roll closed an hour before it opened.
+ */
+test.describe("the shortest a roll may run", () => {
+  test("the finish floor is half an hour after the start", () => {
+    expect(MIN_ROLL_MINUTES).toBe(30);
+    expect(formatDateTime(earliestFinish(fromWall(2026, 8, 19, 3, 0)))).toBe(
+      "19 Sep 2026 at 3:30 am",
+    );
+  });
+
+  test("an earlier time on the start's own day is not a legal finish", () => {
+    const startsAt = fromWall(2026, 8, 19, 3, 0);
+    const floor = earliestFinish(startsAt);
+
+    // The case the host hit: 3am start, 2am finish, same day.
+    expect(fromWall(2026, 8, 19, 2, 0).getTime() < floor.getTime()).toBe(true);
+    expect(fromWall(2026, 8, 19, 3, 29).getTime() < floor.getTime()).toBe(true);
+    expect(fromWall(2026, 8, 19, 3, 30).getTime() < floor.getTime()).toBe(false);
+  });
+
+  test("a start in the last half hour of a day cannot close on that day", () => {
+    // 23:50 leaves no legal finish before midnight, so the day itself is off the calendar.
+    const range = finishDateRange(fromWall(2026, 8, 19, 23, 50));
+    expect(isWithin(fromWall(2026, 8, 19, 23, 59), range)).toBe(false);
+    expect(isWithin(fromWall(2026, 8, 20, 0, 20), range)).toBe(true);
+  });
+
+  test("a start with room to spare still offers its own day", () => {
+    const range = finishDateRange(fromWall(2026, 8, 19, 3, 0));
+    expect(isWithin(fromWall(2026, 8, 19, 23, 0), range)).toBe(true);
+  });
+
+  test("moving the start forward pushes a finish that no longer fits", () => {
+    const finishesAt = fromWall(2026, 8, 19, 20, 0);
+    const startsAt = fromWall(2026, 8, 21, 9, 0); // now after the finish
+
+    expect(formatDateTime(clampFinish(startsAt, finishesAt))).toBe("21 Sep 2026 at 9:30 am");
+  });
+
+  test("a finish that already fits is left exactly where the host put it", () => {
+    const startsAt = fromWall(2026, 8, 19, 18, 0);
+    const finishesAt = fromWall(2026, 8, 20, 23, 0);
+
+    expect(clampFinish(startsAt, finishesAt).getTime()).toBe(finishesAt.getTime());
+    // Exactly on the floor counts as fitting.
+    const floor = earliestFinish(startsAt);
+    expect(clampFinish(startsAt, floor).getTime()).toBe(floor.getTime());
+  });
+
+  test("moving the start back pulls a finish that overshoots two months", () => {
+    const finishesAt = fromWall(2026, 9, 30, 21, 0); // 30 Oct
+    const startsAt = fromWall(2026, 7, 1, 9, 0); // moved back to 1 Aug
+
+    // Pulled onto the last legal day, keeping the time of day that was chosen.
+    expect(formatDateTime(clampFinish(startsAt, finishesAt))).toBe("1 Oct 2026 at 9:00 pm");
+  });
+
+  test("whatever clampFinish returns is something the wizard would accept", () => {
+    const startsAt = fromWall(2026, 8, 19, 18, 0);
+
+    for (const finishesAt of [
+      fromWall(2026, 8, 19, 0, 0),
+      fromWall(2026, 8, 19, 18, 10),
+      fromWall(2026, 8, 20, 23, 0),
+      fromWall(2027, 2, 1, 12, 0),
+    ]) {
+      const clamped = clampFinish(startsAt, finishesAt);
+      expect(clamped.getTime()).toBeGreaterThanOrEqual(earliestFinish(startsAt).getTime());
+      expect(isWithin(clamped, finishDateRange(startsAt))).toBe(true);
+    }
   });
 });
 

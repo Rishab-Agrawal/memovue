@@ -44,6 +44,21 @@ export const START_MAX_YEARS = 2;
 /** A roll that runs longer than two months is a mistake, not a plan. */
 export const FINISH_MAX_MONTHS = 2;
 
+/**
+ * The shortest a roll may run.
+ *
+ * Without a floor the finish only had to differ from the start, and since the calendar and
+ * the clock are picked separately a host could set a 3am start and a 2am finish on the same
+ * day and get a roll that closed before it opened. Half an hour is short enough never to
+ * obstruct a real event and long enough that anything under it is a slip.
+ */
+export const MIN_ROLL_MINUTES = 30;
+
+/** The first instant a roll starting at `startsAt` is allowed to close. */
+export function earliestFinish(startsAt: Date): Date {
+  return new Date(startsAt.getTime() + MIN_ROLL_MINUTES * 60_000);
+}
+
 export interface DateRange {
   min: Date;
   max: Date;
@@ -58,10 +73,17 @@ export function startDateRange(now: Date = new Date()): DateRange {
   };
 }
 
+/**
+ * Days on which a roll starting at `startsAt` may close.
+ *
+ * The floor is the day of the *earliest permitted finish*, not the day of the start. Those
+ * differ for a roll starting in the last half hour before midnight: a 23:50 start cannot
+ * close on its own day at all, so that day is not offered.
+ */
 export function finishDateRange(startsAt: Date): DateRange {
   const wall = toWall(startsAt);
   return {
-    min: startOfWallDay(startsAt),
+    min: startOfWallDay(earliestFinish(startsAt)),
     max: fromWall(wall.year, wall.month + FINISH_MAX_MONTHS, wall.day),
   };
 }
@@ -69,6 +91,29 @@ export function finishDateRange(startsAt: Date): DateRange {
 export function isWithin(day: Date, range: DateRange): boolean {
   const at = startOfWallDay(day).getTime();
   return at >= startOfWallDay(range.min).getTime() && at <= startOfWallDay(range.max).getTime();
+}
+
+/**
+ * A finish that still fits around its start, given one that may no longer.
+ *
+ * Editing the start after the finish can invalidate it from either end — moving it forward
+ * past the finish, or back so far that the finish breaks the two-month ceiling. The wizard
+ * runs this whenever the start moves so the pair it carries is always a legal one, rather
+ * than letting the host discover it at the coupon dialog after six screens.
+ */
+export function clampFinish(startsAt: Date, finishesAt: Date): Date {
+  const earliest = earliestFinish(startsAt);
+  if (finishesAt.getTime() < earliest.getTime()) return earliest;
+
+  const range = finishDateRange(startsAt);
+  if (!isWithin(finishesAt, range)) {
+    // Keep the time of day the host chose and pull the date back onto the last legal one.
+    const last = toWall(range.max);
+    const kept = toWall(finishesAt);
+    return fromWall(last.year, last.month, last.day, kept.hour, kept.minute);
+  }
+
+  return finishesAt;
 }
 
 /** Hours a host may add on top of the close before photos open. */

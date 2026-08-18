@@ -4,9 +4,11 @@ import {
   FINISH_MAX_MONTHS,
   MAX_DELAY_HOURS,
   MIN_DELAY_HOURS,
+  MIN_ROLL_MINUTES,
   PARTICIPANT_TIERS,
   SHOT_TIERS,
   START_MAX_YEARS,
+  earliestFinish,
   finishDateRange,
   isWithin,
   startDateRange,
@@ -46,10 +48,6 @@ const rollFields = z.object({
     couponCode: z.string().trim().min(1, "Enter your coupon code").max(40),
 });
 
-/**
- * Refinement lives outside the object so the schedule slice below can be picked off the
- * plain shape — a refined schema in Zod 4 has no `.pick`.
- */
 export const createRollSchema = rollFields.superRefine((data, ctx) => {
     const startsAt = new Date(data.startsAt);
     const finishesAt = new Date(data.finishesAt);
@@ -62,11 +60,17 @@ export const createRollSchema = rollFields.superRefine((data, ctx) => {
       });
     }
 
-    if (finishesAt.getTime() <= startsAt.getTime()) {
+    /*
+      The floor, not merely "after the start". The calendar and the clock are chosen
+      separately, so "finish after start" left a 3am start and a 2am finish on the same day
+      looking perfectly reasonable on both screens and arriving here as a roll that closed
+      before it opened.
+    */
+    if (finishesAt.getTime() < earliestFinish(startsAt).getTime()) {
       ctx.addIssue({
         code: "custom",
         path: ["finishesAt"],
-        message: "The roll has to close after it opens",
+        message: `A roll has to run for at least ${MIN_ROLL_MINUTES} minutes`,
       });
       return;
     }
@@ -92,13 +96,6 @@ export const createRollSchema = rollFields.superRefine((data, ctx) => {
 export const editRollSchema = z.object({
   name: z.string().trim().min(1, "Give your roll a name").max(80),
   coverPreset: z.number().int().min(0).max(8),
-});
-
-export const rollScheduleSchema = rollFields.pick({
-  startsAt: true,
-  finishesAt: true,
-  revealMode: true,
-  revealDelayHours: true,
 });
 
 export const rollVisibilitySchema = z.object({ everyoneCanSee: z.boolean() });

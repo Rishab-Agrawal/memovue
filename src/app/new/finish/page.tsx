@@ -2,7 +2,7 @@
 
 import { DateStep } from "../DateStep";
 import { useDraft } from "../DraftContext";
-import { finishDateRange } from "@/lib/roll-config";
+import { earliestFinish, finishDateRange } from "@/lib/roll-config";
 
 /**
  * The reference's copy here reads "The roll opens now, and guests can capture photos until
@@ -22,6 +22,7 @@ export default function StepFinish() {
       value={draft.finishesAt}
       onChange={(finishesAt) => update({ finishesAt })}
       range={finishDateRange(draft.startsAt)}
+      notBefore={earliestFinish(draft.startsAt)}
     />
   );
 }

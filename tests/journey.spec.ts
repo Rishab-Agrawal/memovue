@@ -33,6 +33,65 @@ async function startTodayAtMidnight(page: Page) {
 }
 
 /**
+ * The wizard will not let a roll close before it has properly opened.
+ *
+ * A host set a 3am start and a 2am finish on the same day and got a roll that ended an hour
+ * before it began: the date and the time are picked on separate controls, so nothing either
+ * screen could see was individually wrong. The rule itself is unit-tested; what needs a
+ * browser is the wiring — that the finish step actually hands its floor down to the wheel,
+ * and that the wheel actually withholds the times below it.
+ */
+test.describe("an impossible window cannot be picked", () => {
+  test.use({ storageState: STORAGE_STATE });
+
+  test("the finish wheel withholds every time before the start's half hour", async ({ page }) => {
+    await page.goto("/new/name");
+    await page.getByLabel("Event name").fill("Duration guard");
+    await page.getByRole("link", { name: /Next/ }).click();
+    await expect(page).toHaveURL(/\/new\/start$/);
+
+    // Start at 3am, on whichever day the wizard opened on.
+    const startDay = await page
+      .locator('[aria-pressed="true"][aria-label]')
+      .first()
+      .getAttribute("aria-label");
+
+    // Scoped per column: every two-digit label exists in both, so an unscoped "03" is
+    // ambiguous between the hour and the minute.
+    const hourOption = (n: string) =>
+      page.locator('[role="listbox"][aria-label="Hour"] [role="option"]').filter({ hasText: new RegExp(`^${n}$`) });
+    const minuteOption = (n: string) =>
+      page.locator('[role="listbox"][aria-label="Minute"] [role="option"]').filter({ hasText: new RegExp(`^${n}$`) });
+
+    await page.getByRole("button", { name: /(am|pm)$/ }).click();
+    await hourOption("03").click();
+    await minuteOption("00").click();
+    await page.getByRole("button", { name: "Done" }).click();
+    await expect(page.getByRole("button", { name: /3:00 am/ })).toBeVisible();
+
+    await page.getByRole("link", { name: /Next/ }).click();
+    await expect(page).toHaveURL(/\/new\/finish$/);
+
+    // Put the finish on the start's own day, which is where the two could collide.
+    await page.locator(`button[aria-label="${startDay}"]`).click();
+    await page.getByRole("button", { name: /(am|pm)$/ }).click();
+
+    const hours = page.locator('[role="listbox"][aria-label="Hour"] [role="option"]');
+    await expect(hours.first()).toHaveText("03");
+    await expect(hours.filter({ hasText: /^02$/ })).toHaveCount(0);
+
+    // Inside the floor's own hour the minutes narrow too; 3:29 is still too early.
+    await hourOption("03").click();
+    const minutes = page.locator('[role="listbox"][aria-label="Minute"] [role="option"]');
+    await expect(minutes.first()).toHaveText("30");
+    await expect(minutes.filter({ hasText: /^29$/ })).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Done" }).click();
+    await expect(page.getByRole("button", { name: /3:30 am/ })).toBeVisible();
+  });
+});
+
+/**
  * One roll, end to end: a host creates it, a guest shoots it, and nothing is legible until
  * the host opens it.
  *
