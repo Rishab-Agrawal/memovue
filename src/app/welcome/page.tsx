@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { Mark } from "@/components/ui/Logo";
 
 import { PillLink } from "@/components/roll/Chrome";
 import { Google, Qr } from "@/components/roll/Icons";
+import { getCurrentUser } from "@/lib/session";
 
 export const metadata = { title: "Welcome" };
 
@@ -20,6 +22,15 @@ const MESSAGES: Record<string, string> = {
  * it is a different kind of arrival, not a third sign-in option.
  */
 export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
+  /*
+    Someone already signed in has no business on the sign-in screen.
+
+    Reaching it while signed in reads as having been signed out — which is exactly what
+    happened to anyone who tapped Join from their home screen and then pressed back, since
+    this page sat behind that button and offers nothing but "Continue with Google".
+  */
+  if (await getCurrentUser()) redirect("/rolls");
+
   const params = await searchParams;
   const error = typeof params.error === "string" ? MESSAGES[params.error] : undefined;
 
