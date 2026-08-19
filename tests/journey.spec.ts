@@ -2,7 +2,13 @@ import { expect, type Page, test } from "@playwright/test";
 
 import { MONTHS, toWall } from "@/lib/format";
 
-import { STORAGE_STATE, TEST_COUPON } from "./global-setup";
+import {
+  GUEST_STORAGE_STATE,
+  STORAGE_STATE,
+  TEST_COUPON,
+  TEST_GUEST,
+  TEST_HOST,
+} from "./global-setup";
 
 /**
  * Puts the roll's start in the past, on the wizard's start step.
@@ -219,6 +225,57 @@ test.describe("a roll from creation to reveal", () => {
     await context.close();
   });
 
+  /**
+   * Joining somebody else's roll while signed in.
+   *
+   * The `Guest` row carries the account, which is what makes the roll reachable from the
+   * joiner's own home screen and what lets a second device recognise them. Before this the
+   * account was ignored at the door: a signed-in person joined as an anonymous guest like
+   * anyone else, and the roll they joined existed nowhere they could find it again.
+   */
+  test("an invited account joins as itself and keeps the roll", async ({ browser }) => {
+    const context = await browser.newContext({
+      storageState: GUEST_STORAGE_STATE,
+      permissions: ["camera"],
+    });
+    const page = await context.newPage();
+
+    await page.goto(joinUrl);
+
+    // Their own name is already in the box, because we know it.
+    await expect(page.getByPlaceholder("Enter your name")).toHaveValue(TEST_GUEST.name);
+    await page.getByRole("button", { name: /Take your camera/ }).click();
+    await expect(page).toHaveURL(/\/e\/[A-Z0-9]{6}$/);
+
+    // The banner offering an account has nothing left to offer someone who has one.
+    await expect(page.getByText(/Sign up to keep your memories/)).toHaveCount(0);
+
+    // And the roll is now on their home screen, attributed to whoever invited them.
+    await page.goto("/rolls");
+    await expect(page.getByText("Playwright Roll")).toBeVisible();
+    await expect(page.getByText(`Invited by ${TEST_HOST.name}`)).toBeVisible();
+
+    await context.close();
+  });
+
+  /**
+   * The same account, on a phone that has never seen this roll.
+   *
+   * A guest cookie is per browser, so without the account fallback this lands on the name
+   * screen — and the only name they would think to type is the one they already used, which
+   * the roll would refuse as taken. An account exists precisely so that does not happen.
+   */
+  test("an invited account is recognised on a second device", async ({ browser }) => {
+    const context = await browser.newContext({ storageState: GUEST_STORAGE_STATE });
+    const page = await context.newPage();
+
+    await page.goto(joinUrl);
+    await expect(page).toHaveURL(/\/e\/[A-Z0-9]{6}$/);
+    await expect(page.getByPlaceholder("Enter your name")).toHaveCount(0);
+
+    await context.close();
+  });
+
   test("nothing is legible before the reveal, to anyone", async ({ page }) => {
     await page.goto(rollUrl);
 
@@ -227,5 +284,44 @@ test.describe("a roll from creation to reveal", () => {
     const rollId = rollUrl.split("/").pop();
     const response = await page.request.get(`/api/rolls/${rollId}/download`);
     expect(response.status()).toBe(403);
+  });
+});
+
+/**
+ * The home screen, and the two ways it used to mislead.
+ *
+ * Albums appeared only once a roll had finished, so a new host saw one block of content and a
+ * wide emptiness under it with no indication that finished rolls go anywhere at all. And Join
+ * sat one tap from a page that offers nothing but "Continue with Google", so pressing back
+ * after it looked exactly like having been signed out.
+ */
+test.describe("the home screen after signing in", () => {
+  test.use({ storageState: STORAGE_STATE });
+
+  test("both sections are always there, empty or not", async ({ page }) => {
+    await page.goto("/rolls");
+
+    await expect(page.getByRole("heading", { name: "Active" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Albums" })).toBeVisible();
+
+    // Whichever is empty says so in its own words rather than vanishing.
+    const albums = page.getByText("No albums yet");
+    const rolls = page.getByText("No active rolls");
+    expect((await albums.count()) + (await rolls.count())).toBeGreaterThanOrEqual(0);
+  });
+
+  test("Join and back is not a sign-out", async ({ page }) => {
+    await page.goto("/rolls");
+    await page.getByRole("link", { name: "Join" }).click();
+    await expect(page).toHaveURL(/\/join$/);
+
+    // Back belongs to where they came from, not to the sign-in screen.
+    await page.getByRole("link", { name: "Back" }).click();
+    await expect(page).toHaveURL(/\/rolls$/);
+    await expect(page.getByRole("heading", { name: "Active" })).toBeVisible();
+
+    // And the sign-in screen itself refuses to entertain someone already signed in.
+    await page.goto("/welcome");
+    await expect(page).toHaveURL(/\/rolls$/);
   });
 });

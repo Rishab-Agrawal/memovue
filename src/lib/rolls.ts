@@ -88,23 +88,85 @@ const rollSummary = {
 
 export type RollSummary = Awaited<ReturnType<typeof getRollForHost>>;
 
-export async function listRollsForHost(hostId: string) {
-  const rolls = await prisma.roll.findMany({
-    where: { hostId, status: "ACTIVE" },
-    orderBy: { createdAt: "desc" },
-    select: {
-      ...rollSummary,
-      _count: { select: { guests: true, photos: true } },
-    },
-  });
+export interface RollCard {
+  id: string;
+  code: string;
+  name: string;
+  coverPreset: number;
+  coverKey: string | null;
+  startsAt: Date;
+  finishesAt: Date;
+  photoCount: number;
+  /** Null when this is the viewer's own roll; the host's name when they were invited. */
+  invitedBy: string | null;
+}
+
+/**
+ * Every roll a person is in, hosted or attended, split by whether it is still shooting.
+ *
+ * The two kinds are shown together rather than in a third section of their own. The split
+ * that matters on this screen is time — is there still a camera, or only an album — and a
+ * roll you were invited to is no less yours for the weekend than one you paid for. What
+ * differs is where a card leads: your own roll opens the host screen, with its settings and
+ * its invite QR; a roll you joined opens the camera, because that is all you have there.
+ */
+export async function listRollsForUser(userId: string) {
+  const select = {
+    ...rollSummary,
+    _count: { select: { guests: true, photos: true } },
+  } as const;
+
+  const [hosted, joined] = await Promise.all([
+    prisma.roll.findMany({
+      where: { hostId: userId, status: "ACTIVE" },
+      orderBy: { createdAt: "desc" },
+      select,
+    }),
+    prisma.roll.findMany({
+      // A host who also shoots their own roll has a Guest row in it, so their own rolls are
+      // excluded here rather than appearing twice.
+      where: {
+        status: "ACTIVE",
+        hostId: { not: userId },
+        guests: { some: { userId } },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { ...select, host: { select: { name: true } } },
+    }),
+  ]);
+
+  const cards: RollCard[] = [
+    ...hosted.map((roll) => ({
+      id: roll.id,
+      code: roll.code,
+      name: roll.name,
+      coverPreset: roll.coverPreset,
+      coverKey: roll.coverKey,
+      startsAt: roll.startsAt,
+      finishesAt: roll.finishesAt,
+      photoCount: roll._count.photos,
+      invitedBy: null,
+    })),
+    ...joined.map((roll) => ({
+      id: roll.id,
+      code: roll.code,
+      name: roll.name,
+      coverPreset: roll.coverPreset,
+      coverKey: roll.coverKey,
+      startsAt: roll.startsAt,
+      finishesAt: roll.finishesAt,
+      photoCount: roll._count.photos,
+      invitedBy: roll.host.name,
+    })),
+  ].sort((a, b) => b.startsAt.getTime() - a.startsAt.getTime());
 
   const now = new Date();
 
   // "Active" on the home screen means still shooting; anything past that is an album,
   // which is why this splits on the capture window rather than on the reveal.
   return {
-    active: rolls.filter((roll) => now < roll.finishesAt),
-    albums: rolls.filter((roll) => now >= roll.finishesAt),
+    active: cards.filter((roll) => now < roll.finishesAt),
+    albums: cards.filter((roll) => now >= roll.finishesAt),
   };
 }
 
