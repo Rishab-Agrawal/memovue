@@ -1,6 +1,9 @@
-import { consumeOAuthState, createHostSession } from "@/lib/auth";
+import { cookies } from "next/headers";
+
+import { GUEST_COOKIE_PREFIX, consumeOAuthState, createHostSession } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { exchangeCode, verifyIdToken } from "@/lib/google";
+import { linkGuestSessions } from "@/lib/guest-link";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -68,5 +71,26 @@ export async function GET(request: Request) {
       });
 
   await createHostSession(user);
+
+  /*
+    Any rolls this browser joined anonymously now belong to the account.
+
+    Wrapped, because it is a courtesy and not a credential: a failure here must not turn a
+    successful sign-in into an error screen. The worst case is that a roll stays anonymous,
+    which is exactly where it was a moment ago.
+  */
+  try {
+    const jar = await cookies();
+    await linkGuestSessions(
+      user.id,
+      jar
+        .getAll()
+        .filter((cookie) => cookie.name.startsWith(GUEST_COOKIE_PREFIX))
+        .map((cookie) => cookie.value),
+    );
+  } catch {
+    // Nothing to do about it here, and nothing the person signing in can act on.
+  }
+
   return Response.redirect(`${env.appUrl}/rolls`, 307);
 }

@@ -32,7 +32,15 @@ export interface Feed {
   keptUntil: string;
   totalPhotos: number;
   guestCount: number;
-  me: { id: string; name: string; shotsLeft: number; shotsUsed: number; photosPerGuest: number };
+  me: {
+    id: string;
+    name: string;
+    shotsLeft: number;
+    shotsUsed: number;
+    photosPerGuest: number;
+    /** Whether this guest is attached to an account. */
+    linked: boolean;
+  };
   photos: FeedPhoto[];
 }
 
@@ -114,7 +122,9 @@ export function AlbumView({
             : formatDuration(new Date(feed.finishesAt).getTime() - now)
         }
         middleLabel={feed.open ? "Ended" : "Left"}
-        back="/"
+        // A guest with an account has somewhere of their own to go back to; one without
+        // has only the marketing page they arrived past.
+        back={feed.me.linked ? "/rolls" : "/"}
       />
 
       <div className="space-y-4 px-5 pt-4 pb-6">
@@ -126,23 +136,29 @@ export function AlbumView({
           Kept from the reference, and the one place the app leaves its palette. A banner
           whose job is to interrupt cannot be drawn in the same two colours as everything
           around it.
+
+          Only for guests who are not signed in. Telling someone with an account that they
+          are "currently on guest mode" and should make one is both wrong and the most
+          intrusive element on the screen.
         */}
-        <Link
-          href="/welcome"
-          className="flex items-center gap-4 rounded-2xl bg-[#f2e4bd] px-4 py-4 text-void"
-        >
-          <span className="flex-1">
-            <span className="block text-[16px] font-semibold">
-              Sign up to keep your memories alive.
+        {feed.me.linked ? null : (
+          <Link
+            href="/welcome"
+            className="flex items-center gap-4 rounded-2xl bg-[#f2e4bd] px-4 py-4 text-void"
+          >
+            <span className="flex-1">
+              <span className="block text-[16px] font-semibold">
+                Sign up to keep your memories alive.
+              </span>
+              <span className="mt-1 block text-[14px] leading-snug text-void/70">
+                You are currently on guest mode. Create an account to keep your memories safe.
+              </span>
             </span>
-            <span className="mt-1 block text-[14px] leading-snug text-void/70">
-              You are currently on guest mode. Create an account to keep your memories safe.
+            <span className="text-[18px]" aria-hidden="true">
+              →
             </span>
-          </span>
-          <span className="text-[18px]" aria-hidden="true">
-            →
-          </span>
-        </Link>
+          </Link>
+        )}
 
         {feed.everyoneCanSee ? null : <VisibilityNotice />}
 

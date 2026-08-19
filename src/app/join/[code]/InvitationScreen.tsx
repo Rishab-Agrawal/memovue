@@ -12,6 +12,10 @@ import { joinAction, reclaimAction, type JoinState } from "./actions";
 
 /**
  * What a guest gets after scanning the QR. No account, no install — a name and a camera.
+ *
+ * Someone who *is* signed in gets the same screen, with their name already in the box. It is
+ * still a text field rather than a fixed label, because the name here is what the other guests
+ * see beside your photographs, and is not always the one on your account.
  */
 export function InvitationScreen({
   code,
@@ -23,6 +27,7 @@ export function InvitationScreen({
   countdown,
   phase,
   opensAt,
+  defaultName,
 }: {
   code: string;
   title: string;
@@ -33,8 +38,10 @@ export function InvitationScreen({
   countdown: string;
   phase: RollPhase;
   opensAt: string;
+  /** The signed-in guest's own name, if there is one. */
+  defaultName?: string;
 }) {
-  const [name, setName] = useState("");
+  const [name, setName] = useState(defaultName ?? "");
   const [state, setState] = useState<JoinState>({});
   const [pending, startTransition] = useTransition();
 

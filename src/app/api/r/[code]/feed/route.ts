@@ -48,6 +48,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
       shotsLeft,
       shotsUsed,
       photosPerGuest: roll.photosPerGuest,
+      // Whether this guest is an account, which is what decides if the sign-up banner in
+      // the album has anything left to offer them.
+      linked: guest.userId !== null,
     },
   };
 

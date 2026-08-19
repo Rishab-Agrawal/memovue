@@ -128,6 +128,10 @@ model Guest {
   photos Photo[]
 
   @@unique([rollId, nameKey])
+  /// One identity per account per roll. Nullable columns do not collide in Postgres, so
+  /// anonymous guests are unconstrained while an account holder cannot end up with two
+  /// rows in the same roll and two separate shot quotas.
+  @@unique([rollId, userId])
   @@index([rollId])
   @@index([userId])
 }

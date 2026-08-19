@@ -4,6 +4,7 @@ import { formatCountdown } from "@/lib/format";
 import { getGuestContext, getRollByJoinCode } from "@/lib/guest-context";
 import { rollPhase } from "@/lib/roll-access";
 import { coverUrlFor } from "@/lib/rolls";
+import { getCurrentUser } from "@/lib/session";
 
 import { InvitationScreen } from "./InvitationScreen";
 
@@ -30,10 +31,12 @@ export default async function JoinRollPage({ params }: PageProps<"/join/[code]">
     );
   }
 
-  // Already joined on this device: skip the name step entirely.
+  // Already in this roll — by a cookie on this device, or by an account that joined on any
+  // device. Either way there is no name to ask for.
   const existing = await getGuestContext(roll.code);
   if (existing) redirect(`/e/${roll.code}`);
 
+  const user = await getCurrentUser();
   const now = new Date();
 
   return (
@@ -47,6 +50,7 @@ export default async function JoinRollPage({ params }: PageProps<"/join/[code]">
       countdown={formatCountdown(roll.finishesAt.getTime() - now.getTime())}
       phase={rollPhase(roll, now)}
       opensAt={roll.startsAt.toISOString()}
+      defaultName={user?.name}
     />
   );
 }

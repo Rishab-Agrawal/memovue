@@ -99,8 +99,10 @@ export interface GuestClaims {
  * One cookie per event, so a guest can be in two events at once (a wedding and the
  * reception afterparty) without the sessions clobbering each other.
  */
+export const GUEST_COOKIE_PREFIX = "mv_g_";
+
 export function guestCookieName(eventCode: string): string {
-  return `mv_g_${eventCode.toUpperCase()}`;
+  return `${GUEST_COOKIE_PREFIX}${eventCode.toUpperCase()}`;
 }
 
 export async function signGuestToken(guest: {
