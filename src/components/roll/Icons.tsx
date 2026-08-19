@@ -48,6 +48,14 @@ export const Photo = (p: IconProps) => (
   </Svg>
 );
 
+export const Home = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M3.4 10.4 12 3.7l8.6 6.7" />
+    <path d="M5.6 9.1v10.1a1 1 0 0 0 1 1h10.8a1 1 0 0 0 1-1V9.1" />
+    <path d="M9.9 20.2v-5.3a1 1 0 0 1 1-1h2.2a1 1 0 0 1 1 1v5.3" />
+  </Svg>
+);
+
 export const Clock = (p: IconProps) => (
   <Svg {...p}>
     <circle cx="12" cy="12" r="8.5" />
@@ -156,13 +164,6 @@ export const Warning = (p: IconProps) => (
   <Svg {...p}>
     <path d="M12 3.8 2.8 20h18.4zM12 10v4.5" />
     <circle cx="12" cy="17.3" r="0.9" fill="currentColor" stroke="none" />
-  </Svg>
-);
-
-export const Roll = (p: IconProps) => (
-  <Svg {...p}>
-    <rect x="2.5" y="6.5" width="19" height="11" rx="3" />
-    <ellipse cx="12" cy="12" rx="4.5" ry="4" />
   </Svg>
 );
 
