@@ -137,10 +137,10 @@ export default function PrivacyPage() {
 
       <h2>5. How long we keep it</h2>
       <p>
-        <strong>Rolls and photos.</strong> Kept for at least <strong>30 days after the roll
-        closes</strong>. The exact date is printed on the roll itself and on every
-        guest&rsquo;s album screen, as &ldquo;Photos available until&hellip;&rdquo;. After that
-        date we may delete the roll and everything in it at any time.{" "}
+        <strong>Rolls and photos.</strong> Kept for <strong>30 days after the roll
+        closes</strong>, then deleted along with the image files themselves. The exact date is
+        printed on the roll and on every guest&rsquo;s album screen, as &ldquo;Photos available
+        until&hellip;&rdquo;, and we email the host <strong>7 days</strong> beforehand.{" "}
         <strong>Download what you want to keep before then.</strong>
       </p>
       <p>

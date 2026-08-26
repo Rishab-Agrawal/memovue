@@ -6,6 +6,7 @@ import { rollCode } from "./codes";
 import { CouponError, claimCoupon } from "./coupons";
 import { prisma } from "./prisma";
 import { computeKeptUntil, computeRevealAt, isOpen } from "./roll-access";
+import { purgeRoll } from "./retention";
 import { coverKey, deleteObjects, presignDownload, storageConfigured } from "./storage";
 
 /**
@@ -252,13 +253,15 @@ export async function revealRollNow(id: string, hostId: string) {
 }
 
 export async function deleteRoll(id: string, hostId: string) {
-  const deleted = await prisma.roll.deleteMany({ where: { id, hostId } });
+  // Ownership is checked here rather than inside `purgeRoll`, which the retention job also
+  // calls and which has no host to check it against.
+  const owned = await prisma.roll.findFirst({ where: { id, hostId }, select: { id: true } });
+  if (!owned) return;
 
-  // The cover is the one object this module puts in the bucket, so it is the one this module
-  // takes back out. Photo objects are still orphaned on delete.
-  if (deleted.count > 0 && storageConfigured) {
-    await deleteObjects([coverKey(id)]).catch(() => {});
-  }
+  // Through the retention module, so a host deleting a roll by hand and the nightly sweep
+  // destroy exactly the same things. This used to take back the cover and orphan every
+  // photograph in the roll, while both legal documents said we delete the image files.
+  await purgeRoll(id);
 }
 
 export { isOpen };

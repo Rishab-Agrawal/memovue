@@ -39,7 +39,7 @@ export function sendAccessApproved(to: string, name: string): Promise<void> {
     "You're in — MemoVue is ready for your event",
     `Hi ${name.split(" ")[0]},\n\n` +
       `Your MemoVue account is approved. You can set up your event and get your QR code here:\n` +
-      `${env.appUrl}/dashboard/new\n\n` +
+      `${env.appUrl}/new/name\n\n` +
       `If anything is confusing, just reply to this email.\n\n— MemoVue`,
   );
 }
@@ -55,8 +55,9 @@ export function sendAccessDenied(to: string, name: string): Promise<void> {
 }
 
 /**
- * Retention warning. Albums are kept indefinitely by default; if that ever has to change
- * for a specific event, the host gets 30 days' notice to download everything first.
+ * Retention warning, sent once by the nightly sweep a week before a roll reaches its
+ * `keptUntil`. The roll's `warnedAt` records the send, so a host hears about it once rather
+ * than every night for a week.
  */
 export function sendDeletionNotice(to: string, eventName: string, deleteOn: Date): Promise<void> {
   return send(
@@ -64,6 +65,6 @@ export function sendDeletionNotice(to: string, eventName: string, deleteOn: Date
     `Action needed: "${eventName}" photos will be deleted`,
     `Your MemoVue album "${eventName}" is scheduled for deletion on ` +
       `${deleteOn.toDateString()}.\n\n` +
-      `Download everything before then from your dashboard:\n${env.appUrl}/dashboard\n\n— MemoVue`,
+      `Download everything before then:\n${env.appUrl}/rolls\n\n— MemoVue`,
   );
 }

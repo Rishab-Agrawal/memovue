@@ -106,6 +106,32 @@ export function computeKeptUntil(finishesAt: Date): Date {
   return new Date(finishesAt.getTime() + RETENTION_DAYS * 24 * 3_600_000);
 }
 
+/** How long before a roll's `keptUntil` its host is emailed about it. */
+export const WARN_BEFORE_DAYS = 7;
+
+export type RetentionAction = "purge" | "warn" | "leave";
+
+/**
+ * What the nightly sweep should do with one roll.
+ *
+ * Here rather than in `retention.ts` beside the deletion itself, because that module is
+ * `server-only` — it holds a Prisma client and a bucket — and this is a rule about dates that
+ * wants testing without either. It sits with `computeKeptUntil`, which decides the date this
+ * one reads.
+ *
+ * Purging is checked before warning, deliberately: a roll that shot past its date while the
+ * job was switched off must still go, not fall into the warn branch and buy another week.
+ */
+export function retentionAction(
+  roll: { keptUntil: Date; warnedAt: Date | null },
+  now: Date,
+): RetentionAction {
+  if (roll.keptUntil.getTime() <= now.getTime()) return "purge";
+  if (roll.warnedAt) return "leave";
+  if (roll.keptUntil.getTime() - now.getTime() <= WARN_BEFORE_DAYS * 86_400_000) return "warn";
+  return "leave";
+}
+
 /* ------------------------------------------------------------------ display helpers */
 
 /** "2 days 4 hours", "5 minutes", "any moment now" — for countdowns. */

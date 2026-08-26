@@ -69,9 +69,14 @@ with a live event's album.
 
 ## Retention
 
-A roll carries a `keptUntil`, set on creation to 30 days after it closes, and both the host
-screen and every guest album print that date. The terms and the privacy policy therefore
-promise *at least* that long and no upper bound, which is what the code actually delivers:
-nothing sweeps expired rolls yet, and `sendDeletionNotice` is written but never called.
-Wire both together, or neither. Deleting a roll or an account erases the database rows and
-the R2 objects immediately.
+A roll carries a `keptUntil`, set on creation to 30 days past its close, and both the host
+screen and every guest album print that date. `npm run sweep` is what makes it true: hosts are
+emailed seven days out, recorded by `warnedAt` so it happens once rather than nightly, and a
+roll past its date is purged bytes-first — R2 objects before the database row, so a failure
+halfway leaves the roll listed and retryable rather than the storage stranded with nothing left
+that knows its keys. It runs nightly as a Railway cron service, is safe to run twice and safe to
+miss, and `--dry` reports what it would do without touching anything.
+
+Every path that destroys a roll goes through the same `purgeRoll`. That is also the fix for a
+leak it would otherwise have inherited: deleting a roll by hand used to take back only its
+cover, and deleting an account touched storage not at all.

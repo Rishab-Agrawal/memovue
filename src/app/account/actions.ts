@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { clearHostSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { purgeRollsOfHost } from "@/lib/retention";
 import { requireHost } from "@/lib/session";
 import { fieldErrors, updateNameSchema } from "@/lib/validation";
 
@@ -29,14 +30,18 @@ export async function logoutAction(): Promise<never> {
 }
 
 /**
- * Deleting the account cascades to rolls, guests and photo rows.
+ * Deleting the account takes the rolls, the photo rows, and the image files with it.
  *
- * The image files in R2 are not removed here — that is a bulk operation that does not belong
- * in a request, and orphaned objects are cheap and harmless until the retention job sweeps
- * them. What matters is that nothing is reachable any more.
+ * The bytes used to be left behind on the argument that they were harmless until a retention
+ * job swept them. They were not sweepable: cascading the roll rows away first destroys the
+ * only record of what those objects were called, so nothing could ever have found them again.
+ * They go before the user row now, in that order, for the same reason the sweep does it that
+ * way — a failure halfway leaves the account intact and retryable rather than the storage
+ * stranded.
  */
 export async function deleteAccountAction(): Promise<never> {
   const user = await requireHost();
+  await purgeRollsOfHost(user.id);
   await prisma.user.delete({ where: { id: user.id } });
   await clearHostSession();
   redirect("/");

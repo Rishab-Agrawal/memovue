@@ -193,9 +193,10 @@ export default function TermsPage() {
 
       <h2>13. How long we keep photos</h2>
       <p>
-        A roll and everything in it is kept for at least{" "}
-        <strong>30 days after the roll closes</strong>. The exact date is shown on the roll and
-        on every guest&rsquo;s album screen. After that date we may delete it at any time.
+        A roll and everything in it is kept for{" "}
+        <strong>30 days after the roll closes</strong>, then deleted. The exact date is shown on
+        the roll and on every guest&rsquo;s album screen, and we email the host{" "}
+        <strong>7 days</strong> before it arrives so there is time to download everything.
       </p>
       <p>
         <strong>Download the photos you want to keep.</strong> MemoVue is a way to collect them,
