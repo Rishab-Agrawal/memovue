@@ -1,10 +1,7 @@
 import { PillLink } from "@/components/roll/Chrome";
 import { Download, Link as LinkIcon } from "@/components/roll/Icons";
 import { Sheet } from "@/components/roll/Sheet";
-import { env } from "@/lib/env";
-import { getRollForHost } from "@/lib/rolls";
-import { qrDataUrl } from "@/lib/qr";
-import { requireHost } from "@/lib/session";
+import { joinUrl, qrDataUrl } from "@/lib/qr";
 
 import { loadRoll } from "../loadRoll";
 import { RollBackdrop } from "../RollBackdrop";
@@ -13,12 +10,18 @@ export const dynamic = "force-dynamic";
 
 export default async function InvitePage({ params }: PageProps<"/rolls/[id]/invite">) {
   const { id } = await params;
-  const user = await requireHost();
   const { roll, photos } = await loadRoll(id);
 
-  const record = await getRollForHost(id, user.id);
-  const joinUrl = `${env.appUrl}/j/${record?.code ?? ""}`;
-  const qr = await qrDataUrl(joinUrl);
+  /*
+    Built by `joinUrl` rather than assembled here.
+
+    This page used to compose its own `${appUrl}/j/${code}`, and there has never been a `/j`
+    route — so every QR printed for a table and every link copied out of this sheet sent the
+    guest to a 404. One helper owns the shape of a join link now, and the printable card in
+    `qrSvg` already went through it.
+  */
+  const link = joinUrl(roll.code);
+  const qr = await qrDataUrl(link);
 
   return (
     <div className="relative min-h-dvh">
@@ -34,18 +37,24 @@ export default async function InvitePage({ params }: PageProps<"/rolls/[id]/invi
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={qr}
-            alt={`QR code linking to ${joinUrl}`}
+            alt={`QR code linking to ${link}`}
             className="mx-auto h-[210px] w-[210px] rounded-2xl bg-white p-3"
           />
-          <p className="tabular mt-4 text-center text-[13px] break-all text-dust">{joinUrl}</p>
+          <p className="tabular mt-4 text-center text-[13px] break-all text-dust">{link}</p>
         </div>
 
         <div className="mt-6 flex gap-3">
-          <PillLink href={joinUrl} variant="quiet" full className="px-3 text-[14px]">
+          <PillLink href={link} variant="quiet" full className="px-3 text-[14px]">
             <LinkIcon className="h-4 w-4" />
             Open link
           </PillLink>
-          <PillLink href={qr} download={`memovue-${record?.code}.png`} variant="quiet" full className="px-3 text-[14px]">
+          <PillLink
+            href={qr}
+            download={`memovue-${roll.code}.png`}
+            variant="quiet"
+            full
+            className="px-3 text-[14px]"
+          >
             <Download className="h-4 w-4" />
             Save QR image
           </PillLink>

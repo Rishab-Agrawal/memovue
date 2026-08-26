@@ -168,6 +168,31 @@ test.describe("a roll from creation to reveal", () => {
     await expect(page.getByPlaceholder("Enter your name")).toBeVisible();
   });
 
+  /**
+   * The link the host actually hands out has to resolve.
+   *
+   * Everything else in this file builds `/join/<code>` for itself, which is precisely how the
+   * invite sheet shipped pointing at `/j/<code>` — a route that has never existed — without a
+   * single test noticing. So this one takes the URL off the sheet the way a guest takes it off
+   * a printed card, and follows it.
+   */
+  test("the invite sheet hands out a link that resolves", async ({ page }) => {
+    await page.goto(`${rollUrl}/invite`);
+
+    const shared = (await page.getByText(/\/join\/|\/j\//).first().textContent())?.trim() ?? "";
+    expect(new URL(shared).pathname).toBe(joinUrl);
+
+    // The QR carries the same string, so a scan and a tap cannot diverge.
+    await expect(page.getByRole("img", { name: /^QR code linking to/ })).toHaveAttribute(
+      "alt",
+      `QR code linking to ${shared}`,
+    );
+
+    const response = await page.goto(new URL(shared).pathname);
+    expect(response?.status()).toBe(200);
+    await expect(page.getByPlaceholder("Enter your name")).toBeVisible();
+  });
+
   test("the same coupon cannot be spent twice", async ({ page }) => {
     await page.goto("/new/name");
     await page.getByLabel("Event name").fill("Second Roll");
