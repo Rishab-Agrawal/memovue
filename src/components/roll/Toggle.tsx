@@ -37,9 +37,15 @@ export function Toggle({
           on ? "bg-flame" : "bg-hair-bright",
         )}
       >
+        {/*
+          `left-0` is load-bearing. Without a horizontal anchor the knob falls back to its
+          static position, which a button centres — so "off" already sat right of middle and
+          "on" translated it clean out of the track. Anchored left, the two offsets are the
+          same 4px inset from either end: 4, and 60 − 26 − 4.
+        */}
         <span
           className={cn(
-            "absolute top-1 h-[26px] w-[26px] rounded-full bg-chalk transition-transform duration-200",
+            "absolute top-1 left-0 h-[26px] w-[26px] rounded-full bg-chalk transition-transform duration-200",
             on ? "translate-x-[30px]" : "translate-x-1",
           )}
         />
