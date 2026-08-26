@@ -1,17 +1,15 @@
 import { cn } from "@/lib/cn";
 
 import { Plate } from "@/components/roll/Plate";
+import { cover } from "@/lib/imagery";
 
 /**
  * Whatever is standing behind a roll's title.
  *
- * Two things can be: an image the host uploaded, or one of the nine preset gradients. Every
- * screen that shows a cover goes through here, so the fallback rule lives in one place — a
- * roll whose upload failed, or whose signed URL could not be minted, quietly shows its preset
- * instead of a broken frame.
- *
- * `Plate` stays as it was. It is also the stand-in for individual photographs, and a cover is
- * only one of the things it draws.
+ * Two things can be: an image the host uploaded, or one of the shipped covers. Every screen
+ * that shows a cover goes through here, so the fallback rule lives in one place — a roll whose
+ * upload failed, or whose signed URL could not be minted, quietly shows its preset instead of
+ * a broken frame.
  */
 export function Cover({
   url,
@@ -25,7 +23,7 @@ export function Cover({
   className?: string;
   sealed?: boolean;
 }) {
-  if (!url) return <Plate index={preset} className={className} sealed={sealed} />;
+  if (!url) return <Plate photo={cover(preset)} className={className} sealed={sealed} />;
 
   return (
     <div className={cn("relative overflow-hidden bg-void", className)} aria-hidden="true">

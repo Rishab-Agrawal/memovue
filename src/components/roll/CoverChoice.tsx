@@ -4,9 +4,10 @@ import { cn } from "@/lib/cn";
 
 import { Cover } from "@/components/roll/Cover";
 import { Photo, Trash } from "@/components/roll/Icons";
+import { COVERS } from "@/lib/imagery";
 
-/** The nine gradients `Plate` knows how to draw. */
-export const COVER_PRESETS = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+/** The shipped covers, by index — which is what `Roll.coverPreset` stores. */
+export const COVER_PRESETS = COVERS.map((_, index) => index);
 
 /**
  * Choosing what stands behind a roll's title: a photo of your own, or one of the presets.
@@ -92,7 +93,7 @@ export function CoverChoice({
           <button
             key={option}
             type="button"
-            aria-label={`Cover ${option + 1}`}
+            aria-label={COVERS[option].label}
             // A preset is only the live cover when no photo is sitting on top of it.
             aria-pressed={!previewUrl && option === preset}
             onClick={() => onPickPreset(option)}

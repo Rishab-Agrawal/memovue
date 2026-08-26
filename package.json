@@ -14,7 +14,8 @@
     "db:studio": "prisma studio",
     "setup:r2": "tsx scripts/setup-r2.ts",
     "verify:guest-link": "tsx --conditions=react-server scripts/verify-guest-link.ts",
-    "cleanup:test": "tsx scripts/cleanup-test-data.ts"
+    "cleanup:test": "tsx scripts/cleanup-test-data.ts",
+    "images": "tsx scripts/optimize-images.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1101.0",

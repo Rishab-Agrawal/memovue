@@ -1,19 +1,22 @@
 import { cn } from "@/lib/cn";
 
+import type { Stock } from "@/lib/imagery";
+
 /**
- * A gradient standing in for a photograph.
+ * One photograph-shaped thing.
  *
- * The prototype ships no images: the reference app's photos are theirs, and stock imagery
- * would make the screens look more finished than they are. These are the same nine washes
- * the marketing page already uses for its sealed frames, so a "photo" is deterministic by
- * index and looks the same wherever it appears.
+ * It draws in two modes, and the difference matters. Given a `photo` it shows that
+ * photograph — the covers a host can pick from, and the sample frames the marketing page and
+ * the wizard use to demonstrate the reveal. Given only an `index` it draws a wash: a
+ * deliberate stand-in for a picture that exists but which nobody is allowed to see yet, which
+ * is what the host's own roll grid shows before the reveal. Putting stock photography there
+ * would tell a host their guests' pictures had loaded when they had not.
  *
- * Each plate also carries three hard-edged forms. Without them `sealed` was nearly
- * invisible — blurring something already soft changes almost nothing — and the single
- * mechanic the whole product rests on could not be seen on the screen that sells it.
- * Sharp, they read as shapes; sealed, they smear into each other.
+ * Each wash also carries three hard-edged forms. Without them `sealed` was nearly invisible —
+ * blurring something already soft changes almost nothing — and the single mechanic the whole
+ * product rests on could not be seen. A real photograph needs no such help, so it gets none.
  */
-const PLATES = [
+const WASHES = [
   "radial-gradient(120% 100% at 30% 25%, #6b3d12, #1a1108 70%)",
   "radial-gradient(120% 100% at 70% 40%, #4a3a2e, #120f0c 72%)",
   "radial-gradient(110% 110% at 40% 70%, #7a4a17, #1c1309 68%)",
@@ -41,41 +44,54 @@ function forms(index: number) {
 }
 
 export function Plate({
-  index,
+  index = 0,
+  photo,
   className,
   sealed,
 }: {
-  index: number;
+  /** Picks the wash. Ignored for the fallback layer when `photo` is given. */
+  index?: number;
+  /** A real photograph. Its own wash paints underneath, so a missing file degrades. */
+  photo?: Stock;
   className?: string;
   sealed?: boolean;
 }) {
   /*
-    The blur is on an oversized inner layer rather than the plate itself, so the haze has
-    material to pull from at the edges instead of fading to the background — a plate blurred
-    directly reads as a soft rectangle, not as a photograph you can't see yet.
+    When sealed, the blur sits on an oversized inner layer rather than on the plate itself, so
+    the haze has material to pull from at the edges instead of fading to the background — a
+    plate blurred directly reads as a soft rectangle, not as a photograph you can't see yet.
+
+    Only when sealed. Overscanning a sharp picture just crops it, and at the size of a cover
+    thumbnail — 58px wide — a 24px bleed on each side throws away most of the frame.
   */
+  const wash = photo ? photo.wash : WASHES[index % WASHES.length];
+
   return (
     <div className={cn("relative overflow-hidden bg-void", className)} aria-hidden="true">
       <div
-        className="absolute -inset-6"
+        className={cn("absolute bg-cover bg-center", sealed ? "-inset-6" : "inset-0")}
         style={{
-          backgroundImage: PLATES[index % PLATES.length],
+          // Two layers. CSS skips a background layer whose URL fails to load, so the wash
+          // below it is what shows if the JPEG isn't there.
+          backgroundImage: photo ? `url("${photo.src}"), ${wash}` : wash,
           filter: sealed ? "blur(16px) saturate(0.55)" : undefined,
         }}
       >
-        {forms(index).map((form, n) => (
-          <span
-            key={n}
-            className="absolute block aspect-square"
-            style={{
-              left: form.left,
-              top: form.top,
-              width: form.size,
-              borderRadius: form.radius,
-              background: form.background,
-            }}
-          />
-        ))}
+        {photo
+          ? null
+          : forms(index).map((form, n) => (
+              <span
+                key={n}
+                className="absolute block aspect-square"
+                style={{
+                  left: form.left,
+                  top: form.top,
+                  width: form.size,
+                  borderRadius: form.radius,
+                  background: form.background,
+                }}
+              />
+            ))}
       </div>
     </div>
   );

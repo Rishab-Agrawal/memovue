@@ -6,6 +6,7 @@ import { Clock, Hourglass } from "@/components/roll/Icons";
 import { Plate } from "@/components/roll/Plate";
 import { WizardShell } from "@/components/roll/WizardShell";
 import { formatShortDateTime } from "@/lib/format";
+import { FRAMES } from "@/lib/imagery";
 import { computeRevealAt } from "@/lib/roll-access";
 import { MAX_DELAY_HOURS, MIN_DELAY_HOURS } from "@/lib/roll-config";
 import type { RevealMode } from "./../DraftContext";
@@ -45,11 +46,11 @@ export default function StepReveal() {
       <div className="relative">
         <div className="grid grid-cols-2 gap-3">
           {[
-            { plate: 1, by: "Meera" },
-            { plate: 4, by: "Arjun" },
+            { photo: FRAMES[0], by: "Meera" },
+            { photo: FRAMES[1], by: "Arjun" },
           ].map((sample) => (
             <div key={sample.by} className="relative h-[220px] overflow-hidden rounded-3xl">
-              <Plate index={sample.plate} className="absolute inset-0" sealed={Boolean(reveals)} />
+              <Plate photo={sample.photo} className="absolute inset-0" sealed={Boolean(reveals)} />
               <span className="absolute top-3 left-3 text-[14px] text-chalk/80 italic">
                 {sample.by}
               </span>

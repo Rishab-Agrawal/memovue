@@ -1,16 +1,17 @@
 import Link from "next/link";
 
+import { Plate } from "@/components/roll/Plate";
 import { ButtonLink } from "@/components/ui/Button";
 import { Logo, Mark } from "@/components/ui/Logo";
+import { FRAMES, WALL } from "@/lib/imagery";
 
 /*
-  A copy of `src/app/page.tsx` with one change, made in three places: the header CTA, the
-  hero's pair of buttons, and the closing CTA all collapse to a single "Get started" pointing
-  at the welcome screen. The reference app's welcome screen replaces its marketing site
-  entirely; ours can't, because the marketing page is what explains the product. Unifying the
-  calls to action is how the two meet.
+  The marketing page.
 
-  Everything else — copy, layout, the sealed-frame gradients — is untouched.
+  It diverges from the reference app in one structural way: every call to action here — header,
+  hero, closing — points at the welcome screen. The reference app replaces its marketing site
+  with its welcome screen entirely; ours cannot, because this page is what explains the
+  product. Unifying the calls to action is how the two meet.
 */
 
 const STEPS: { title: string; body: string }[] = [
@@ -35,6 +36,28 @@ const CLAIMS: { text: string; accent: string }[] = [
   { text: "Suited for weddings, parties, team outings, and more.", accent: "weddings" },
 ];
 
+/*
+  Three prints fanned out and credited, the way they come back from a lab.
+
+  The hero used to hold the mark alone, which showed a visitor the logo rather than the
+  product. What has to be legible in the first second is that these are photographs other
+  people took of your evening — hence the names in the corners.
+
+  The tilt is inline rather than a class because `animate-rise` finishes on `transform: none`,
+  and a rotation sharing that element would be wiped the moment the animation lands. The
+  wrapper animates; the prints only lean.
+
+  The two behind carry their credit at the top, the one in front at the bottom. Uniform
+  placement put the rear names underneath the front print, where a name is not a credit so
+  much as litter in the markup — each label sits on the edge of its own print that the stack
+  actually leaves showing.
+*/
+const HERO: { photo: (typeof FRAMES)[number]; by: string; place: string; tilt: number }[] = [
+  { photo: FRAMES[2], by: "Arjun", place: "top-6 left-0 w-[56%]", tilt: -7 },
+  { photo: FRAMES[3], by: "Nikhil", place: "top-0 right-0 w-[52%]", tilt: 6 },
+  { photo: FRAMES[0], by: "Meera", place: "bottom-0 left-[20%] w-[60%]", tilt: -2 },
+];
+
 function withAccent(text: string, accent: string) {
   const at = text.indexOf(accent);
   if (at === -1) return text;
@@ -46,18 +69,6 @@ function withAccent(text: string, accent: string) {
     </>
   );
 }
-
-const SEALED_FRAMES = [
-  "radial-gradient(120% 100% at 30% 25%, #6b3d12, #1a1108 70%)",
-  "radial-gradient(120% 100% at 70% 40%, #4a3a2e, #120f0c 72%)",
-  "radial-gradient(110% 110% at 40% 70%, #7a4a17, #1c1309 68%)",
-  "radial-gradient(120% 100% at 60% 20%, #33302c, #0e0d0c 70%)",
-  "radial-gradient(130% 100% at 25% 55%, #8a5520, #20150a 66%)",
-  "radial-gradient(110% 100% at 75% 65%, #45392f, #14100c 72%)",
-  "radial-gradient(120% 110% at 50% 35%, #5c4326, #16110b 70%)",
-  "radial-gradient(120% 100% at 35% 75%, #7d4a1a, #1d1409 68%)",
-  "radial-gradient(110% 100% at 65% 30%, #3b3630, #100f0d 72%)",
-];
 
 export default function MarketingHome() {
   return (
@@ -101,17 +112,32 @@ export default function MarketingHome() {
                   Get started
                 </ButtonLink>
               </div>
-
-              <p
-                className="animate-fade mt-8 text-[13px] text-dust"
-                style={{ animationDelay: "340ms" }}
-              >
-                Free while we&rsquo;re in beta.
-              </p>
             </div>
 
             <div className="order-first flex justify-center lg:order-last lg:justify-end">
-              <Mark animate glow className="h-44 w-auto sm:h-56 lg:h-72" />
+              <div
+                className="animate-rise relative h-[20rem] w-[16rem] sm:h-[24rem] sm:w-[19rem] lg:h-[27rem] lg:w-[22rem]"
+                style={{ animationDelay: "160ms" }}
+              >
+                {HERO.map((print, index) => (
+                  <figure
+                    key={print.by}
+                    className={`absolute ${print.place}`}
+                    style={{ transform: `rotate(${print.tilt}deg)` }}
+                  >
+                    <div className="relative aspect-[4/5] overflow-hidden rounded-xl shadow-[0_24px_48px_rgba(0,0,0,0.6)] ring-1 ring-hair-bright">
+                      <Plate photo={print.photo} className="absolute inset-0" />
+                      <figcaption
+                        className={`absolute left-3 text-[13px] text-chalk/85 italic drop-shadow ${
+                          index === HERO.length - 1 ? "bottom-2" : "top-2"
+                        }`}
+                      >
+                        {print.by}
+                      </figcaption>
+                    </div>
+                  </figure>
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -137,18 +163,18 @@ export default function MarketingHome() {
           </ol>
         </section>
 
-        {/* ---------------------------------------------------------------- sealed */}
+        {/* ---------------------------------------------------------------- reveal */}
         <section className="border-t border-hair px-6 py-20 sm:px-10 sm:py-28">
           <div className="mx-auto grid max-w-5xl gap-12 lg:grid-cols-[1fr_auto] lg:items-center lg:gap-20">
             <div>
-              <p className="marking text-flame">Until the reveal</p>
+              <p className="marking text-flame">Worth the wait</p>
               <h2 className="display mt-5 max-w-md text-[clamp(2rem,7vw,3rem)] text-chalk">
-                Nobody sees a thing.
+                Everything lands at <span className="text-flame">the reveal.</span>
               </h2>
               <p className="mt-6 max-w-md text-[16px] leading-relaxed text-ash">
-                Not the guests, not even you. Every frame goes straight to sealed storage and
-                stays there until the time you picked — then the whole album opens at once, for
-                everyone who was there.
+                While the night is happening the photos stay sealed, so nobody spends it
+                scrolling. At the time you picked, every frame from every guest opens at once —
+                and the first time anyone sees the evening is the moment everyone does.
               </p>
 
               <ul className="mt-10 max-w-md border-t border-hair">
@@ -164,21 +190,18 @@ export default function MarketingHome() {
             </div>
 
             <figure className="mx-auto w-full max-w-[19rem] lg:max-w-[22rem]">
+              {/* Real photographs, blurred by exactly the filter the app puts on a sealed
+                  roll — so what a visitor sees here is the thing itself, not a drawing of it. */}
               <div
                 className="grid grid-cols-3 gap-px border border-hair bg-hair p-px"
                 aria-hidden="true"
               >
-                {SEALED_FRAMES.map((frame, index) => (
-                  <span key={index} className="relative aspect-square overflow-hidden bg-void">
-                    <span
-                      className="absolute -inset-4 block"
-                      style={{ backgroundImage: frame, filter: "blur(10px) saturate(0.8)" }}
-                    />
-                  </span>
+                {WALL.map((photo) => (
+                  <Plate key={photo.src} photo={photo} sealed className="aspect-square" />
                 ))}
               </div>
               <figcaption className="marking mt-4 block text-center">
-                47 photos · sealed until 11:00
+                47 photos · revealing at 11:00
               </figcaption>
             </figure>
           </div>

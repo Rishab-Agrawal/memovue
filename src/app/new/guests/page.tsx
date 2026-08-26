@@ -10,6 +10,7 @@ import { Counter } from "@/components/roll/Counter";
 import { Dialog } from "@/components/roll/Dialog";
 import { Person } from "@/components/roll/Icons";
 import { Plate } from "@/components/roll/Plate";
+import { FRAMES } from "@/lib/imagery";
 import { Toggle } from "@/components/roll/Toggle";
 import { WizardShell } from "@/components/roll/WizardShell";
 import { uploadCover } from "@/lib/cover-upload";
@@ -110,8 +111,8 @@ export default function StepGuests() {
             <Counter value={SHOT_TIERS[draft.shotIndex]} />
             <span className="h-[76px] w-[76px] rounded-full border-4 border-chalk bg-chalk/10" />
             <div className="flex w-24 justify-end">
-              <Plate index={2} className="h-14 w-10 -rotate-8 rounded-lg ring-1 ring-void" />
-              <Plate index={7} className="-ml-3 h-14 w-10 rotate-8 rounded-lg ring-1 ring-void" />
+              <Plate photo={FRAMES[2]} className="h-14 w-10 -rotate-8 rounded-lg ring-1 ring-void" />
+              <Plate photo={FRAMES[3]} className="-ml-3 h-14 w-10 rotate-8 rounded-lg ring-1 ring-void" />
             </div>
           </div>
 
