@@ -28,3 +28,14 @@ Not urgent while the beta is free, but do not launch paid without them:
 
 - Payments (India and international)
 - Decide whether roll creation stays gated behind a coupon, and what the free tier is
+
+## Publish a DMARC record
+
+`memovue.com` has SPF on the apex (Cloudflare Email Routing) and Resend's DKIM at
+`resend._domainkey.memovue.com`, but `_dmarc.memovue.com` does not exist. Gmail and Yahoo
+now expect one from anything sending at volume, and without it a receiver has no instruction
+for mail that fails both checks. Add a TXT record in Cloudflare DNS:
+
+    _dmarc    TXT    v=DMARC1; p=none; rua=mailto:hello@memovue.com
+
+Start at `p=none`, read the reports for a few weeks, then move to `p=quarantine`.
