@@ -39,3 +39,26 @@ for mail that fails both checks. Add a TXT record in Cloudflare DNS:
     _dmarc    TXT    v=DMARC1; p=none; rua=mailto:hello@memovue.com
 
 Start at `p=none`, read the reports for a few weeks, then move to `p=quarantine`.
+
+## Create the retention cron service on Railway
+
+The sweep is written and tested (`npm run sweep`, `--dry` to preview) but nothing schedules
+it, so no roll is ever actually deleted. In the **memovue** project: New → GitHub Repo →
+`Rishab-Agrawal/memovue`, name it `memovue-sweep`, then Settings → Deploy:
+
+- Start Command: `npm run sweep`
+- Cron Schedule: `0 21 * * *` (21:00 UTC, 2:30am IST)
+
+Variables, by reference so no secret is copied:
+
+    DATABASE_URL=${{memovue-web.DATABASE_URL}}
+    R2_ACCOUNT_ID=${{memovue-web.R2_ACCOUNT_ID}}
+    R2_ACCESS_KEY_ID=${{memovue-web.R2_ACCESS_KEY_ID}}
+    R2_SECRET_ACCESS_KEY=${{memovue-web.R2_SECRET_ACCESS_KEY}}
+    R2_BUCKET=${{memovue-web.R2_BUCKET}}
+    RESEND_API_KEY=${{memovue-web.RESEND_API_KEY}}
+    EMAIL_FROM=${{memovue-web.EMAIL_FROM}}
+    APP_URL=${{memovue-web.APP_URL}}
+    AUTH_SECRET=${{memovue-web.AUTH_SECRET}}
+
+Until this exists the terms and the privacy policy promise a deletion that does not happen.

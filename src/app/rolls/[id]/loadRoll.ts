@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { isOpen } from "@/lib/roll-access";
 import { coverUrlFor, getRollForHost } from "@/lib/rolls";
+import { presignDownload } from "@/lib/storage";
 import { requireHost } from "@/lib/session";
 
 import type { BackdropPhoto, BackdropRoll } from "./RollBackdrop";
@@ -30,8 +31,22 @@ export async function loadRoll(id: string): Promise<{
   const photos = await prisma.photo.findMany({
     where: { rollId: found.id, status: "READY" },
     orderBy: { takenAt: "desc" },
-    select: { id: true, guest: { select: { name: true } } },
+    select: { id: true, previewKey: true, guest: { select: { name: true } } },
   });
+
+  /*
+    The host's own grid showed gradient stand-ins and nothing else — before the reveal, which
+    is right, and after it, which meant a host could never see their own album. The bytes are
+    signed here rather than fetched through `/api/r/[code]/photos/[id]/full`, because that
+    route authenticates a *guest*, and a host who never joined their own roll has no guest
+    session to authenticate with. `requireHost` above is the check that matters.
+
+    Previews, not originals: this is a two-column grid of 4:5 tiles. The full-resolution copy
+    is what the download button is for.
+  */
+  const urls = open
+    ? await Promise.all(photos.map((photo) => presignDownload(photo.previewKey, { expiresIn: 3600 })))
+    : [];
 
   return {
     roll: {
@@ -51,10 +66,11 @@ export async function loadRoll(id: string): Promise<{
       guestCount: found._count.guests,
     },
     // Sealed rolls still render a wall of blurred frames, so the grid needs one entry per
-    // photograph — just nothing identifying inside it.
+    // photograph — just nothing identifying inside it, and no URL that resolves to bytes.
     photos: photos.map((photo, index) => ({
       id: photo.id,
       by: open ? photo.guest.name : "",
+      url: open ? urls[index] : null,
       plate: index,
     })),
   };

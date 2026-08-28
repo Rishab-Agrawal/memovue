@@ -51,11 +51,37 @@ export function rollPhase(roll: RollTimings, now: Date = new Date()): RollPhase 
   return "closed";
 }
 
-/** Whether guests may still spend shots. */
+/** Whether guests may still spend shots. This is what closes the shutter. */
 export function isCapturing(roll: RollTimings, now: Date = new Date()): boolean {
   return (
     now.getTime() >= roll.startsAt.getTime() && now.getTime() < roll.finishesAt.getTime()
   );
+}
+
+/**
+ * How long after a roll closes its photographs may still arrive.
+ *
+ * Taking a photo and uploading it are not the same moment. Bytes go to IndexedDB the instant
+ * the shutter fires and reach the server whenever the phone next has signal, which at a venue
+ * with bad wifi can be hours later and is routinely after the roll has closed.
+ */
+export const UPLOAD_GRACE_HOURS = 24;
+
+/**
+ * Whether an upload for this roll is still allowed in.
+ *
+ * Separate from `isCapturing` on purpose, and the distinction is the whole bug it fixes. The
+ * reserve route used to ask `isCapturing`, so a photo taken at 11:58 and drained at 12:01 was
+ * refused — and the client, correctly reading the refusal as permanent, deleted the only copy
+ * of it. Ten photographs of somebody's evening were destroyed that way.
+ *
+ * The shutter still closes on time: the camera is gated on `isCapturing`, and a guest cannot
+ * take a new photo during the grace window. This governs only whether bytes already captured
+ * are allowed to finish their journey.
+ */
+export function acceptsUploads(roll: RollTimings, now: Date = new Date()): boolean {
+  if (now.getTime() < roll.startsAt.getTime()) return false;
+  return now.getTime() < roll.finishesAt.getTime() + UPLOAD_GRACE_HOURS * 3_600_000;
 }
 
 export function canViewPhoto(

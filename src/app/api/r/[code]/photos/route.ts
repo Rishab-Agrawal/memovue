@@ -20,7 +20,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
   const context = await getGuestContext(code);
   if (!context) return Response.json({ error: "not_joined" }, { status: 401 });
 
-  if (!context.capturing) {
+  /*
+    `acceptsUploads`, not `capturing`.
+
+    A reservation is made when the bytes reach us, which is not when the shutter fired — the
+    queue holds photographs in IndexedDB until the phone has signal. Gating this on `capturing`
+    refused every photo taken in the last minutes of an event and drained after it closed, and
+    because that refusal is permanent the client then deleted the only copy. The shutter is
+    still closed on time; the camera is what enforces that.
+  */
+  if (!context.acceptsUploads) {
     return Response.json({ error: "not_shooting" }, { status: 403 });
   }
   if (context.shotsLeft <= 0) {

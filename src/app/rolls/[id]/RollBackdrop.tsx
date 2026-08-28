@@ -24,6 +24,8 @@ export interface BackdropRoll {
 export interface BackdropPhoto {
   id: string;
   by: string;
+  /** Signed preview link. Null while the roll is sealed, which is what keeps it sealed. */
+  url: string | null;
   plate: number;
 }
 

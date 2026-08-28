@@ -1,11 +1,14 @@
 import { expect, test } from "@playwright/test";
 
 import {
+  acceptsUploads,
   canViewPhoto,
+  isCapturing,
   isOpen,
   rollPhase,
   computeRevealAt,
   visiblePhotoWhere,
+  UPLOAD_GRACE_HOURS,
   type Viewer,
 } from "@/lib/roll-access";
 
@@ -148,5 +151,50 @@ test.describe("computeRevealAt", () => {
 
   test("DURING stores the close but never gates on it", () => {
     expect(computeRevealAt(finishes, "DURING", 12).getTime()).toBe(finishes.getTime());
+  });
+});
+
+/**
+ * The gap between taking a photograph and uploading it.
+ *
+ * A guest shot ten frames near the end of an event, the queue drained after it closed, the
+ * reserve route refused them as `not_shooting`, and the client — correctly reading that as
+ * permanent — deleted the only copy of each one. Nothing in the suite covered the difference
+ * between "may shoot" and "may finish sending what was already shot", because until then
+ * there was no difference.
+ */
+test.describe("uploads outlive the shutter", () => {
+  const roll = {
+    startsAt: new Date("2026-08-26T18:30:00Z"),
+    finishesAt: new Date("2026-08-26T19:30:00Z"),
+    revealAt: new Date("2026-08-26T19:30:00Z"),
+    revealMode: "AFTER" as const,
+    revealedEarly: false,
+  };
+
+  test("the shutter still closes exactly on time", () => {
+    expect(isCapturing(roll, new Date("2026-08-26T19:29:59Z"))).toBe(true);
+    expect(isCapturing(roll, new Date("2026-08-26T19:30:01Z"))).toBe(false);
+  });
+
+  test("a photo taken at the close may still be uploaded after it", () => {
+    // The exact case that lost them: shot at 19:29, drained at 19:31.
+    expect(acceptsUploads(roll, new Date("2026-08-26T19:31:00Z"))).toBe(true);
+    // And the next morning, off the venue's wifi and back on a phone network.
+    expect(acceptsUploads(roll, new Date("2026-08-27T09:00:00Z"))).toBe(true);
+  });
+
+  test("but not indefinitely, and not before the roll opens", () => {
+    expect(acceptsUploads(roll, new Date("2026-08-26T18:29:00Z"))).toBe(false);
+    const pastGrace = new Date(roll.finishesAt.getTime() + (UPLOAD_GRACE_HOURS + 1) * 3_600_000);
+    expect(acceptsUploads(roll, pastGrace)).toBe(false);
+  });
+
+  /** The grace window must never be a way to read the album early. */
+  test("accepting uploads says nothing about the seal", () => {
+    const sealed = { ...roll, revealAt: new Date("2026-08-27T12:00:00Z"), revealMode: "DELAY" as const };
+    const during = new Date("2026-08-26T19:31:00Z");
+    expect(acceptsUploads(sealed, during)).toBe(true);
+    expect(isOpen(sealed, during)).toBe(false);
   });
 });

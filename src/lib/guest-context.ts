@@ -3,7 +3,7 @@ import "server-only";
 import { readGuestClaims } from "./auth";
 import { normalizeCode } from "./codes";
 import { prisma } from "./prisma";
-import { type RollPhase, isCapturing, isOpen, rollPhase } from "./roll-access";
+import { type RollPhase, acceptsUploads, isCapturing, isOpen, rollPhase } from "./roll-access";
 import { getCurrentUser } from "./session";
 
 export interface GuestContext {
@@ -14,6 +14,8 @@ export interface GuestContext {
   open: boolean;
   /** Whether the shutter still works. */
   capturing: boolean;
+  /** Whether bytes captured earlier may still be uploaded. Outlives `capturing`. */
+  acceptsUploads: boolean;
   shotsUsed: number;
   shotsLeft: number;
 }
@@ -91,6 +93,7 @@ export async function getGuestContext(code: string): Promise<GuestContext | null
     phase: rollPhase(roll),
     open: isOpen(roll),
     capturing: isCapturing(roll),
+    acceptsUploads: acceptsUploads(roll),
     shotsUsed,
     shotsLeft: Math.max(0, roll.photosPerGuest - shotsUsed),
   };

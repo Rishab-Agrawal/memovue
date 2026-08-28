@@ -109,10 +109,19 @@ export function GuestApp({ code, rollName, capturing, shotsLeft: initialShots }:
     await enqueuePhoto(code, photo);
   }
 
+  /*
+    The queue outlives the shutter, so its status has to be visible on this screen too.
+
+    Photographs taken in the last minutes of an event are usually still in IndexedDB when it
+    closes, and they upload from here. Without this line the album says "Nothing shot yet" over
+    a phone that is at that moment sending ten of them, which reads exactly like the photos
+    were lost.
+  */
   if (!capturing) {
     return (
       <div className="min-h-dvh bg-page">
         <div className="pt-[var(--safe-top)]">
+          {queue.pending > 0 ? <QueueStatusLine queue={queue} /> : null}
           <AlbumView code={code} onRevealed={() => router.refresh()} />
         </div>
       </div>
@@ -138,14 +147,9 @@ export function GuestApp({ code, rollName, capturing, shotsLeft: initialShots }:
       </span>
 
       {queue.pending > 0 && !sheetOpen ? (
-        <p
-          role="status"
-          className="marking pointer-events-none absolute inset-x-0 top-[calc(var(--safe-top)+2.25rem)] text-center"
-        >
-          {queue.uploading
-            ? `Saving ${queue.pending} photo${queue.pending === 1 ? "" : "s"}`
-            : `${queue.pending} waiting for signal`}
-        </p>
+        <div className="pointer-events-none absolute inset-x-0 top-[calc(var(--safe-top)+2.25rem)]">
+          <QueueStatusLine queue={queue} />
+        </div>
       ) : null}
 
       {sheetOpen ? (
@@ -169,5 +173,15 @@ export function GuestApp({ code, rollName, capturing, shotsLeft: initialShots }:
         </div>
       ) : null}
     </div>
+  );
+}
+
+/** One line, two screens: over the viewfinder while shooting, above the album once closed. */
+function QueueStatusLine({ queue }: { queue: QueueStatus }) {
+  const n = queue.pending;
+  return (
+    <p role="status" className="marking text-center">
+      {queue.uploading ? `Saving ${n} photo${n === 1 ? "" : "s"}` : `${n} waiting for signal`}
+    </p>
   );
 }

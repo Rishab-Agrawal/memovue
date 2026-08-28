@@ -108,7 +108,7 @@ export function PhotoGrid({
   revealsIn,
   photoHref,
 }: {
-  photos: { id: string; by: string; plate: number }[];
+  photos: { id: string; by: string; url: string | null; plate: number }[];
   sealed: boolean;
   revealsIn: string;
   photoHref: string;
@@ -118,7 +118,20 @@ export function PhotoGrid({
       {photos.map((photo) => {
         const tile = (
           <div className="relative aspect-[4/5] overflow-hidden rounded-2xl">
-            <Plate index={photo.plate} className="absolute inset-0" sealed={sealed} />
+            {/*
+              A gradient only while there is genuinely nothing to show. This grid drew one
+              unconditionally, so a host who opened their own album after the reveal was shown
+              abstract art where their guests' photographs should have been.
+
+              Not next/image: the source is a presigned URL that changes on every render, which
+              defeats the optimiser's cache and would proxy every frame through our own server.
+            */}
+            {photo.url ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={photo.url} alt="" className="absolute inset-0 h-full w-full object-cover" />
+            ) : (
+              <Plate index={photo.plate} className="absolute inset-0" sealed={sealed} />
+            )}
 
             {sealed ? (
               <span className="tabular absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-void/60 px-3 py-1.5 text-[13px] whitespace-nowrap text-chalk">
