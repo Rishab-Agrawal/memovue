@@ -56,7 +56,7 @@ export function TimeWheel({
   };
 
   return (
-    <div className="animate-fade absolute inset-0 z-40 flex items-center justify-center bg-void/70 px-6 backdrop-blur-sm">
+    <div className="animate-fade fixed inset-0 z-40 flex items-center justify-center bg-void/70 px-6 backdrop-blur-sm">
       <div className="w-full max-w-[320px] rounded-3xl bg-surface p-5">
         <div className="relative flex justify-center gap-6">
           {/* The band sits behind both columns so the selected row reads as one row. */}
@@ -112,6 +112,16 @@ function Column({
   const selectedRef = useRef<HTMLButtonElement>(null);
   /** Distinguishes opening the picker from choosing within it: the first must not animate. */
   const opened = useRef(false);
+  /**
+   * The selection this column last aligned itself to.
+   *
+   * Only a change in *this* column's value is worth animating. Changing the hour re-filters
+   * the minutes — dropping out of the floor's hour puts thirty numbers back above the list,
+   * which leaves the column's scroll offset pointing at 00 — and the correction then glided
+   * from 00 back down to the minute that was never actually deselected. The number was right
+   * the whole time; the wheel just performed a change that had not happened.
+   */
+  const aligned = useRef(value);
   const frame = useRef<number | null>(null);
   /**
    * Where a scroll *we* started is heading, while it is still heading there.
@@ -189,8 +199,9 @@ function Column({
     const option = selectedRef.current;
     if (!list || !option) return;
 
-    const animate = opened.current;
+    const animate = opened.current && aligned.current !== value;
     opened.current = true;
+    aligned.current = value;
 
     const top = option.offsetTop - (list.clientHeight - option.clientHeight) / 2;
 
