@@ -1,5 +1,6 @@
 import { PillLink } from "@/components/roll/Chrome";
-import { Download, Link as LinkIcon } from "@/components/roll/Icons";
+import { Download } from "@/components/roll/Icons";
+import { ShareLink } from "@/components/roll/ShareLink";
 import { Sheet } from "@/components/roll/Sheet";
 import { joinUrl, qrDataUrl } from "@/lib/qr";
 
@@ -45,10 +46,7 @@ export default async function InvitePage({ params }: PageProps<"/rolls/[id]/invi
         </div>
 
         <div className="mt-6 flex gap-3">
-          <PillLink href={link} variant="quiet" full className="px-3 text-[14px]">
-            <LinkIcon className="h-4 w-4" />
-            Open link
-          </PillLink>
+          <ShareLink url={link} rollName={roll.name} />
           <PillLink
             href={qr}
             download={`memovue-${roll.code}.png`}

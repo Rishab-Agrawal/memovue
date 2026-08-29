@@ -1,6 +1,6 @@
 import { ZipArchive } from "archiver";
 import type { Readable } from "node:stream";
-import { Readable as NodeReadable } from "node:stream";
+import { PassThrough, Readable as NodeReadable } from "node:stream";
 
 import { prisma } from "@/lib/prisma";
 import { UPLOAD_GRACE_HOURS, isOpen } from "@/lib/roll-access";
@@ -124,11 +124,27 @@ function buildOnce(key: string, photos: ArchivePhoto[]): Promise<void> {
  * photograph regardless of album size. Compression is off — JPEGs are already compressed,
  * and level 0 turns this into a pure copy.
  *
- * Returns immediately with the archive; the appending runs behind it, which is what lets the
- * same object be piped to a client or handed to a multipart upload.
+ * Returns immediately; the appending runs behind it, which is what lets the same object be
+ * piped to a client or handed to a multipart upload.
+ *
+ * Through a `PassThrough` rather than handing the archive out directly, and that hop is
+ * load-bearing. Archiver builds on `readable-stream`, the userland copy — so its prototype
+ * chain reads `Transform -> Duplex -> Readable` while `instanceof require("node:stream").Readable`
+ * is false. `Readable.toWeb` accepts it anyway, which is why streaming a download always
+ * worked; the S3 SDK's multipart upload checks the constructor and refused it outright with
+ * "Body Data is unsupported format", so every archive built into R2 failed with a 500. A
+ * `PassThrough` is a real core stream and satisfies both.
+ *
+ * Errors are forwarded by hand because `pipe` does not forward them. Without that, a build
+ * that failed halfway would end the output cleanly and publish a truncated ZIP as if it were
+ * the album.
  */
-function buildArchive(photos: ArchivePhoto[]): ZipArchive {
+function buildArchive(photos: ArchivePhoto[]): Readable {
   const archive = new ZipArchive({ zlib: { level: 0 } });
+  const out = new PassThrough();
+
+  archive.on("error", (error: Error) => out.destroy(error));
+  archive.pipe(out);
 
   void (async () => {
     try {
@@ -150,11 +166,12 @@ function buildArchive(photos: ArchivePhoto[]): ZipArchive {
       await archive.finalize();
     } catch (error) {
       archive.abort();
+      out.destroy(error instanceof Error ? error : new Error(String(error)));
       console.error("ZIP build failed", error);
     }
   })();
 
-  return archive;
+  return out;
 }
 
 function safeSegment(value: string): string {
