@@ -1,7 +1,8 @@
+import { UPLOAD_LIMITS } from "@/lib/constants";
 import { getGuestContext } from "@/lib/guest-context";
 import { prisma } from "@/lib/prisma";
 import { takenAtWithin } from "@/lib/roll-access";
-import { deleteObjects, presignUpload, storageConfigured, zipKey } from "@/lib/storage";
+import { deleteObjects, headObject, presignUpload, storageConfigured, zipKey } from "@/lib/storage";
 import { photoConfirmSchema } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
@@ -55,12 +56,36 @@ export async function POST(
 
   const photo = await prisma.photo.findUnique({
     where: { id: photoId },
-    select: { id: true, guestId: true, status: true },
+    select: { id: true, guestId: true, status: true, fullKey: true, previewKey: true },
   });
   if (!photo || photo.guestId !== context.guest.id) {
     return Response.json({ error: "not_found" }, { status: 404 });
   }
   if (photo.status === "READY") return Response.json({ ok: true });
+
+  /*
+    The ceiling, measured rather than declared.
+
+    The client encodes every capture down to `fullMaxEdge` at `fullQuality` before it uploads,
+    so a real photograph lands around a megabyte however good the phone's camera is — the cap
+    is not for them. It is for the fact that a presigned PUT pins the content type and cannot
+    pin the body length, so the only trustworthy size is the one R2 reports. `bytes` in the
+    request body is a claim by the same caller that chose what to send.
+
+    Over the cap, the objects go back out: leaving them would bill us for storage on a
+    photograph the album will never show. This is also the reason there is no re-encode step
+    on the server — the resize already happened on the device that took the shot, which is
+    both cheaper and the only place the full-resolution frame ever exists.
+  */
+  const measured = storageConfigured
+    ? await Promise.all([headObject(photo.fullKey), headObject(photo.previewKey)])
+    : [];
+
+  if (measured.some((object) => object && object.bytes > UPLOAD_LIMITS.maxBytes)) {
+    await deleteObjects([photo.fullKey, photo.previewKey]).catch(() => {});
+    await prisma.photo.delete({ where: { id: photoId } });
+    return Response.json({ error: "too_large" }, { status: 413 });
+  }
 
   await prisma.photo.update({
     where: { id: photoId },
@@ -68,7 +93,8 @@ export async function POST(
       status: "READY",
       width: parsed.data.width,
       height: parsed.data.height,
-      bytes: parsed.data.bytes,
+      // R2's number when we have it, the claim only as a fallback.
+      bytes: measured[0]?.bytes ?? parsed.data.bytes,
       blurData: parsed.data.blurData,
       // Left alone when the client did not send one: the row's reservation-time default is
       // the older, worse answer, but it is still an answer.
