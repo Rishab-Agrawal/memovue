@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 import { Camera, Download, Lock, Qr, Send } from "@/components/roll/Icons";
 
@@ -13,6 +16,7 @@ export function RollControls({
   sendHref,
   saveHref,
   onCamera,
+  outOfFilm,
 }: {
   revealed: boolean;
   /** Ignored when `onCamera` is given, which is how the guest app keeps its stream alive. */
@@ -31,7 +35,17 @@ export function RollControls({
   /** When given, the camera closes a sheet instead of navigating — the guest app keeps its
       viewfinder alive underneath rather than tearing the stream down and back up. */
   onCamera?: () => void;
+  /** No shots left for whoever is looking. The camera stays put, but says why it is dead. */
+  outOfFilm?: boolean;
 }) {
+  const [notice, setNotice] = useState(false);
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(false), 2600);
+    return () => clearTimeout(timer);
+  }, [notice]);
+
   if (revealed) {
     // A guest has neither, and two dead buttons are worse than none.
     if (!sendHref && !saveHref) return null;
@@ -50,7 +64,32 @@ export function RollControls({
 
   return (
     <div className="flex gap-3">
-      {onCamera ? (
+      {/*
+        Out of film. Removing the control would leave the row a different shape every time
+        somebody spends their last shot, and a live camera that refuses to take a photo is
+        worse still — so it stays where it was and answers when tapped.
+      */}
+      {outOfFilm ? (
+        <>
+          <button
+            type="button"
+            aria-disabled="true"
+            aria-label="Take a photo"
+            onClick={() => setNotice(true)}
+            className="flex h-14 flex-1 items-center justify-center rounded-full bg-surface text-dust/60"
+          >
+            <Camera className="h-6 w-6" />
+          </button>
+          {notice ? (
+            <p
+              role="status"
+              className="animate-fade pointer-events-none fixed top-1/2 left-1/2 z-50 max-w-[16rem] -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-surface/95 px-5 py-3.5 text-center text-[14px] leading-snug text-chalk shadow-[0_8px_40px_-8px_rgba(0,0,0,0.9)] backdrop-blur-sm"
+            >
+              That&rsquo;s all your shots for this roll.
+            </p>
+          ) : null}
+        </>
+      ) : onCamera ? (
         <button
           type="button"
           onClick={onCamera}

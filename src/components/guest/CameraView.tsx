@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/cn";
-import { type ProcessedPhoto, decode, processCapture } from "@/lib/image";
+import { type ProcessedPhoto, processCapture } from "@/lib/image";
 
 import { Counter } from "@/components/roll/Counter";
 import { FlashOff, Flip } from "@/components/roll/Icons";
@@ -12,7 +12,7 @@ type Facing = "environment" | "user";
 type Permission = "idle" | "starting" | "live" | "denied" | "unsupported";
 type Phase = "idle" | "flash" | "hold" | "fly";
 
-const FLASH_MS = 90;
+const FLASH_MS = 55;
 const HOLD_MS = 600;
 const FLIGHT_MS = 420;
 
@@ -200,18 +200,6 @@ export function CameraView({
     }
   }
 
-  async function handleFilePick(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-
-    const bitmap = await decode(file);
-    const processed = await processCapture(
-      bitmap as CanvasImageSource & { width: number; height: number },
-    );
-    onCaptured(processed);
-  }
-
   const out = shotsLeft <= 0;
   const flying = phase === "hold" || phase === "fly";
 
@@ -239,21 +227,13 @@ export function CameraView({
                     ? "This browser can't open the camera."
                     : "MemoVue needs camera access to take photos."}
                 </p>
-                <label className="mt-4 inline-flex h-11 cursor-pointer items-center rounded-full bg-chalk px-5 text-[14px] font-medium text-void">
-                  Choose a photo instead
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={handleFilePick}
-                    className="sr-only"
-                  />
-                </label>
               </div>
             </div>
           ) : null}
 
-          {phase === "flash" ? <span className="absolute inset-0 bg-white" /> : null}
+          {/* Black, not white. The frame going dark reads as a shutter closing; a white
+              wash reads as a camera-app screen flash, which is the cheap version. */}
+          {phase === "flash" ? <span className="absolute inset-0 bg-void" /> : null}
 
           {flying && frozen ? (
             /* eslint-disable-next-line @next/next/no-img-element */
@@ -285,17 +265,6 @@ export function CameraView({
         >
           <FlashOff className="h-6 w-6" />
         </button>
-
-        <label className="tap cursor-pointer text-[13px] text-dust">
-          Upload
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleFilePick}
-            className="sr-only"
-            disabled={out}
-          />
-        </label>
 
         <button
           type="button"

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -21,12 +22,24 @@ interface GuestAppProps {
   rollName: string;
   capturing: boolean;
   shotsLeft: number;
+  /**
+   * Where leaving the camera lands: the host's own roll screen, or the rolls list for a guest
+   * with an account. Null for an anonymous guest, who arrived by QR and has nowhere of their
+   * own to go — they get no back button rather than a dead one.
+   */
+  home: string | null;
 }
 
 /** Long enough to read as the album sliding away, short enough not to be a wait. */
 const SHEET_OUT_MS = 260;
 
-export function GuestApp({ code, rollName, capturing, shotsLeft: initialShots }: GuestAppProps) {
+export function GuestApp({
+  code,
+  rollName,
+  capturing,
+  shotsLeft: initialShots,
+  home,
+}: GuestAppProps) {
   const router = useRouter();
 
   /**
@@ -105,8 +118,22 @@ export function GuestApp({ code, rollName, capturing, shotsLeft: initialShots }:
    * or a dead signal because it goes through the queue rather than straight to the network.
    */
   async function handleCaptured(photo: ProcessedPhoto) {
-    setShotsLeft((n) => Math.max(0, n - 1));
+    const left = Math.max(0, shotsLeft - 1);
+    setShotsLeft(left);
     await enqueuePhoto(code, photo);
+
+    /*
+      Out of film. Sitting on a dead viewfinder with a greyed-out shutter is the camera
+      pretending it still has a job, so it closes: back to the roll for anyone who has one,
+      and up into the album for a guest who does not.
+
+      The upload is unaffected — the queue is a module, not a component, so it keeps draining
+      across a client-side navigation.
+    */
+    if (left === 0) {
+      if (home) router.push(home);
+      else openSheet();
+    }
   }
 
   /*
@@ -142,7 +169,17 @@ export function GuestApp({ code, rollName, capturing, shotsLeft: initialShots }:
         />
       </div>
 
-      <span className="marking pointer-events-none absolute inset-x-0 top-[calc(var(--safe-top)+0.5rem)] truncate px-5 text-center text-chalk/60">
+      {home ? (
+        <Link
+          href={home}
+          aria-label="Leave the camera"
+          className="absolute top-[calc(var(--safe-top)+0.25rem)] left-4 z-10 flex h-11 w-11 items-center justify-center rounded-2xl bg-void/50 text-[20px] text-chalk backdrop-blur-sm transition-colors hover:text-flame"
+        >
+          ←
+        </Link>
+      ) : null}
+
+      <span className="marking pointer-events-none absolute inset-x-0 top-[calc(var(--safe-top)+0.5rem)] truncate px-16 text-center text-chalk/60">
         {rollName}
       </span>
 

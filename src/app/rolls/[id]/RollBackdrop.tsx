@@ -20,6 +20,8 @@ export interface BackdropRoll {
   keptUntil: Date;
   photoCount: number;
   guestCount: number;
+  /** What the host has left of their own film, for the camera control below. */
+  shotsLeft: number;
 }
 
 /** The grid owns this shape; re-declaring it here is how the two drift apart. */
@@ -65,6 +67,7 @@ export function RollBackdrop({
           // anyone else — so this is the roll's code, not its id. Built from the id, it
           // normalised to a 25-character string matching no roll and dead-ended.
           cameraHref={`/e/${roll.code}`}
+          outOfFilm={roll.shotsLeft <= 0}
           inviteHref={`/rolls/${roll.id}/invite`}
           // Once open, the same two things a host wants: hand the album round, or take it away.
           sendHref={`/rolls/${roll.id}/invite`}

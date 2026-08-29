@@ -28,6 +28,19 @@ export async function loadRoll(id: string): Promise<{
   const open = isOpen(found);
   const coverUrl = await coverUrlFor(found);
 
+  /*
+    The host's own film, if they have joined their own roll to shoot it.
+
+    They hold a Guest row like anybody else, so their quota is counted the same way. A host
+    who never joined has spent nothing and gets the full allowance — which is right: the
+    camera button is what takes them into the join flow.
+  */
+  const mine = await prisma.guest.findFirst({
+    where: { rollId: found.id, userId: user.id },
+    select: { _count: { select: { photos: true } } },
+  });
+  const shotsLeft = Math.max(0, found.photosPerGuest - (mine?._count.photos ?? 0));
+
   const photos = await prisma.photo.findMany({
     where: { rollId: found.id, status: "READY" },
     orderBy: { takenAt: "desc" },
@@ -64,6 +77,7 @@ export async function loadRoll(id: string): Promise<{
       keptUntil: found.keptUntil,
       photoCount: found._count.photos,
       guestCount: found._count.guests,
+      shotsLeft,
     },
     // Sealed rolls still render a wall of blurred frames, so the grid needs one entry per
     // photograph — just nothing identifying inside it, and no URL that resolves to bytes.
