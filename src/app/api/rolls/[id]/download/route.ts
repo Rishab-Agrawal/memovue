@@ -154,10 +154,17 @@ function buildArchive(photos: ArchivePhoto[]): Readable {
         const body = await getObjectStream(photo.fullKey);
         if (!body) continue;
 
-        // Grouped by photographer — that's how hosts actually go looking for a shot.
-        const folder = safeSegment(photo.guest.name);
-        let name = `${folder}/${timestamp(photo.takenAt)}.jpg`;
-        if (usedNames.has(name)) name = `${folder}/${timestamp(photo.takenAt)}-${photo.id}.jpg`;
+        /*
+          Grouped by photographer, and named after them too — that is how hosts go looking for
+          a shot, and the folder alone does not survive the first time somebody drags a
+          favourite out of it. The credit is the one piece of this album that exists nowhere
+          in the file itself, so it goes in the only place that travels with it.
+        */
+        const who = safeSegment(photo.guest.name);
+        const stem = `${who}-${timestamp(photo.takenAt)}`;
+        let name = `${who}/${stem}.jpg`;
+        // Two frames in the same second from the same person; the id only appears here.
+        if (usedNames.has(name)) name = `${who}/${stem}-${photo.id}.jpg`;
         usedNames.add(name);
 
         // On Node the SDK hands back a Readable directly.
