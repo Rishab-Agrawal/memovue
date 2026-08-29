@@ -1,5 +1,6 @@
 import { RollHeader } from "@/components/roll/RollHeader";
-import { RollControls, PhotoGrid, VisibilityNotice } from "@/components/roll/RollParts";
+import { PhotoGrid, type GridPhoto } from "@/components/roll/PhotoGrid";
+import { RollControls, VisibilityNotice } from "@/components/roll/RollParts";
 import { formatDay, formatDuration } from "@/lib/format";
 import { isOpen } from "@/lib/roll-access";
 
@@ -21,13 +22,8 @@ export interface BackdropRoll {
   guestCount: number;
 }
 
-export interface BackdropPhoto {
-  id: string;
-  by: string;
-  /** Signed preview link. Null while the roll is sealed, which is what keeps it sealed. */
-  url: string | null;
-  plate: number;
-}
+/** The grid owns this shape; re-declaring it here is how the two drift apart. */
+export type BackdropPhoto = GridPhoto;
 
 /**
  * The host's view of one roll.
@@ -74,12 +70,7 @@ export function RollBackdrop({
 
         {roll.everyoneCanSee ? null : <VisibilityNotice />}
 
-        <PhotoGrid
-          photos={photos}
-          sealed={!open}
-          revealsIn={revealsIn}
-          photoHref={`/rolls/${roll.id}`}
-        />
+        <PhotoGrid rollId={roll.id} photos={photos} sealed={!open} revealsIn={revealsIn} />
 
         <p className="text-center text-[12px] text-dust">
           Photos available until {formatDay(roll.keptUntil)}

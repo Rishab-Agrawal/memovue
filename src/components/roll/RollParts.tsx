@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 import { Camera, Download, Lock, Qr, Send } from "@/components/roll/Icons";
-import { Plate } from "@/components/roll/Plate";
 
 /**
  * The pieces below the cover, shared by the host's roll home and the guest's album.
@@ -98,61 +97,6 @@ export function VisibilityNotice() {
     <div className="flex h-14 items-center justify-center gap-2.5 rounded-2xl bg-surface text-[14px] text-dust">
       <Lock className="h-4 w-4" />
       Only the host can see everyone&rsquo;s photos
-    </div>
-  );
-}
-
-export function PhotoGrid({
-  photos,
-  sealed,
-  revealsIn,
-  photoHref,
-}: {
-  photos: { id: string; by: string; url: string | null; plate: number }[];
-  sealed: boolean;
-  revealsIn: string;
-  photoHref: string;
-}) {
-  return (
-    <div className="grid grid-cols-2 gap-3">
-      {photos.map((photo) => {
-        const tile = (
-          <div className="relative aspect-[4/5] overflow-hidden rounded-2xl">
-            {/*
-              A gradient only while there is genuinely nothing to show. This grid drew one
-              unconditionally, so a host who opened their own album after the reveal was shown
-              abstract art where their guests' photographs should have been.
-
-              Not next/image: the source is a presigned URL that changes on every render, which
-              defeats the optimiser's cache and would proxy every frame through our own server.
-            */}
-            {photo.url ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img src={photo.url} alt="" className="absolute inset-0 h-full w-full object-cover" />
-            ) : (
-              <Plate index={photo.plate} className="absolute inset-0" sealed={sealed} />
-            )}
-
-            {sealed ? (
-              <span className="tabular absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-void/60 px-3 py-1.5 text-[13px] whitespace-nowrap text-chalk">
-                Reveals in {revealsIn}
-              </span>
-            ) : null}
-
-            <span className="absolute bottom-3 left-3 text-[15px] text-chalk italic drop-shadow">
-              {photo.by}
-            </span>
-          </div>
-        );
-
-        if (sealed) return <div key={photo.id}>{tile}</div>;
-
-        return (
-          <Link key={photo.id} href={photoHref} aria-label={`Photo by ${photo.by}`}>
-            {tile}
-          </Link>
-        );
-      })}
     </div>
   );
 }

@@ -8,7 +8,7 @@ import { RollControls, VisibilityNotice } from "@/components/roll/RollParts";
 import { formatDay, formatDuration } from "@/lib/format";
 import { useNow } from "@/lib/useNow";
 
-import { PhotoViewer } from "./PhotoViewer";
+import { PhotoViewer, type ViewerPhoto } from "@/components/roll/PhotoViewer";
 
 export interface FeedPhoto {
   id: string;
@@ -62,7 +62,7 @@ export function AlbumView({
 }) {
   const [feed, setFeed] = useState<Feed | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [viewing, setViewing] = useState<FeedPhoto | null>(null);
+  const [viewing, setViewing] = useState<number | null>(null);
   const now = useNow();
 
   const load = useCallback(async () => {
@@ -168,13 +168,13 @@ export function AlbumView({
           </p>
         ) : (
           <div className="grid grid-cols-2 gap-3">
-            {feed.photos.map((photo) => (
+            {feed.photos.map((photo, index) => (
               <button
                 key={photo.id}
                 type="button"
                 disabled={!feed.open}
                 aria-label={photo.by ? `Photo by ${photo.by}` : "Hidden photo"}
-                onClick={() => feed.open && setViewing(photo)}
+                onClick={() => feed.open && setViewing(index)}
                 className="relative block aspect-[4/5] overflow-hidden rounded-2xl bg-void"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -210,10 +210,17 @@ export function AlbumView({
         </p>
       </div>
 
-      {viewing ? (
+      {viewing !== null ? (
         <PhotoViewer
-          code={code}
-          photo={viewing}
+          photos={feed.photos.map(
+            (photo): ViewerPhoto => ({
+              id: photo.id,
+              by: photo.by,
+              takenAt: photo.takenAt,
+              src: `/api/r/${code}/photos/${photo.id}/full`,
+            }),
+          )}
+          startIndex={viewing}
           onClose={() => setViewing(null)}
         />
       ) : null}

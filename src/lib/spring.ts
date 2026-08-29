@@ -105,11 +105,48 @@ export function projectMomentum(velocity: number, decelerationRate = 0.998): num
  * at the end of a flick, and reading only that frame turns a hard throw into a dead drop.
  * A short window over recent samples is what the release actually felt like.
  */
-export function velocityFrom(samples: { y: number; t: number }[]): number {
+export function velocityFrom(samples: { v: number; t: number }[]): number {
   if (samples.length < 2) return 0;
   const last = samples[samples.length - 1];
   const first = samples[0];
   const dt = last.t - first.t;
   if (dt <= 0) return 0;
-  return ((last.y - first.y) / dt) * 1000;
+  return ((last.v - first.v) / dt) * 1000;
+}
+
+/**
+ * Which way a horizontal swipe should land: -1 back, 0 stay, +1 forward.
+ *
+ * Here rather than inside the viewer so it can be checked without a browser, and because the
+ * interesting part is arithmetic, not React. Distance alone would refuse a short hard flick
+ * and honour a long slow drag that was already reversing — so the release velocity is
+ * projected forward first, and a throw past `minVelocity` carries regardless of distance.
+ *
+ * Returns 0 at the ends, where there is nothing to move to.
+ */
+export function swipeDelta({
+  dx,
+  velocity,
+  width,
+  index,
+  count,
+  distance = 0.28,
+  minVelocity = 500,
+}: {
+  dx: number;
+  velocity: number;
+  width: number;
+  index: number;
+  count: number;
+  distance?: number;
+  minVelocity?: number;
+}): -1 | 0 | 1 {
+  const projected = dx + projectMomentum(velocity);
+
+  let delta: -1 | 0 | 1 = 0;
+  if (projected < -width * distance || velocity < -minVelocity) delta = 1;
+  else if (projected > width * distance || velocity > minVelocity) delta = -1;
+
+  const next = index + delta;
+  return next < 0 || next >= count ? 0 : delta;
 }
