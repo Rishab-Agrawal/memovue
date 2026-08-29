@@ -124,6 +124,14 @@ export const photoConfirmSchema = z.object({
   bytes: z.number().int().positive(),
   // Tiny inline placeholder; a real one is ~600-1200 chars.
   blurData: z.string().max(4000),
+  /*
+    When the shutter fired, from the queue's own record of it.
+
+    Optional because a photograph queued before this existed still has to be able to confirm —
+    there may be one sitting in somebody's IndexedDB right now — and because the row already
+    carries a reservation-time fallback. Trusted only as far as `takenAtWithin` allows.
+  */
+  takenAt: z.iso.datetime({ offset: true }).optional(),
 });
 
 /* ------------------------------------------------------------------ account */

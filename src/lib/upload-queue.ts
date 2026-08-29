@@ -164,6 +164,9 @@ export async function drainQueue(code: string): Promise<void> {
             height: item.height,
             bytes: item.full.size,
             blurData: item.blurData,
+            // The shutter's own moment, not the upload's. Without it a photo taken at the
+            // party and sent from the taxi home is filed under the taxi.
+            takenAt: new Date(item.createdAt).toISOString(),
           }),
         });
         if (!confirm.ok) throw new Error("confirm_failed");

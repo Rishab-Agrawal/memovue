@@ -84,6 +84,27 @@ export function acceptsUploads(roll: RollTimings, now: Date = new Date()): boole
   return now.getTime() < roll.finishesAt.getTime() + UPLOAD_GRACE_HOURS * 3_600_000;
 }
 
+/**
+ * When a photograph was actually taken, from a clock we do not control.
+ *
+ * The row's own timestamp is set when the shot is reserved, which is when the bytes reach us
+ * rather than when the shutter fired — so a phone that was out of signal filed its evening
+ * under the moment it found wifi, and with the upload grace that can be the next day. The
+ * queue has known the real moment all along; it simply never sent it.
+ *
+ * Clamped to the capture window, because it arrives from a device whose clock is the user's to
+ * set. A phone hours out of true, or someone editing the request, cannot place a photograph
+ * outside the event it belongs to. Within the window it is taken at face value: a few minutes
+ * of ordinary clock drift is invisible in an album ordered by time, and rejecting it would
+ * throw away the only record of the order things happened in.
+ */
+export function takenAtWithin(claimed: Date, roll: RollTimings): Date {
+  if (Number.isNaN(claimed.getTime())) return roll.finishesAt;
+  if (claimed.getTime() < roll.startsAt.getTime()) return roll.startsAt;
+  if (claimed.getTime() > roll.finishesAt.getTime()) return roll.finishesAt;
+  return claimed;
+}
+
 export function canViewPhoto(
   roll: RollTimings & { everyoneCanSee: boolean },
   photo: { guestId: string },

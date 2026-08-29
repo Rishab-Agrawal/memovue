@@ -1,5 +1,6 @@
 import { getGuestContext } from "@/lib/guest-context";
 import { prisma } from "@/lib/prisma";
+import { takenAtWithin } from "@/lib/roll-access";
 import { deleteObjects, presignUpload, storageConfigured, zipKey } from "@/lib/storage";
 import { photoConfirmSchema } from "@/lib/validation";
 
@@ -69,6 +70,11 @@ export async function POST(
       height: parsed.data.height,
       bytes: parsed.data.bytes,
       blurData: parsed.data.blurData,
+      // Left alone when the client did not send one: the row's reservation-time default is
+      // the older, worse answer, but it is still an answer.
+      ...(parsed.data.takenAt
+        ? { takenAt: takenAtWithin(new Date(parsed.data.takenAt), context.roll) }
+        : {}),
     },
   });
 

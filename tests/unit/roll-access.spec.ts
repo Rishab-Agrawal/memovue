@@ -6,6 +6,7 @@ import {
   isCapturing,
   isOpen,
   rollPhase,
+  takenAtWithin,
   computeRevealAt,
   visiblePhotoWhere,
   UPLOAD_GRACE_HOURS,
@@ -196,5 +197,46 @@ test.describe("uploads outlive the shutter", () => {
     const during = new Date("2026-08-26T19:31:00Z");
     expect(acceptsUploads(sealed, during)).toBe(true);
     expect(isOpen(sealed, during)).toBe(false);
+  });
+});
+
+/**
+ * When a photograph says it was taken.
+ *
+ * The row's own timestamp is written when the shot is reserved, which is when the bytes
+ * arrive rather than when the shutter fired — so an evening spent out of signal was filed
+ * under the moment the phone found wifi, and with the upload grace that can be the next day.
+ * The queue has always known the real moment; it just never sent it.
+ *
+ * It arrives from a device whose clock belongs to the user, so it is believed only within the
+ * window it could possibly describe.
+ */
+test.describe("when a photograph says it was taken", () => {
+  const roll = {
+    startsAt: new Date("2026-08-26T18:30:00Z"),
+    finishesAt: new Date("2026-08-26T23:30:00Z"),
+    revealAt: new Date("2026-08-26T23:30:00Z"),
+    revealMode: "AFTER" as const,
+    revealedEarly: false,
+  };
+
+  test("a time inside the event is taken at its word", () => {
+    const during = new Date("2026-08-26T21:14:00Z");
+    expect(takenAtWithin(during, roll).toISOString()).toBe(during.toISOString());
+  });
+
+  /** The case the whole change exists for: shot at nine, uploaded from the taxi at one. */
+  test("uploading late does not move when it was taken", () => {
+    const shutter = new Date("2026-08-26T21:00:00Z");
+    expect(takenAtWithin(shutter, roll).getTime()).toBe(shutter.getTime());
+  });
+
+  test("a clock hours out of true cannot leave the event", () => {
+    expect(takenAtWithin(new Date("2026-08-20T12:00:00Z"), roll)).toEqual(roll.startsAt);
+    expect(takenAtWithin(new Date("2027-01-01T00:00:00Z"), roll)).toEqual(roll.finishesAt);
+  });
+
+  test("nonsense falls back rather than throwing", () => {
+    expect(takenAtWithin(new Date("not a date"), roll)).toEqual(roll.finishesAt);
   });
 });
