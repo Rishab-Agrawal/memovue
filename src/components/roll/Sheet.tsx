@@ -54,7 +54,14 @@ export function Sheet({
   }
 
   return (
-    <div className="absolute inset-0 z-30 flex flex-col justify-end">
+    /*
+      Fixed, not absolute. Every sheet route renders the roll screen behind it, and that
+      screen is taller than the viewport — so an absolute overlay stretched to the height of
+      the *document* and `justify-end` parked the panel at the bottom of the page. The sheet
+      only appeared once you had scrolled the screen underneath it all the way down. An
+      overlay belongs to the viewport, which is the one thing that is always on screen.
+    */
+    <div className="fixed inset-0 z-30 flex flex-col justify-end">
       {/*
         The dimmed area is the dismiss target, which is the whole point of dimming it. It was
         an inert div, so tapping away from a sheet did nothing and the only way out was the
