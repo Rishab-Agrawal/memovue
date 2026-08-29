@@ -4,6 +4,7 @@ import { Logo } from "@/components/ui/Logo";
 import { BottomNav } from "@/components/roll/BottomNav";
 import { PillLink } from "@/components/roll/Chrome";
 import { Cover } from "@/components/roll/Cover";
+import { Plate } from "@/components/roll/Plate";
 import { Camera, Clock, Person, Qr } from "@/components/roll/Icons";
 import { formatDuration, formatRange } from "@/lib/format";
 import { type RollCard, coverUrlsFor, listRollsForUser } from "@/lib/rolls";
@@ -15,6 +16,9 @@ export const dynamic = "force-dynamic";
 /** Just enough tilt to read as separate prints rather than one strip. */
 const TILT = ["-rotate-2", "rotate-1", "-rotate-1", "rotate-2"];
 
+/** Matches the number of thumbnails `listRollsForUser` signs, so the two cannot drift. */
+const STACK = TILT.length;
+
 /** Your own roll opens the host screen; one you were invited to opens the camera. */
 const destination = (roll: RollCard) =>
   roll.invitedBy ? `/e/${roll.code}` : `/rolls/${roll.id}`;
@@ -22,7 +26,8 @@ const destination = (roll: RollCard) =>
 export default async function RollsHome() {
   const user = await requireHost();
   const { active, albums } = await listRollsForUser(user.id);
-  const covers = await coverUrlsFor([...active, ...albums]);
+  // Only the active cards stand on a cover now; albums show their own prints below.
+  const covers = await coverUrlsFor(active);
   const now = new Date();
 
   return (
@@ -119,20 +124,35 @@ export default async function RollsHome() {
                     </p>
                   ) : null}
 
+                  {/*
+                    The album's own photographs. This stack used to be shipped cover artwork,
+                    walked one preset per print — four pictures of strangers' weddings standing
+                    in for the album you actually shot, which is worse than showing nothing.
+
+                    Washes when there is nothing to show: an album still sealed, or one nobody
+                    put a frame in. A wash says "a picture you cannot see yet"; stock
+                    photography says "your photographs, loaded".
+                  */}
                   <div className="mt-3 flex">
-                    {Array.from({ length: Math.min(4, Math.max(1, roll.photoCount)) }).map(
-                      (_, index) => (
-                        // Only the front print is the real cover; the ones behind it stay
-                        // gradients, so the stack still reads as a stack rather than as the
-                        // same photograph shuffled four times.
-                        <Cover
-                          key={index}
-                          url={index === 0 ? covers.get(roll.id) : null}
-                          preset={roll.coverPreset + index}
-                          className={`-ml-3 h-[104px] w-[84px] shrink-0 rounded-2xl ring-1 ring-void/60 first:ml-0 ${TILT[index % TILT.length]}`}
-                        />
-                      ),
-                    )}
+                    {roll.thumbs.length > 0
+                      ? roll.thumbs.map((url, index) => (
+                          <div
+                            key={url}
+                            className={`relative -ml-3 h-[104px] w-[84px] shrink-0 overflow-hidden rounded-2xl bg-void ring-1 ring-void/60 first:ml-0 ${TILT[index % TILT.length]}`}
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={url} alt="" className="h-full w-full object-cover" />
+                          </div>
+                        ))
+                      : Array.from({ length: Math.min(STACK, Math.max(1, roll.photoCount)) }).map(
+                          (_, index) => (
+                            <Plate
+                              key={index}
+                              index={roll.coverPreset + index}
+                              className={`-ml-3 h-[104px] w-[84px] shrink-0 rounded-2xl ring-1 ring-void/60 first:ml-0 ${TILT[index % TILT.length]}`}
+                            />
+                          ),
+                        )}
                   </div>
                 </Link>
               ))}

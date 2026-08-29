@@ -5,7 +5,7 @@ import type { RevealMode } from "@prisma/client";
 import { rollCode } from "./codes";
 import { CouponError, claimCoupon } from "./coupons";
 import { prisma } from "./prisma";
-import { computeKeptUntil, computeRevealAt, isOpen } from "./roll-access";
+import { computeKeptUntil, computeRevealAt, isOpen, visiblePhotoWhere } from "./roll-access";
 import { purgeRoll } from "./retention";
 import { coverKey, deleteObjects, presignDownload, storageConfigured } from "./storage";
 
@@ -100,7 +100,15 @@ export interface RollCard {
   photoCount: number;
   /** Null when this is the viewer's own roll; the host's name when they were invited. */
   invitedBy: string | null;
+  /**
+   * Up to four signed previews for the stack of prints on the home screen. Only ever filled
+   * for a finished, opened album — everything else gets an empty list and draws washes.
+   */
+  thumbs: string[];
 }
+
+/** How many prints the album stack shows. */
+const STACK = 4;
 
 /**
  * Every roll a person is in, hosted or attended, split by whether it is still shooting.
@@ -147,6 +155,7 @@ export async function listRollsForUser(userId: string) {
       finishesAt: roll.finishesAt,
       photoCount: roll._count.photos,
       invitedBy: null,
+      thumbs: [],
     })),
     ...joined.map((roll) => ({
       id: roll.id,
@@ -158,6 +167,7 @@ export async function listRollsForUser(userId: string) {
       finishesAt: roll.finishesAt,
       photoCount: roll._count.photos,
       invitedBy: roll.host.name,
+      thumbs: [],
     })),
   ].sort((a, b) => b.startsAt.getTime() - a.startsAt.getTime());
 
@@ -165,10 +175,75 @@ export async function listRollsForUser(userId: string) {
 
   // "Active" on the home screen means still shooting; anything past that is an album,
   // which is why this splits on the capture window rather than on the reveal.
-  return {
-    active: cards.filter((roll) => now < roll.finishesAt),
-    albums: cards.filter((roll) => now >= roll.finishesAt),
-  };
+  const active = cards.filter((roll) => now < roll.finishesAt);
+  const albums = cards.filter((roll) => now >= roll.finishesAt);
+
+  await attachThumbs(albums, new Map([...hosted, ...joined].map((roll) => [roll.id, roll])), userId, now);
+
+  return { active, albums };
+}
+
+/**
+ * Real photographs for the album stack, in place of stock artwork.
+ *
+ * The stack used to be four *shipped covers*, picked by walking the preset index — so an
+ * album of somebody's wedding was represented by four pictures of other people's weddings,
+ * which is the one thing a photo album must never show. These are the album's own newest
+ * frames, at preview size, and there are at most four of them per finished roll.
+ *
+ * Two rules it must not break. A sealed album gets nothing — `isOpen` is the same seal every
+ * other screen asks, and a thumbnail is as much of a leak as a full frame. And on a roll the
+ * viewer merely attended, `visiblePhotoWhere` narrows the stack to their own shots unless the
+ * host opened the roll to everyone.
+ */
+async function attachThumbs(
+  albums: RollCard[],
+  rows: Map<string, { id: string; everyoneCanSee: boolean } & Parameters<typeof isOpen>[0]>,
+  userId: string,
+  now: Date,
+): Promise<void> {
+  if (!storageConfigured) return;
+
+  const open = albums.filter((card) => {
+    const row = rows.get(card.id);
+    return row && card.photoCount > 0 && isOpen(row, now);
+  });
+  if (open.length === 0) return;
+
+  // One lookup for every guest row this person holds in these rolls, rather than one per
+  // card. Their own rolls do not need it — a host sees the whole album by definition.
+  const guestIds = new Map(
+    (
+      await prisma.guest.findMany({
+        where: { userId, rollId: { in: open.map((card) => card.id) } },
+        select: { id: true, rollId: true },
+      })
+    ).map((guest) => [guest.rollId, guest.id]),
+  );
+
+  await Promise.all(
+    open.map(async (card) => {
+      const row = rows.get(card.id)!;
+      const guestId = guestIds.get(card.id);
+      // No guest row on a roll they were invited to means they never joined and shot nothing,
+      // so a private album has nothing of theirs to show.
+      if (card.invitedBy && !guestId) return;
+
+      const photos = await prisma.photo.findMany({
+        where: visiblePhotoWhere(
+          row,
+          card.invitedBy ? { kind: "guest", guestId: guestId! } : { kind: "host" },
+        ),
+        orderBy: [{ takenAt: "desc" }, { id: "desc" }],
+        take: STACK,
+        select: { previewKey: true },
+      });
+
+      card.thumbs = await Promise.all(
+        photos.map((photo) => presignDownload(photo.previewKey, { expiresIn: 3600 })),
+      );
+    }),
+  );
 }
 
 export async function getRollForHost(id: string, hostId: string) {
