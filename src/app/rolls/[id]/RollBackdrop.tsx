@@ -66,6 +66,9 @@ export function RollBackdrop({
           // normalised to a 25-character string matching no roll and dead-ended.
           cameraHref={`/e/${roll.code}`}
           inviteHref={`/rolls/${roll.id}/invite`}
+          // Once open, the same two things a host wants: hand the album round, or take it away.
+          sendHref={`/rolls/${roll.id}/invite`}
+          saveHref={`/api/rolls/${roll.id}/download`}
         />
 
         {roll.everyoneCanSee ? null : <VisibilityNotice />}

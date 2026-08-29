@@ -119,3 +119,22 @@ export function clampFinish(startsAt: Date, finishesAt: Date): Date {
 /** Hours a host may add on top of the close before photos open. */
 export const MIN_DELAY_HOURS = 1;
 export const MAX_DELAY_HOURS = 72;
+
+/* ------------------------------------------------------------------ visibility */
+
+/**
+ * The two states of the one switch a host can flip after a roll exists, worded once.
+ *
+ * The wizard and the settings sheet had their own copies, and the settings sheet's was not a
+ * pair at all — it hardcoded the "on" wording as a static row label, so turning visibility off
+ * left the screen still reading "Everyone can see all photos" underneath a switch that was
+ * plainly off. A label that does not move is worse than no label: it is a wrong one.
+ */
+export const VISIBILITY_LABEL = {
+  on: "Everyone can see all photos",
+  off: "Only host can see all photos",
+} as const;
+
+export function visibilityLabel(everyoneCanSee: boolean): string {
+  return everyoneCanSee ? VISIBILITY_LABEL.on : VISIBILITY_LABEL.off;
+}

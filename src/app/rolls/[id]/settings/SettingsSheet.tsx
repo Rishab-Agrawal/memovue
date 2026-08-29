@@ -17,6 +17,7 @@ import { SettingRow } from "@/components/roll/SettingRow";
 import { Sheet } from "@/components/roll/Sheet";
 import { Toggle } from "@/components/roll/Toggle";
 import { formatDateTime } from "@/lib/format";
+import { visibilityLabel } from "@/lib/roll-config";
 
 import { deleteRollAction, setVisibilityAction } from "../actions";
 
@@ -57,7 +58,7 @@ export function SettingsSheet({
 
   return (
     <>
-      <Sheet title="Roll Settings">
+      <Sheet back={`/rolls/${rollId}`} title="Roll Settings">
         <div className="mt-5 space-y-2">
           <SettingRow
             icon={<Pencil className="h-5 w-5" />}
@@ -83,12 +84,12 @@ export function SettingsSheet({
 
           <SettingRow
             icon={everyoneCanSee ? <LockOpen className="h-5 w-5" /> : <Lock className="h-5 w-5" />}
-            label="Everyone can see all photos"
+            label={visibilityLabel(everyoneCanSee)}
             trailing={
               <Toggle
                 on={everyoneCanSee}
                 onChange={toggleVisibility}
-                name="Everyone can see all photos"
+                name={visibilityLabel(everyoneCanSee)}
               />
             }
           />

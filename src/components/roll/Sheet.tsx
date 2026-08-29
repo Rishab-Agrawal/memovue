@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 /**
@@ -6,17 +7,36 @@ import type { ReactNode } from "react";
  * behind it rather than navigating away.
  */
 export function Sheet({
+  back,
   title,
   subtitle,
   children,
 }: {
+  /** Where dismissing lands. Every sheet here is a route, so closing one is a navigation. */
+  back: string;
   title: string;
   subtitle?: string;
   children: ReactNode;
 }) {
   return (
-    <div className="absolute inset-0 z-30 flex flex-col justify-end bg-void/50 backdrop-blur-[2px]">
-      <div className="animate-sheet-in max-h-[85%] overflow-y-auto rounded-t-3xl bg-surface pb-8">
+    <div className="absolute inset-0 z-30 flex flex-col justify-end">
+      {/*
+        The dimmed area is the dismiss target, which is the whole point of dimming it. It was
+        an inert div, so tapping away from a sheet did nothing and the only way out was the
+        hardware back button.
+
+        A link rather than an onClick, so this stays a server component and works before any
+        JavaScript arrives. `replace` because a sheet is a modal: dismissing it should undo
+        the entry that opened it, not stack another one that back would walk into again.
+      */}
+      <Link
+        href={back}
+        replace
+        aria-label="Close"
+        className="absolute inset-0 bg-void/50 backdrop-blur-[2px]"
+      />
+
+      <div className="animate-sheet-in relative max-h-[85%] overflow-y-auto rounded-t-3xl bg-surface pb-8">
         <div className="flex justify-center py-3">
           <span className="h-1 w-10 rounded-full bg-hair-bright" />
         </div>

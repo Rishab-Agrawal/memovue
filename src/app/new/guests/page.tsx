@@ -14,7 +14,13 @@ import { FRAMES } from "@/lib/imagery";
 import { Toggle } from "@/components/roll/Toggle";
 import { WizardShell } from "@/components/roll/WizardShell";
 import { uploadCover } from "@/lib/cover-upload";
-import { PARTICIPANT_TIERS, SHOT_TIERS, formatPrice, priceFor } from "@/lib/roll-config";
+import {
+  PARTICIPANT_TIERS,
+  SHOT_TIERS,
+  VISIBILITY_LABEL,
+  formatPrice,
+  priceFor,
+} from "@/lib/roll-config";
 
 import { createRollAction } from "../actions";
 import { draftToInput, useDraft } from "../DraftContext";
@@ -142,8 +148,8 @@ export default function StepGuests() {
             <Toggle
               on={draft.everyoneCanSee}
               onChange={(everyoneCanSee) => update({ everyoneCanSee })}
-              labelOn="Everyone can see all photos."
-              labelOff="Only host can see all photos."
+              labelOn={VISIBILITY_LABEL.on}
+              labelOff={VISIBILITY_LABEL.off}
             />
           </div>
         </div>

@@ -21,6 +21,7 @@ export default async function PeoplePage({ params }: PageProps<"/rolls/[id]/peop
       <RollBackdrop roll={roll} photos={photos} />
 
       <Sheet
+        back={`/rolls/${roll.id}`}
         title="People"
         subtitle={`${people.length} of ${roll.guestCount === 0 ? 0 : roll.guestCount} joined so far.`}
       >

@@ -10,20 +10,40 @@ export function RollControls({
   revealed,
   cameraHref,
   inviteHref,
+  sendHref,
+  saveHref,
   onCamera,
 }: {
   revealed: boolean;
-  cameraHref: string;
-  inviteHref: string;
+  /** Ignored when `onCamera` is given, which is how the guest app keeps its stream alive. */
+  cameraHref?: string;
+  /** Omitted by a guest, who has no invite sheet to open. */
+  inviteHref?: string;
+  /*
+    Both were hardcoded to "#", so on an opened roll the only two controls on the screen did
+    nothing at all. They are the host's: sharing the album is the invite sheet it already has,
+    and saving it is the ZIP route that already exists.
+  */
+  /** Where "Send" goes. Omitted by anyone with nothing to share. */
+  sendHref?: string;
+  /** Where "Save" goes. Omitted by anyone who cannot download the album. */
+  saveHref?: string;
   /** When given, the camera closes a sheet instead of navigating — the guest app keeps its
       viewfinder alive underneath rather than tearing the stream down and back up. */
   onCamera?: () => void;
 }) {
   if (revealed) {
+    // A guest has neither, and two dead buttons are worse than none.
+    if (!sendHref && !saveHref) return null;
+
     return (
       <div className="flex gap-3">
-        <Control href="#" label="Send" icon={<Send className="h-5 w-5" />} wide />
-        <Control href="#" label="Save" icon={<Download className="h-5 w-5" />} wide />
+        {sendHref ? (
+          <Control href={sendHref} label="Send" icon={<Send className="h-5 w-5" />} wide />
+        ) : null}
+        {saveHref ? (
+          <Control href={saveHref} label="Save" icon={<Download className="h-5 w-5" />} wide />
+        ) : null}
       </div>
     );
   }
@@ -39,7 +59,7 @@ export function RollControls({
         >
           <Camera className="h-6 w-6" />
         </button>
-      ) : (
+      ) : cameraHref ? (
         <Link
           href={cameraHref}
           aria-label="Take a photo"
@@ -47,15 +67,17 @@ export function RollControls({
         >
           <Camera className="h-6 w-6" />
         </Link>
-      )}
+      ) : null}
 
-      <Link
-        href={inviteHref}
-        aria-label="Invite guests"
-        className="flex h-14 w-14 items-center justify-center rounded-2xl bg-surface text-chalk transition-colors hover:text-flame"
-      >
-        <Qr className="h-5 w-5" />
-      </Link>
+      {inviteHref ? (
+        <Link
+          href={inviteHref}
+          aria-label="Invite guests"
+          className="flex h-14 w-14 items-center justify-center rounded-2xl bg-surface text-chalk transition-colors hover:text-flame"
+        >
+          <Qr className="h-5 w-5" />
+        </Link>
+      ) : null}
 
       {/* Nothing to download until the reveal, and saying so is better than letting the tap
           fail. */}
@@ -81,11 +103,21 @@ function Control({
   icon: React.ReactNode;
   wide?: boolean;
 }) {
+  const className = `flex h-14 items-center justify-center gap-2.5 rounded-2xl bg-surface text-[15px] text-chalk transition-colors hover:text-flame ${wide ? "flex-1" : ""}`;
+
+  // An API route serves a file, not a page. A client-side navigation would try to render the
+  // ZIP as one, so the download leaves through a plain anchor.
+  if (href.startsWith("/api/")) {
+    return (
+      <a href={href} className={className}>
+        {icon}
+        {label}
+      </a>
+    );
+  }
+
   return (
-    <Link
-      href={href}
-      className={`flex h-14 items-center justify-center gap-2.5 rounded-2xl bg-surface text-[15px] text-chalk transition-colors hover:text-flame ${wide ? "flex-1" : ""}`}
-    >
+    <Link href={href} className={className}>
       {icon}
       {label}
     </Link>

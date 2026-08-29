@@ -28,6 +28,7 @@ export default async function InvitePage({ params }: PageProps<"/rolls/[id]/invi
       <RollBackdrop roll={roll} photos={photos} />
 
       <Sheet
+        back={`/rolls/${roll.id}`}
         title="Invite guests to your roll."
         subtitle="Take a glimpse of your world through their lens. Invite your guests to make this roll unforgettable."
       >
