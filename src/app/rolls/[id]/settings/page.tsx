@@ -1,3 +1,5 @@
+import { isOpen } from "@/lib/roll-access";
+
 import { loadRoll } from "../loadRoll";
 import { RollBackdrop } from "../RollBackdrop";
 import { SettingsSheet } from "./SettingsSheet";
@@ -18,6 +20,8 @@ export default async function SettingsPage({ params }: PageProps<"/rolls/[id]/se
         startsAt={roll.startsAt}
         finishesAt={roll.finishesAt}
         revealMode={roll.revealMode}
+        // The seal is decided by one function everywhere, including here.
+        open={isOpen(roll)}
         everyoneCanSee={roll.everyoneCanSee}
       />
     </div>

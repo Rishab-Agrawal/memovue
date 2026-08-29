@@ -19,7 +19,7 @@ import { Toggle } from "@/components/roll/Toggle";
 import { formatDateTime } from "@/lib/format";
 import { visibilityLabel } from "@/lib/roll-config";
 
-import { deleteRollAction, setVisibilityAction } from "../actions";
+import { deleteRollAction, revealNowAction, setVisibilityAction } from "../actions";
 
 const REVEAL_LABEL = { DURING: "During", AFTER: "After", DELAY: "After + delay" } as const;
 
@@ -34,6 +34,7 @@ export function SettingsSheet({
   startsAt,
   finishesAt,
   revealMode,
+  open,
   everyoneCanSee: initialVisibility,
 }: {
   rollId: string;
@@ -41,11 +42,14 @@ export function SettingsSheet({
   startsAt: Date;
   finishesAt: Date;
   revealMode: "DURING" | "AFTER" | "DELAY";
+  /** Whether the photographs are already legible. There is no way back from true. */
+  open: boolean;
   everyoneCanSee: boolean;
 }) {
   const router = useRouter();
   const [everyoneCanSee, setEveryoneCanSee] = useState(initialVisibility);
   const [confirming, setConfirming] = useState(false);
+  const [revealing, setRevealing] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const toggleVisibility = (next: boolean) => {
@@ -95,15 +99,60 @@ export function SettingsSheet({
           />
         </div>
 
+        {/*
+          Only while there is something still sealed. `revealNowAction` has existed since the
+          reveal became its own moment and had no way to be reached, so a host who set the
+          wrong time — or simply could not wait — had no recourse but to delete the roll.
+        */}
+        {open ? null : (
+          <button
+            type="button"
+            onClick={() => setRevealing(true)}
+            className="mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-flame/10 text-[15px] font-medium text-flame transition-colors hover:bg-flame/15"
+          >
+            <LockOpen className="h-4 w-4" />
+            Reveal now
+          </button>
+        )}
+
         <button
           type="button"
           onClick={() => setConfirming(true)}
-          className="mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-danger/10 text-[15px] font-medium text-danger transition-colors hover:bg-danger/15"
+          className="mt-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-danger/10 text-[15px] font-medium text-danger transition-colors hover:bg-danger/15"
         >
           <Trash className="h-4 w-4" />
           Delete
         </button>
       </Sheet>
+
+      <Dialog
+        open={revealing}
+        title="Open the roll now?"
+        actions={
+          <>
+            <Pill variant="quiet" full disabled={pending} onClick={() => setRevealing(false)}>
+              Cancel
+            </Pill>
+            <Pill
+              variant="flame"
+              full
+              disabled={pending}
+              onClick={() =>
+                startTransition(async () => {
+                  await revealNowAction(rollId);
+                  setRevealing(false);
+                  router.refresh();
+                })
+              }
+            >
+              {pending ? "Opening…" : "Reveal"}
+            </Pill>
+          </>
+        }
+      >
+        Every guest sees every photograph they are allowed to, straight away. A roll cannot be
+        sealed again once it has been opened.
+      </Dialog>
 
       <Dialog
         open={confirming}

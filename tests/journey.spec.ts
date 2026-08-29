@@ -169,6 +169,27 @@ test.describe("a roll from creation to reveal", () => {
   });
 
   /**
+   * A sheet is a modal, and the dimmed part of a modal is its exit.
+   *
+   * All three sheets here are routes rendering the roll screen behind themselves, and the
+   * scrim over that screen was an inert div — so tapping away from Settings or People did
+   * nothing and the only way back was the hardware button. One `Sheet` serves all three, so
+   * this walks all three.
+   */
+  test("tapping away from a sheet closes it", async ({ page }) => {
+    for (const sheet of ["settings", "people", "invite"]) {
+      await page.goto(`${rollUrl}/${sheet}`);
+
+      const scrim = page.getByRole("link", { name: "Close" });
+      await expect(scrim, `${sheet} offers a way out`).toHaveAttribute("href", new URL(rollUrl).pathname);
+
+      // Up where the roll screen shows through, nowhere near the panel.
+      await page.mouse.click(120, 60);
+      await expect(page).toHaveURL(rollUrl);
+    }
+  });
+
+  /**
    * The link the host actually hands out has to resolve.
    *
    * Everything else in this file builds `/join/<code>` for itself, which is precisely how the
@@ -247,6 +268,27 @@ test.describe("a roll from creation to reveal", () => {
       )
       .toBeGreaterThan(0);
 
+    /*
+      The seal, on the endpoint that now enforces it.
+
+      `/photos` used to refuse a sealed roll outright and the grid came down inside the status
+      poll instead. That is backwards from a cost point of view — the poll repeats every
+      twenty seconds and the grid does not — so the paging route serves both sides of the seal
+      now, and the invariant moved with it. A sealed page carries a blur placeholder and no
+      `previewUrl`, because that field is the only one in the payload that leads to bytes.
+    */
+    const sealed = await page.request.get(`/api/r/${code}/photos`);
+    expect(sealed.ok()).toBeTruthy();
+
+    const { items } = (await sealed.json()) as {
+      items: { blurData: string; previewUrl?: string }[];
+    };
+    expect(items.length).toBeGreaterThan(0);
+    for (const item of items) {
+      expect(item.previewUrl).toBeUndefined();
+      expect(item.blurData).toMatch(/^data:image\/jpeg/);
+    }
+
     await context.close();
   });
 
@@ -305,11 +347,65 @@ test.describe("a roll from creation to reveal", () => {
     await page.goto(rollUrl);
 
     await expect(page.getByText(/Reveals in/).first()).toBeVisible();
+
+    // The sealed row keeps both of its controls — they became optional props so a guest could
+    // stop passing dead ones, and the host must not have lost them in the same change — and
+    // the download says plainly that it is not one yet.
+    await expect(page.getByRole("link", { name: "Invite guests" })).toBeVisible();
+    await expect(page.getByLabel("Download album")).toHaveAttribute("aria-disabled", "true");
+
     // The host is not exempt: the download is refused too.
     const rollId = rollUrl.split("/").pop();
     const response = await page.request.get(`/api/rolls/${rollId}/download`);
     expect(response.status()).toBe(403);
   });
+
+  /**
+   * The escape hatch, and the two controls that only exist on the other side of it.
+   *
+   * `revealNowAction` was written when the reveal became its own moment and then reached from
+   * nowhere, so a host who set the wrong time had no recourse but to delete the roll. It also
+   * left the opened state of this screen untestable, which is how Send and Save sat pointing
+   * at "#" without anything noticing.
+   *
+   * Last in the file on purpose: it opens the roll for good, and everything above it needs
+   * the roll sealed.
+   */
+  test("the host can open a sealed roll early, and then take it away", async ({ page }) => {
+    await page.goto(`${rollUrl}/settings`);
+
+    await page.getByRole("button", { name: "Reveal now" }).click();
+    await expect(page.getByRole("dialog", { name: "Open the roll now?" })).toBeVisible();
+
+    // Asking is the point: a roll cannot be sealed again.
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    expect((await page.request.get(`/api/rolls/${rollId()}/download`)).status()).toBe(403);
+
+    await page.getByRole("button", { name: "Reveal now" }).click();
+    await page.getByRole("button", { name: "Reveal", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Reveal now" })).toHaveCount(0);
+
+    // Opened, the roll screen offers the two things it never could before.
+    await page.goto(rollUrl);
+    await expect(page.getByRole("link", { name: "Send" })).toHaveAttribute(
+      "href",
+      `/rolls/${rollId()}/invite`,
+    );
+    await expect(page.getByRole("link", { name: "Save" })).toHaveAttribute(
+      "href",
+      `/api/rolls/${rollId()}/download`,
+    );
+
+    // And Save is now a real archive rather than a refusal.
+    const zip = await page.request.get(`/api/rolls/${rollId()}/download`);
+    expect(zip.status()).toBe(200);
+    expect(zip.headers()["content-type"]).toContain("zip");
+  });
+
+  function rollId() {
+    return rollUrl.split("/").pop()!;
+  }
 });
 
 /**
