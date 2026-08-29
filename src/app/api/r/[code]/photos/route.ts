@@ -77,15 +77,25 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
   });
 }
 
-/** Post-reveal photo grid, paginated so a 12,000-photo wedding doesn't arrive in one response. */
+/**
+ * The photo grid, in pages of 48. Both phases of a roll come through here.
+ *
+ * **Sealed**, this returns blur placeholders and nothing else: no preview URL, no name, no
+ * timestamp. Every guest sees every frame's placeholder, attributed to nobody but themselves
+ * — the same thing the sealed feed used to serve, minus the part that resolves to bytes.
+ * **Open**, `visiblePhotoWhere` decides whose frames this guest gets, and each item carries a
+ * signed URL for the 1080px preview.
+ *
+ * The seal is one branch, checked once, here. It is worth saying plainly why the sealed
+ * branch is safe to serve at all: `previewUrl` is the only field that leads to image data,
+ * and it is not constructed on that path. `/photos/[id]/full` re-checks `canViewPhoto`
+ * independently, so a guessed id gets a 403 rather than a photograph.
+ */
 export async function GET(request: Request, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
 
   const context = await getGuestContext(code);
   if (!context) return Response.json({ error: "not_joined" }, { status: 401 });
-  if (!context.open) {
-    return Response.json({ error: "not_revealed" }, { status: 403 });
-  }
 
   const url = new URL(request.url);
   const cursor = url.searchParams.get("cursor");
@@ -98,12 +108,18 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
     A guest may narrow the list to one photographer with `?guestId=`, but they cannot widen
     it: the base clause already restricts them to their own frames when visibility is off,
     and spreading the query param afterwards can only ever intersect with that.
+
+    Sealed, ownership does not apply — nothing is legible, so there is nothing to filter.
   */
+  const where = context.open
+    ? {
+        ...visiblePhotoWhere(context.roll, { kind: "guest", guestId: context.guest.id }),
+        ...(guestId && context.roll.everyoneCanSee ? { guestId } : {}),
+      }
+    : { rollId: context.roll.id, status: "READY" as const };
+
   const photos = await prisma.photo.findMany({
-    where: {
-      ...visiblePhotoWhere(context.roll, { kind: "guest", guestId: context.guest.id }),
-      ...(guestId && context.roll.everyoneCanSee ? { guestId } : {}),
-    },
+    where,
     orderBy: [{ takenAt: "desc" }, { id: "desc" }],
     take: take + 1,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -122,16 +138,26 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
   const page = hasMore ? photos.slice(0, take) : photos;
 
   const items = await Promise.all(
-    page.map(async (photo) => ({
-      id: photo.id,
-      blurData: photo.blurData,
-      width: photo.width,
-      height: photo.height,
-      takenAt: photo.takenAt.toISOString(),
-      guestId: photo.guest.id,
-      guestName: photo.guest.name,
-      previewUrl: await presignDownload(photo.previewKey, { expiresIn: 3600 }),
-    })),
+    page.map(async (photo) => {
+      const mine = photo.guest.id === context.guest.id;
+
+      if (!context.open) {
+        return { id: photo.id, blurData: photo.blurData, mine, by: mine ? "You" : null };
+      }
+
+      return {
+        id: photo.id,
+        blurData: photo.blurData,
+        mine,
+        by: mine ? "You" : photo.guest.name,
+        width: photo.width,
+        height: photo.height,
+        takenAt: photo.takenAt.toISOString(),
+        guestId: photo.guest.id,
+        guestName: photo.guest.name,
+        previewUrl: await presignDownload(photo.previewKey, { expiresIn: 3600 }),
+      };
+    }),
   );
 
   return Response.json({

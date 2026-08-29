@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { RollHeader } from "@/components/roll/RollHeader";
 import { RollControls, VisibilityNotice } from "@/components/roll/RollParts";
@@ -16,6 +16,8 @@ export interface FeedPhoto {
   by: string | null;
   mine: boolean;
   takenAt?: string;
+  /** Signed URL for the 1080px preview. Absent while the roll is sealed, which is the seal. */
+  previewUrl?: string;
 }
 
 export interface Feed {
@@ -41,15 +43,18 @@ export interface Feed {
     /** Whether this guest is attached to an account. */
     linked: boolean;
   };
-  photos: FeedPhoto[];
 }
 
 /**
  * What a guest sees of the roll.
  *
- * The seal is enforced on the server — before the reveal the feed carries blur placeholders
- * and no image ids that resolve to bytes — so this component does not have to be careful. It
- * renders what it is given.
+ * Two requests, deliberately separate. `/feed` is a small status poll every twenty seconds —
+ * the countdown, the counts, whether the seal has lifted. `/photos` is the grid, in pages of 48,
+ * fetched on scroll and never on a timer.
+ *
+ * The seal is enforced on the server: while a roll is sealed `/photos` returns blur placeholders
+ * and no preview URL, so this component does not have to be careful. It renders what it is
+ * given.
  */
 export function AlbumView({
   code,
@@ -61,11 +66,24 @@ export function AlbumView({
   onOpenCamera?: () => void;
 }) {
   const [feed, setFeed] = useState<Feed | null>(null);
+  const [photos, setPhotos] = useState<FeedPhoto[]>([]);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [exhausted, setExhausted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [viewing, setViewing] = useState<number | null>(null);
   const now = useNow();
 
-  const load = useCallback(async () => {
+  /* Bumped when the seal lifts, which throws the sealed page away: those items carry blur
+     data and no preview URL, so they cannot simply be upgraded in place. */
+  const [generation, setGeneration] = useState(0);
+
+  const loading = useRef(false);
+  const sentinel = useRef<HTMLDivElement>(null);
+  /* Which request the grid currently belongs to. A reset bumps it, so a page that was already
+     in flight lands on a grid it no longer describes and is dropped instead of appended. */
+  const request = useRef(0);
+
+  const loadStatus = useCallback(async () => {
     try {
       const response = await fetch(`/api/r/${code}/feed`, { cache: "no-store" });
       if (!response.ok) {
@@ -76,7 +94,10 @@ export function AlbumView({
       setFeed((previous) => {
         // The seal lifting while someone is looking at the wall is the moment the whole
         // product exists for, so the page refreshes itself rather than waiting for a tap.
-        if (previous && !previous.open && next.open) onRevealed?.();
+        if (previous && !previous.open && next.open) {
+          setGeneration((n) => n + 1);
+          onRevealed?.();
+        }
         return next;
       });
     } catch {
@@ -84,20 +105,89 @@ export function AlbumView({
     }
   }, [code, onRevealed]);
 
+  /** The next page of the grid. `after` null starts again from the top. */
+  const loadPage = useCallback(
+    async (after: string | null) => {
+      if (loading.current) return;
+      loading.current = true;
+      const mine = request.current;
+      try {
+        const query = after ? `?cursor=${encodeURIComponent(after)}` : "";
+        const response = await fetch(`/api/r/${code}/photos${query}`, { cache: "no-store" });
+        if (!response.ok) return;
+
+        const page = (await response.json()) as { items: FeedPhoto[]; nextCursor: string | null };
+        // Superseded while we were waiting: this is page four of a grid that has since
+        // started again from the top, and appending it would show the album from the middle.
+        if (mine !== request.current) return;
+
+        setPhotos((previous) => (after ? [...previous, ...page.items] : page.items));
+        setCursor(page.nextCursor);
+        setExhausted(page.nextCursor === null);
+      } catch {
+        /* A failed page is not a failed roll — the sentinel will ask again on the next scroll. */
+      } finally {
+        loading.current = false;
+      }
+    },
+    [code],
+  );
+
   useEffect(() => {
     /*
       Polling, not push. The seal lifting is a server-side clock event with no request behind
       it, so something has to ask — and twenty seconds is close enough that a guest watching
       the wall at reveal time sees it open on its own.
 
+      What it no longer does is carry the photographs. This response is a few hundred bytes
+      whatever the roll holds; the grid below pages through `/photos` on its own schedule.
+
       The rule below objects to state being set from an effect. That is exactly what a fetch
       does, and there is no render-time way to read a value that does not exist yet.
     */
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    void load();
-    const timer = setInterval(load, 20_000);
+    void loadStatus();
+    const timer = setInterval(loadStatus, 20_000);
     return () => clearInterval(timer);
-  }, [load]);
+  }, [loadStatus]);
+
+  /*
+    While a roll is sealed the wall is still filling, and watching it fill is the point — so a
+    changed count from the status poll means there are new placeholders to go and get. That is
+    one page of 48, not the whole roll, which is the difference between this and what the feed
+    used to do. Once the roll opens the album is settled and the grid only ever grows by
+    scrolling, so this pins to null and stops re-fetching.
+  */
+  const sealedCount = feed && !feed.open ? feed.totalPhotos : null;
+
+  useEffect(() => {
+    // Invalidate anything in flight and take the lock off it, so the restart below is not
+    // refused by a request whose result is about to be thrown away.
+    request.current += 1;
+    loading.current = false;
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPhotos([]);
+    setCursor(null);
+    setExhausted(false);
+    void loadPage(null);
+  }, [loadPage, generation, sealedCount]);
+
+  useEffect(() => {
+    /*
+      Paging on scroll rather than on a button. At 48 a page, a 12,000-photo wedding is 250
+      taps to reach the end of, which is not a gallery — it is a chore. The observer is the
+      platform's own answer and costs less than a scroll listener.
+    */
+    const target = sentinel.current;
+    if (!target || exhausted) return;
+
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) void loadPage(cursor);
+    });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [cursor, exhausted, loadPage]);
 
   if (error) {
     return <p className="px-5 py-10 text-center text-[15px] text-ash">{error}</p>;
@@ -129,7 +219,7 @@ export function AlbumView({
 
       <div className="space-y-4 px-5 pt-4 pb-6">
         {onOpenCamera && feed.capturing ? (
-          <RollControls revealed={feed.open} cameraHref="#" inviteHref="#" onCamera={onOpenCamera} />
+          <RollControls revealed={feed.open} onCamera={onOpenCamera} />
         ) : null}
 
         {/*
@@ -162,13 +252,13 @@ export function AlbumView({
 
         {feed.everyoneCanSee ? null : <VisibilityNotice />}
 
-        {feed.photos.length === 0 ? (
+        {photos.length === 0 ? (
           <p className="py-10 text-center text-[15px] text-dust">
             Nothing shot yet. Be the first.
           </p>
         ) : (
           <div className="grid grid-cols-2 gap-3">
-            {feed.photos.map((photo, index) => (
+            {photos.map((photo, index) => (
               <button
                 key={photo.id}
                 type="button"
@@ -181,7 +271,7 @@ export function AlbumView({
                 <img
                   src={
                     feed.open
-                      ? `/api/r/${code}/photos/${photo.id}/full`
+                      ? (photo.previewUrl ?? photo.blurData ?? undefined)
                       : (photo.blurData || undefined)
                   }
                   alt=""
@@ -205,6 +295,8 @@ export function AlbumView({
           </div>
         )}
 
+        <div ref={sentinel} aria-hidden="true" className="h-px" />
+
         <p className="text-center text-[12px] text-dust">
           Photos available until {formatDay(new Date(feed.keptUntil))}
         </p>
@@ -212,7 +304,7 @@ export function AlbumView({
 
       {viewing !== null ? (
         <PhotoViewer
-          photos={feed.photos.map(
+          photos={photos.map(
             (photo): ViewerPhoto => ({
               id: photo.id,
               by: photo.by,

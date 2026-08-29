@@ -1,6 +1,6 @@
 import { getGuestContext } from "@/lib/guest-context";
 import { prisma } from "@/lib/prisma";
-import { deleteObjects, presignUpload } from "@/lib/storage";
+import { deleteObjects, presignUpload, storageConfigured, zipKey } from "@/lib/storage";
 import { photoConfirmSchema } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
@@ -71,6 +71,26 @@ export async function POST(
       blurData: parsed.data.blurData,
     },
   });
+
+  /*
+    A late arrival invalidates the host's cached archive.
+
+    The ZIP is built once, after the upload window closes, on the premise that a settled roll
+    cannot change. This route is the one thing that can still change it: a shot reserved before
+    that deadline may be confirmed at any time afterwards — by a phone that was off for a week
+    and has only now drained its queue — and nothing else re-examines the archive. Without
+    this, the download would be missing exactly the photograph that had the hardest journey,
+    silently and for good.
+
+    Only past the window, so the common case costs nothing: before it, there is no archive to
+    invalidate. Swallowed rather than fatal, because refusing the confirm would put us back to
+    losing the photograph outright, which is the worse of the two failures.
+  */
+  if (!context.acceptsUploads && storageConfigured) {
+    await deleteObjects([zipKey(context.roll.id)]).catch((error) => {
+      console.error("Could not invalidate cached ZIP", error);
+    });
+  }
 
   return Response.json({ ok: true });
 }

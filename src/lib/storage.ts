@@ -5,7 +5,9 @@ import {
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
+import { Upload } from "@aws-sdk/lib-storage";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import type { Readable } from "node:stream";
 
 import { env } from "./env";
 
@@ -66,6 +68,18 @@ export function coverKey(rollId: string): string {
   return `${prefix}/covers/${rollId}/cover.jpg`;
 }
 
+/**
+ * The host's archive of a finished roll, at a fixed key so it is built once and then simply
+ * handed out. Derived from the roll id like `coverKey`, never supplied by a caller.
+ *
+ * Deliberately not stored in a column: the key is a pure function of the roll, and whether
+ * the object exists is a question R2 can already answer with a HEAD. A `zipKey` column would
+ * be a second copy of a fact, and the two would eventually disagree.
+ */
+export function zipKey(rollId: string): string {
+  return `${prefix}/zips/${rollId}.zip`;
+}
+
 /** Short-lived upload URL, locked to the exact content type the client declared. */
 export function presignUpload(key: string, contentType: string): Promise<string> {
   return getSignedUrl(
@@ -116,6 +130,27 @@ export async function headObject(key: string): Promise<{ bytes: number } | null>
 export async function getObjectStream(key: string) {
   const res = await s3().send(new GetObjectCommand({ Bucket: bucket(), Key: key }));
   return res.Body;
+}
+
+/**
+ * Streams a body of unknown length into R2.
+ *
+ * A plain PutObject needs a Content-Length up front, which an archive being generated does
+ * not have, and R2 refuses a single upload over about 5 GiB anyway. `Upload` splits the
+ * stream into parts and completes the multipart for us, so a 12,000-photo ZIP costs a few
+ * dozen operations rather than a buffer the size of the wedding.
+ */
+export async function putStream(
+  key: string,
+  body: Readable,
+  contentType: string,
+): Promise<void> {
+  await new Upload({
+    client: s3(),
+    params: { Bucket: bucket(), Key: key, Body: body, ContentType: contentType },
+    partSize: 64 * 1024 * 1024,
+    queueSize: 2,
+  }).done();
 }
 
 export async function deleteObjects(keys: string[]): Promise<void> {

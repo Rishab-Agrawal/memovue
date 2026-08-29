@@ -1,18 +1,20 @@
 import { getGuestContext } from "@/lib/guest-context";
 import { prisma } from "@/lib/prisma";
-import { visiblePhotoWhere } from "@/lib/roll-access";
 import { coverUrlFor } from "@/lib/rolls";
 
 export const dynamic = "force-dynamic";
 
 /**
- * What a guest is allowed to see of a roll, right now.
+ * The state of a roll, right now. Status only — no photographs.
  *
- * Two gates, in this order. **Sealed** returns blur placeholders and counts and nothing
- * else — no photo ids that resolve to bytes, for anybody, including the person who took
- * them. **Open** then filters by ownership: `visiblePhotoWhere` decides whether this guest
- * gets the whole roll or only their own frames, and it is the same function the single-photo
- * route consults, so the grid and the image endpoint cannot disagree.
+ * This is polled every twenty seconds by every open album, so its size is multiplied by
+ * every guest at the event. It used to carry every frame's blur placeholder, which made one
+ * response grow with the roll: a 500-guest wedding served a hundred megabytes per poll, per
+ * phone. The grid now pages through `/photos` instead, and what is left here is the handful
+ * of fields that actually change while someone watches — the countdown, the counts, and
+ * whether the seal has lifted.
+ *
+ * The seal itself is still decided here and on `/photos`, from the same `getGuestContext`.
  */
 export async function GET(_request: Request, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
@@ -22,11 +24,12 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
 
   const { roll, guest, phase, open, capturing, shotsLeft, shotsUsed } = context;
 
-  const totalPhotos = await prisma.photo.count({
-    where: { rollId: roll.id, status: "READY" },
-  });
+  const [totalPhotos, guestCount] = await Promise.all([
+    prisma.photo.count({ where: { rollId: roll.id, status: "READY" } }),
+    prisma.guest.count({ where: { rollId: roll.id } }),
+  ]);
 
-  const shared = {
+  return Response.json({
     phase,
     open,
     capturing,
@@ -41,7 +44,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
     finishesAt: roll.finishesAt.toISOString(),
     keptUntil: roll.keptUntil.toISOString(),
     totalPhotos,
-    guestCount: await prisma.guest.count({ where: { rollId: roll.id } }),
+    guestCount,
     me: {
       id: guest.id,
       name: guest.name,
@@ -52,47 +55,5 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
       // the album has anything left to offer them.
       linked: guest.userId !== null,
     },
-  };
-
-  if (!open) {
-    // Sealed. Every frame is accounted for, none is legible.
-    const sealed = await prisma.photo.findMany({
-      where: { rollId: roll.id, status: "READY" },
-      orderBy: { takenAt: "desc" },
-      select: { id: true, blurData: true, guestId: true },
-    });
-
-    return Response.json({
-      ...shared,
-      photos: sealed.map((photo) => ({
-        id: photo.id,
-        blurData: photo.blurData,
-        by: photo.guestId === guest.id ? "You" : null,
-        mine: photo.guestId === guest.id,
-      })),
-    });
-  }
-
-  const photos = await prisma.photo.findMany({
-    where: visiblePhotoWhere(roll, { kind: "guest", guestId: guest.id }),
-    orderBy: { takenAt: "desc" },
-    select: {
-      id: true,
-      blurData: true,
-      takenAt: true,
-      guestId: true,
-      guest: { select: { name: true } },
-    },
-  });
-
-  return Response.json({
-    ...shared,
-    photos: photos.map((photo) => ({
-      id: photo.id,
-      blurData: photo.blurData,
-      by: photo.guestId === guest.id ? "You" : photo.guest.name,
-      mine: photo.guestId === guest.id,
-      takenAt: photo.takenAt.toISOString(),
-    })),
   });
 }

@@ -3,20 +3,34 @@ import type { Readable } from "node:stream";
 import { Readable as NodeReadable } from "node:stream";
 
 import { prisma } from "@/lib/prisma";
-import { isOpen } from "@/lib/roll-access";
+import { UPLOAD_GRACE_HOURS, isOpen } from "@/lib/roll-access";
 import { getCurrentUser } from "@/lib/session";
-import { getObjectStream } from "@/lib/storage";
+import { getObjectStream, headObject, presignDownload, putStream, zipKey } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
-// Streaming a five-figure photo count takes far longer than a default function budget.
+// Building a five-figure photo count takes far longer than a default function budget.
 export const maxDuration = 3600;
+
+interface ArchivePhoto {
+  id: string;
+  fullKey: string;
+  takenAt: Date;
+  guest: { name: string };
+}
 
 /**
  * Streams the whole album as a ZIP.
  *
- * Entries are added one at a time and piped straight from R2 to the client, so peak memory
- * stays at roughly one photo regardless of album size. Compression is off — JPEGs are
- * already compressed, and level 0 turns this into a pure copy.
+ * Two paths, and the difference is money rather than bytes. Once a roll can take no more
+ * photographs the archive is built into R2 once and every download after that is a redirect
+ * to a signed link — R2 charges nothing for egress at any volume, so a host who downloads
+ * ten times costs the same as one who downloads once. Before that point the album can still
+ * change, so there is nothing safe to cache and we stream it live as we always did, out
+ * through the app server and its metered bandwidth.
+ *
+ * "Can take no more photographs" is `finishesAt` plus the upload grace, not `finishesAt`:
+ * a phone that was out of signal has a day to drain its queue, and a ZIP built before that
+ * window closes would be missing exactly the photographs that had the hardest journey.
  */
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -54,6 +68,66 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     return Response.json({ error: "empty" }, { status: 404 });
   }
 
+  const filename = `${safeSegment(roll.name)}-memovue.zip`;
+  const settled =
+    Date.now() >= roll.finishesAt.getTime() + UPLOAD_GRACE_HOURS * 3_600_000;
+
+  if (settled) {
+    const key = zipKey(roll.id);
+
+    if (!(await headObject(key))) {
+      await buildOnce(key, photos);
+    }
+
+    return Response.redirect(
+      await presignDownload(key, { expiresIn: 3600, filename }),
+      307,
+    );
+  }
+
+  return new Response(NodeReadable.toWeb(buildArchive(photos)) as ReadableStream, {
+    headers: {
+      "content-type": "application/zip",
+      "content-disposition": `attachment; filename="${filename}"`,
+      "cache-control": "no-store",
+    },
+  });
+}
+
+/**
+ * Builds the archive, or joins the build already running.
+ *
+ * A roll has exactly one host, so this is never two people — it is one person double-tapping,
+ * or holding two tabs, or retrying after a slow first attempt gave up. Without this each of
+ * those starts its own pass over every photograph in the roll: same bytes at the end, twice
+ * the reads and twice the memory getting there.
+ *
+ * In-process, like the rate limiter, and for the same reason — MemoVue runs as a single
+ * container. If it ever runs as several, each would build at most once and the last would win,
+ * which is still correct, just wasteful.
+ */
+const building = new Map<string, Promise<void>>();
+
+function buildOnce(key: string, photos: ArchivePhoto[]): Promise<void> {
+  const existing = building.get(key);
+  if (existing) return existing;
+
+  const run = putStream(key, buildArchive(photos), "application/zip").finally(() => {
+    building.delete(key);
+  });
+  building.set(key, run);
+  return run;
+}
+
+/**
+ * One photo at a time, piped straight from R2, so peak memory stays at roughly one
+ * photograph regardless of album size. Compression is off — JPEGs are already compressed,
+ * and level 0 turns this into a pure copy.
+ *
+ * Returns immediately with the archive; the appending runs behind it, which is what lets the
+ * same object be piped to a client or handed to a multipart upload.
+ */
+function buildArchive(photos: ArchivePhoto[]): ZipArchive {
   const archive = new ZipArchive({ zlib: { level: 0 } });
 
   void (async () => {
@@ -80,13 +154,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     }
   })();
 
-  return new Response(NodeReadable.toWeb(archive) as ReadableStream, {
-    headers: {
-      "content-type": "application/zip",
-      "content-disposition": `attachment; filename="${safeSegment(roll.name)}-memovue.zip"`,
-      "cache-control": "no-store",
-    },
-  });
+  return archive;
 }
 
 function safeSegment(value: string): string {

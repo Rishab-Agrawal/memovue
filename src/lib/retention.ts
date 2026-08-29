@@ -3,7 +3,7 @@ import "server-only";
 import { sendDeletionNotice } from "./email";
 import { prisma } from "./prisma";
 import { retentionAction, WARN_BEFORE_DAYS } from "./roll-access";
-import { coverKey, deleteObjects, storageConfigured } from "./storage";
+import { coverKey, deleteObjects, storageConfigured, zipKey } from "./storage";
 
 /**
  * Making the date on a roll mean something.
@@ -47,8 +47,11 @@ export async function purgeRoll(rollId: string): Promise<void> {
     const keys = [
       ...photos.flatMap((photo) => [photo.fullKey, photo.previewKey]),
       // Recomputed rather than read: `coverKey` is null for a roll on a preset, and deleting
-      // a key that was never written is free.
+      // a key that was never written is free. The archive is the same — most rolls are never
+      // downloaded and have no ZIP, and the one that does must not outlive the photographs
+      // it is a copy of.
       coverKey(rollId),
+      zipKey(rollId),
     ];
 
     // Deliberately unguarded. If the bucket call throws, the row survives and tonight's pass
