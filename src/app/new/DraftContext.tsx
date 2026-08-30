@@ -82,7 +82,7 @@ export function DraftProvider({
       coverPreset: 0,
       coverBlob: null,
       coverPreviewUrl: null,
-      participantIndex: 3,
+      participantIndex: 1,
       shotIndex: 3,
       everyoneCanSee: false,
     };

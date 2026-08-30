@@ -9,31 +9,51 @@ import { fromWall, startOfWallDay, toWall } from "./format";
  * to happen; one list read from both ends cannot drift.
  */
 
-/** Participant caps, in the order the eight boxes appear on the guests step. */
-export const PARTICIPANT_TIERS = [5, 10, 25, 50, 100, 200, 350, 500] as const;
+/** Participant caps, in the order the six boxes appear on the guests step. */
+export const PARTICIPANT_TIERS = [25, 50, 100, 200, 350, 500] as const;
 
 /** Shots per person, in the order the six chips appear. There is no unlimited option. */
 export const SHOT_TIERS = [5, 10, 16, 24, 36, 100] as const;
 
 /**
- * Placeholder rupee pricing, and deliberately two small arrays rather than a 48-cell table:
- * fourteen numbers to tune, and every combination still gets its own price. The reference
- * app charged on participants alone; ours has to move with shot count too, because shots are
- * what actually cost us storage.
+ * Rupee pricing: ten a head, half again for the hundred-shot roll.
+ *
+ * Shots used to carry a multiplier of their own, on the theory that they are what costs us
+ * storage. They are — and storage is around one percent of the price, so charging for them
+ * only taught hosts to buy fewer of them. A thin album is the thing that stops the next host
+ * ever hearing about us, so the shot count is now free to choose. The hundred is the one
+ * exception, because it is not more of the same product: it is the only roll nobody can run
+ * out of, and what the host is buying there is that nobody does.
+ *
+ * Two numbers rather than fourteen. A host can be told the whole rule in a sentence, which
+ * is worth more than any curve fitted across a grid.
  */
-const PARTICIPANT_BASE = [0, 199, 399, 749, 1299, 2299, 3699, 4999];
-const SHOT_MULTIPLIER = [0.6, 0.75, 0.9, 1, 1.25, 2];
-
 export function priceFor(participantIndex: number, shotIndex: number): number {
-  const base = PARTICIPANT_BASE[participantIndex] ?? 0;
-  if (base === 0) return 0;
-  const multiplier = SHOT_MULTIPLIER[shotIndex] ?? 1;
-  return Math.round((base * multiplier) / 10) * 10;
+  const guests = PARTICIPANT_TIERS[participantIndex];
+  if (guests === undefined) return 0;
+  return guests * (SHOT_TIERS[shotIndex] === 100 ? 15 : 10);
 }
 
 export function formatPrice(rupees: number): string {
-  if (rupees === 0) return "Free";
   return `₹${rupees.toLocaleString("en-IN")}`;
+}
+
+/* ------------------------------------------------------------------ beta */
+
+/**
+ * Beta holds two things back at once, so it is one flag rather than two.
+ *
+ * Nothing is charged yet — rolls are created with a coupon, not a payment — so the wizard
+ * strikes the price it would charge rather than hiding it, which is the only way a host
+ * learns what this will cost before it starts costing. And the hundred-shot roll is not
+ * offered: it is four times the storage against a price nobody is paying, and it is the one
+ * tier whose economics we have not watched a real event produce yet.
+ */
+export const BETA = true;
+
+/** Whether a shot count from `SHOT_TIERS` can be picked today. Read by the wizard and the server. */
+export function shotsAvailable(shots: number): boolean {
+  return !BETA || shots !== 100;
 }
 
 /* ------------------------------------------------------------------ the calendar */

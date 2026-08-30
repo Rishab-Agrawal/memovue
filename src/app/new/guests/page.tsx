@@ -15,11 +15,13 @@ import { Toggle } from "@/components/roll/Toggle";
 import { WizardShell } from "@/components/roll/WizardShell";
 import { uploadCover } from "@/lib/cover-upload";
 import {
+  BETA,
   PARTICIPANT_TIERS,
   SHOT_TIERS,
   VISIBILITY_LABEL,
   formatPrice,
   priceFor,
+  shotsAvailable,
 } from "@/lib/roll-config";
 
 import { createRollAction } from "../actions";
@@ -84,12 +86,15 @@ export default function StepGuests() {
             <br />
             {PARTICIPANT_TIERS[draft.participantIndex]} Participants
           </p>
-          <p className="shrink-0 pt-2 text-[15px] text-dust" data-testid="price">
-            {formatPrice(price)}
-          </p>
+          <div className="shrink-0 pt-2 text-right" data-testid="price">
+            <p className={cn("text-[15px] text-dust", BETA && "line-through")}>
+              {formatPrice(price)}
+            </p>
+            {BETA ? <p className="mt-0.5 text-[13px] text-flame">Free in beta</p> : null}
+          </div>
         </div>
 
-        <div className="mt-5 grid grid-cols-8 gap-1.5">
+        <div className="mt-5 grid grid-cols-6 gap-1.5">
           {PARTICIPANT_TIERS.map((cap, index) => {
             const filled = index <= draft.participantIndex;
             return (
@@ -123,22 +128,29 @@ export default function StepGuests() {
           </div>
 
           <div className="mt-4 grid grid-cols-6 gap-2">
-            {SHOT_TIERS.map((shots, index) => (
-              <button
-                key={shots}
-                type="button"
-                aria-pressed={index === draft.shotIndex}
-                onClick={() => update({ shotIndex: index })}
-                className={cn(
-                  "tabular flex h-12 items-center justify-center rounded-2xl text-[15px] transition-colors",
-                  index === draft.shotIndex
-                    ? "border border-flame text-flame"
-                    : "bg-surface text-chalk hover:text-flame",
-                )}
-              >
-                {shots}
-              </button>
-            ))}
+            {SHOT_TIERS.map((shots, index) => {
+              const locked = !shotsAvailable(shots);
+              return (
+                <button
+                  key={shots}
+                  type="button"
+                  disabled={locked}
+                  aria-pressed={index === draft.shotIndex}
+                  aria-label={locked ? `${shots} shots, not available in beta` : `${shots} shots`}
+                  onClick={() => update({ shotIndex: index })}
+                  className={cn(
+                    "tabular flex h-12 items-center justify-center rounded-2xl text-[15px] transition-colors",
+                    locked
+                      ? "bg-surface text-dust/40 line-through"
+                      : index === draft.shotIndex
+                        ? "border border-flame text-flame"
+                        : "bg-surface text-chalk hover:text-flame",
+                  )}
+                >
+                  {shots}
+                </button>
+              );
+            })}
           </div>
         </div>
 

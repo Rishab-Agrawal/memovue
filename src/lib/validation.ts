@@ -11,6 +11,7 @@ import {
   earliestFinish,
   finishDateRange,
   isWithin,
+  shotsAvailable,
   startDateRange,
 } from "./roll-config";
 
@@ -40,7 +41,7 @@ const rollFields = z.object({
     photosPerGuest: z
       .number()
       .int()
-      .refine((n) => shotCounts.includes(n), "Pick how many shots each person gets"),
+      .refine((n) => shotCounts.includes(n) && shotsAvailable(n), "Pick how many shots each person gets"),
 
     everyoneCanSee: z.boolean(),
     coverPreset: z.number().int().min(0).max(8),
