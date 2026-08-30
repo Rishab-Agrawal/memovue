@@ -38,7 +38,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
     coverPreset: roll.coverPreset,
     // Re-signed on every poll, so the album's cover never goes stale mid-event the way a
     // URL minted once at page load would after an hour on the same screen.
-    coverUrl: await coverUrlFor(roll),
+    coverUrl: coverUrlFor(roll),
     everyoneCanSee: roll.everyoneCanSee,
     revealAt: roll.revealAt.toISOString(),
     finishesAt: roll.finishesAt.toISOString(),

@@ -90,8 +90,35 @@ export function presignUpload(key: string, contentType: string): Promise<string>
 }
 
 /**
- * Read URLs are signed per request rather than making the bucket public, so a leaked
- * album link stops working instead of exposing the whole event forever.
+ * A stable, cacheable URL for an object, through the Cloudflare custom domain in front of
+ * the bucket. **This is how every image in the app is served.**
+ *
+ * The presigned alternative could not be cached by anything. It points at the S3 API
+ * endpoint, which is not a Cloudflare zone and has no CDN in front of it, and the signature
+ * is minted per request — so even the browser treated each render as a new URL. Every tile,
+ * for every guest, on every visit was a billed read, a term growing as guests x photos. The
+ * cover was worse: the feed poll re-signed it every twenty seconds, so a guest on mobile
+ * data re-downloaded the same unchanged picture a hundred and eighty times an hour.
+ *
+ * A cache hit never reaches R2, so viewing an album is free however often it is opened.
+ *
+ * What this trades: an image URL no longer expires. It stays valid until the roll is purged,
+ * guarded by the key being unguessable rather than by a clock. That is deliberate, and it is
+ * not what enforces the seal — the seal has always been enforced by refusing to hand out a
+ * URL at all, never by the URL going stale.
+ */
+export function publicUrl(key: string): string {
+  if (!env.r2) throw new Error("R2 is not configured.");
+  return `${env.r2.publicUrl}/${key}`;
+}
+
+/**
+ * A signed, expiring URL. Only for objects that are *saved* rather than displayed: the album
+ * ZIP, and a single photograph downloaded out of the viewer.
+ *
+ * Kept for those two because a public object carries no `Content-Disposition`, so a browser
+ * saving one would name every photograph after its key and collide them all in the download
+ * folder. Neither is fetched more than once, so caching would buy nothing anyway.
  */
 export function presignDownload(
   key: string,

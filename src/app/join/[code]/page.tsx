@@ -45,7 +45,7 @@ export default async function JoinRollPage({ params }: PageProps<"/join/[code]">
       title={roll.name}
       hostName={roll.host.name}
       coverPreset={roll.coverPreset}
-      coverUrl={await coverUrlFor(roll)}
+      coverUrl={coverUrlFor(roll)}
       shots={roll.photosPerGuest}
       countdown={formatCountdown(roll.finishesAt.getTime() - now.getTime())}
       phase={rollPhase(roll, now)}

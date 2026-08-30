@@ -19,6 +19,7 @@ const r2AccountId = process.env.R2_ACCOUNT_ID;
 const r2AccessKeyId = process.env.R2_ACCESS_KEY_ID;
 const r2SecretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
 const r2Bucket = process.env.R2_BUCKET;
+const r2PublicUrl = process.env.R2_PUBLIC_URL;
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -35,14 +36,24 @@ export const env = {
   /** Email that is auto-promoted to ADMIN on signup, so the owner never touches the DB. */
   adminEmail: (process.env.ADMIN_EMAIL ?? "").toLowerCase().trim(),
 
+  /*
+    All five or nothing, deliberately.
+
+    `R2_PUBLIC_URL` sits in the same conjunction as the credentials rather than optional beside
+    them, so a deploy cannot come up half-configured — with a bucket but no cached domain —
+    and quietly fall back to minting a signed URL per image. That failure would be silent and
+    would cost real money, which is the worst pair of properties a misconfiguration can have.
+  */
   r2:
-    r2AccountId && r2AccessKeyId && r2SecretAccessKey && r2Bucket
+    r2AccountId && r2AccessKeyId && r2SecretAccessKey && r2Bucket && r2PublicUrl
       ? {
           accountId: r2AccountId,
           accessKeyId: r2AccessKeyId,
           secretAccessKey: r2SecretAccessKey,
           bucket: r2Bucket,
           endpoint: `https://${r2AccountId}.r2.cloudflarestorage.com`,
+          /** The Cloudflare custom domain in front of the bucket. No trailing slash. */
+          publicUrl: r2PublicUrl.replace(/\/$/, ""),
         }
       : null,
 

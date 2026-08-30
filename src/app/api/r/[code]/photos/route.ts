@@ -4,7 +4,7 @@ import { getGuestContext } from "@/lib/guest-context";
 import { prisma } from "@/lib/prisma";
 import { clientIp, rateLimit } from "@/lib/ratelimit";
 import { visiblePhotoWhere } from "@/lib/roll-access";
-import { photoKey, presignDownload, presignUpload } from "@/lib/storage";
+import { photoKey, presignUpload, publicUrl } from "@/lib/storage";
 import { photoInitSchema } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
@@ -137,28 +137,26 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
   const hasMore = photos.length > take;
   const page = hasMore ? photos.slice(0, take) : photos;
 
-  const items = await Promise.all(
-    page.map(async (photo) => {
-      const mine = photo.guest.id === context.guest.id;
+  const items = page.map((photo) => {
+    const mine = photo.guest.id === context.guest.id;
 
-      if (!context.open) {
-        return { id: photo.id, blurData: photo.blurData, mine, by: mine ? "You" : null };
-      }
+    if (!context.open) {
+      return { id: photo.id, blurData: photo.blurData, mine, by: mine ? "You" : null };
+    }
 
-      return {
-        id: photo.id,
-        blurData: photo.blurData,
-        mine,
-        by: mine ? "You" : photo.guest.name,
-        width: photo.width,
-        height: photo.height,
-        takenAt: photo.takenAt.toISOString(),
-        guestId: photo.guest.id,
-        guestName: photo.guest.name,
-        previewUrl: await presignDownload(photo.previewKey, { expiresIn: 3600 }),
-      };
-    }),
-  );
+    return {
+      id: photo.id,
+      blurData: photo.blurData,
+      mine,
+      by: mine ? "You" : photo.guest.name,
+      width: photo.width,
+      height: photo.height,
+      takenAt: photo.takenAt.toISOString(),
+      guestId: photo.guest.id,
+      guestName: photo.guest.name,
+      previewUrl: publicUrl(photo.previewKey),
+    };
+  });
 
   return Response.json({
     items,

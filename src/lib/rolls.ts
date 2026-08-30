@@ -7,7 +7,7 @@ import { CouponError, claimCoupon } from "./coupons";
 import { prisma } from "./prisma";
 import { computeKeptUntil, computeRevealAt, isOpen, visiblePhotoWhere } from "./roll-access";
 import { purgeRoll } from "./retention";
-import { coverKey, deleteObjects, presignDownload, storageConfigured } from "./storage";
+import { coverKey, deleteObjects, publicUrl, storageConfigured } from "./storage";
 
 /**
  * Everything that reads or writes a roll.
@@ -239,9 +239,7 @@ async function attachThumbs(
         select: { previewKey: true },
       });
 
-      card.thumbs = await Promise.all(
-        photos.map((photo) => presignDownload(photo.previewKey, { expiresIn: 3600 })),
-      );
+      card.thumbs = photos.map((photo) => publicUrl(photo.previewKey));
     }),
   );
 }
@@ -285,22 +283,24 @@ export async function updateRollInfo(id: string, hostId: string, data: {
 /* ------------------------------------------------------------------ covers */
 
 /**
- * A short-lived link to the roll's own cover, or null when it is using a preset.
+ * The roll's own cover, or null when it is using a preset.
  *
- * Signed per render like every other image in the app, so the bucket stays private and a
- * copied cover URL stops working within the hour rather than outliving the roll.
+ * Synchronous now, and that is the point rather than a tidy-up. This used to mint a
+ * signature per call, and the feed route calls it on a poll every twenty seconds — so the
+ * cover's `src` changed a hundred and eighty times an hour and every guest's browser
+ * re-downloaded an image that had not moved. A stable URL is cached by the edge and then by
+ * the browser, and costs nothing to produce.
  */
-export async function coverUrlFor(roll: { coverKey: string | null }): Promise<string | null> {
+export function coverUrlFor(roll: { coverKey: string | null }): string | null {
   if (!roll.coverKey || !storageConfigured) return null;
-  return presignDownload(roll.coverKey, { expiresIn: 3600 });
+  return publicUrl(roll.coverKey);
 }
 
-/** Signs a batch of covers concurrently, for screens that list rolls. */
-export async function coverUrlsFor<T extends { id: string; coverKey: string | null }>(
+/** The same for screens that list rolls. No longer async: there is nothing to await. */
+export function coverUrlsFor<T extends { id: string; coverKey: string | null }>(
   rolls: T[],
-): Promise<Map<string, string | null>> {
-  const signed = await Promise.all(rolls.map((roll) => coverUrlFor(roll)));
-  return new Map(rolls.map((roll, index) => [roll.id, signed[index]]));
+): Map<string, string | null> {
+  return new Map(rolls.map((roll) => [roll.id, coverUrlFor(roll)]));
 }
 
 /** Adopts an already-uploaded cover. The key is recomputed here, never taken from input. */

@@ -17,7 +17,7 @@ download the lot in original quality.
 | -------- | ---------------------------------------------------------- |
 | App      | Next.js 16 (App Router), React 19, TypeScript, Tailwind v4  |
 | Database | PostgreSQL via Prisma 7 (driver adapter)                    |
-| Photos   | Cloudflare R2, browser-to-bucket via presigned URLs         |
+| Photos   | Cloudflare R2: presigned uploads, cached custom domain reads |
 | Auth     | Hosts: Google sign-in. Guests: signed cookie, no account    |
 | Hosting  | Railway                                                     |
 | Tests    | Playwright, with a synthetic camera device                  |
@@ -66,6 +66,19 @@ anyone, including the event owner. It's the whole product promise.
 
 **Storage is separated by key prefix**, not by bucket, so local development can't collide
 with a live event's album.
+
+**Images are served from a cached custom domain, not signed per request.** `publicUrl` builds a
+stable link through the Cloudflare domain in front of the bucket, so a cache hit never reaches
+R2 and viewing an album is free however often it is opened. Signed URLs bought nothing here:
+they cannot be cached by the edge or the browser, so every tile of every album was a billed
+read on every visit. The two things still signed are the ones that get *saved* rather than
+displayed — the album ZIP and a single photograph downloaded from the viewer — because a
+public object carries no filename to save it under.
+
+An image URL therefore does not expire; it is valid until the roll is purged, guarded by the
+key being unguessable. That is not a weakening of the seal, because the seal was never the
+expiry: a sealed roll is enforced by `/photos` returning no URL at all and `/full` re-checking
+`canViewPhoto` before it redirects anywhere.
 
 ## Retention
 

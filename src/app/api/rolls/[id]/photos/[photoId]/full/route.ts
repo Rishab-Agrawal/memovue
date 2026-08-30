@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { isOpen } from "@/lib/roll-access";
 import { getRollForHost } from "@/lib/rolls";
 import { requireHost } from "@/lib/session";
-import { presignDownload } from "@/lib/storage";
+import { presignDownload, publicUrl } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -13,10 +13,9 @@ export const dynamic = "force-dynamic";
  * account that joined this roll. A host who never joined their own roll has neither, so it
  * could not serve them, and the host's grid consequently had nowhere to open a photograph.
  *
- * Signed here rather than in `loadRoll` because a roll can hold hundreds of photographs, and
- * minting a signed URL for every one of them on every page load would put a few hundred
- * kilobytes of expiring query string into the HTML. The grid gets presigned previews it
- * genuinely needs; only the frame actually being looked at is signed at full size.
+ * Resolved here rather than in `loadRoll` so the full-resolution key is only handed out for
+ * the frame actually being looked at. The grid gets preview URLs; this is the one route that
+ * gives up an original.
  *
  * `isOpen` is checked for the same reason every other route checks it: the seal applies to the
  * host too. That is the whole product.
@@ -43,10 +42,22 @@ export async function GET(
 
   const download = new URL(request.url).searchParams.get("download") === "1";
 
-  const url = await presignDownload(photo.fullKey, {
-    expiresIn: 3600,
-    filename: download ? `memovue-${photoId}.jpg` : undefined,
-  });
+  /*
+    Viewing goes to the cached public URL; saving still gets a signed one.
+
+    A public object carries no `Content-Disposition`, so a browser saving it would name every
+    photograph after its key — `full.jpg`, over and over, colliding in the download folder. The
+    signed URL carries the filename. Same trade the album ZIP makes: a save is fetched once,
+    so caching buys nothing and the expiry is worth keeping.
+
+    Neither branch is what enforces the seal. The checks above are.
+  */
+  const url = download
+    ? await presignDownload(photo.fullKey, {
+        expiresIn: 3600,
+        filename: `memovue-${photoId}.jpg`,
+      })
+    : publicUrl(photo.fullKey);
 
   return Response.redirect(url, 307);
 }

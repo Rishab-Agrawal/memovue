@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { isOpen } from "@/lib/roll-access";
 import { coverUrlFor, getRollForHost } from "@/lib/rolls";
-import { presignDownload } from "@/lib/storage";
+import { publicUrl } from "@/lib/storage";
 import { requireHost } from "@/lib/session";
 
 import type { BackdropPhoto, BackdropRoll } from "./RollBackdrop";
@@ -26,7 +26,7 @@ export async function loadRoll(id: string): Promise<{
   if (!found) notFound();
 
   const open = isOpen(found);
-  const coverUrl = await coverUrlFor(found);
+  const coverUrl = coverUrlFor(found);
 
   /*
     The host's own film, if they have joined their own roll to shoot it.
@@ -57,9 +57,7 @@ export async function loadRoll(id: string): Promise<{
     Previews, not originals: this is a two-column grid of 4:5 tiles. The full-resolution copy
     is what the download button is for.
   */
-  const urls = open
-    ? await Promise.all(photos.map((photo) => presignDownload(photo.previewKey, { expiresIn: 3600 })))
-    : [];
+  const urls = open ? photos.map((photo) => publicUrl(photo.previewKey)) : [];
 
   return {
     roll: {

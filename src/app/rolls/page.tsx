@@ -27,7 +27,7 @@ export default async function RollsHome() {
   const user = await requireHost();
   const { active, albums } = await listRollsForUser(user.id);
   // Only the active cards stand on a cover now; albums show their own prints below.
-  const covers = await coverUrlsFor(active);
+  const covers = coverUrlsFor(active);
   const now = new Date();
 
   return (
