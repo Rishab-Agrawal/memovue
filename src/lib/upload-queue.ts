@@ -62,10 +62,6 @@ export function subscribeQueue(listener: (status: QueueStatus) => void): () => v
   return () => listeners.delete(listener);
 }
 
-export function queueStatus(): QueueStatus {
-  return status;
-}
-
 async function refreshPending(code: string) {
   const items = await (await db()).getAllFromIndex(STORE, "code", code);
   publish({ pending: items.length });
@@ -89,10 +85,6 @@ export async function enqueuePhoto(code: string, photo: ProcessedPhoto): Promise
   await (await db()).put(STORE, item);
   await refreshPending(code);
   void drainQueue(code);
-}
-
-export async function pendingCount(code: string): Promise<number> {
-  return (await (await db()).getAllFromIndex(STORE, "code", code)).length;
 }
 
 async function putObject(url: string, blob: Blob): Promise<void> {

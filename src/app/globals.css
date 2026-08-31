@@ -30,7 +30,6 @@
   --color-page: #0a0a09;
   --color-surface: #131211;
   --color-flame: #ff8c00;
-  --color-flame-deep: #b35f00;
 
   /*
     The off-white ramp. Every step is a real contrast level against PAGE, not a decorative
@@ -52,10 +51,9 @@
 
   --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
 
-  /* Square by default. Anything that needs curvature asks for it explicitly. */
-  --radius-xs: 0px;
-  --radius-sm: 0px;
-  --radius-md: 0px;
+  /* Square by default. Anything that needs curvature asks for it explicitly — and the two
+     steps below are the only ones anything asks for; `rounded-2xl`, `-3xl` and `-full` carry
+     their own values and are what the app actually reaches for. */
   --radius-lg: 0px;
   --radius-xl: 0px;
 

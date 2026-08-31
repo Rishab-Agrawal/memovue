@@ -16,8 +16,6 @@ function resend(): Resend | null {
   return client;
 }
 
-export const emailEnabled = Boolean(env.resendApiKey);
-
 async function send(to: string, subject: string, text: string): Promise<void> {
   const service = resend();
   if (!service) {
@@ -31,27 +29,6 @@ async function send(to: string, subject: string, text: string): Promise<void> {
     // A failed notification must never break the action that triggered it.
     console.error("Failed to send email", error);
   }
-}
-
-export function sendAccessApproved(to: string, name: string): Promise<void> {
-  return send(
-    to,
-    "You're in — MemoVue is ready for your event",
-    `Hi ${name.split(" ")[0]},\n\n` +
-      `Your MemoVue account is approved. You can set up your event and get your QR code here:\n` +
-      `${env.appUrl}/new/name\n\n` +
-      `If anything is confusing, just reply to this email.\n\n— MemoVue`,
-  );
-}
-
-export function sendAccessDenied(to: string, name: string): Promise<void> {
-  return send(
-    to,
-    "About your MemoVue request",
-    `Hi ${name.split(" ")[0]},\n\n` +
-      `We aren't able to approve your account for the beta right now. If you think that's a ` +
-      `mistake, reply to this email and we'll take another look.\n\n— MemoVue`,
-  );
 }
 
 /**

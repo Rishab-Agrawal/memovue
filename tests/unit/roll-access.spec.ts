@@ -2,7 +2,6 @@ import { expect, test } from "@playwright/test";
 
 import {
   acceptsUploads,
-  canViewPhoto,
   isCapturing,
   isOpen,
   rollPhase,
@@ -10,21 +9,24 @@ import {
   computeRevealAt,
   visiblePhotoWhere,
   UPLOAD_GRACE_HOURS,
+  type RollTimings,
   type Viewer,
 } from "@/lib/roll-access";
 
 /**
  * The rule a leak would come from.
  *
- * Until now "can anyone see this photograph" had one answer for the whole app: not until
- * revealAt. It now depends on two independent axes — whether the roll is open, and whose
- * photo it is — so these tests pin both, and pin them against each other.
+ * "Can anyone see this photograph" once had a single answer for the whole app: not until
+ * revealAt. It now turns on two independent axes — whether the roll is open, and whose photo
+ * it is — asked by two different functions, in that order. `isOpen` is the seal and knows
+ * nothing about ownership; `visiblePhotoWhere` is ownership and knows nothing about the
+ * clock. Both are pinned below, and so is the order.
  */
 
 const HOUR = 3_600_000;
 const now = new Date("2026-09-13T12:00:00Z");
 
-function roll(overrides: Partial<Parameters<typeof canViewPhoto>[0]> = {}) {
+function roll(overrides: Partial<RollTimings & { everyoneCanSee: boolean }> = {}) {
   return {
     startsAt: new Date("2026-09-12T18:00:00Z"),
     finishesAt: new Date("2026-09-13T23:00:00Z"),
@@ -43,29 +45,41 @@ const arjun: Viewer = { kind: "guest", guestId: "g-arjun" };
 const meerasPhoto = { guestId: "g-meera" };
 const arjunsPhoto = { guestId: "g-arjun" };
 
+/**
+ * Whether the query the app actually runs would return this photograph.
+ *
+ * The clause is the whole authorisation now. A guest never asks a route for one frame's
+ * bytes — the image key carries a random secret, so the URL is the capability, and it is
+ * only ever minted for a row this clause returned. What it excludes is unreachable.
+ */
+function admits(everyoneCanSee: boolean, viewer: Viewer, photo: { guestId: string }): boolean {
+  const where = visiblePhotoWhere({ id: "r1", everyoneCanSee }, viewer);
+  expect(where.rollId).toBe("r1");
+  // Never the reserved-but-unconfirmed rows, whichever axis is in play.
+  expect(where.status).toBe("READY");
+  return where.guestId === undefined || where.guestId === photo.guestId;
+}
+
 test.describe("the seal", () => {
-  test("before the reveal nobody sees anything, including the host", () => {
-    const r = roll();
-    expect(isOpen(r, now)).toBe(false);
-    expect(canViewPhoto(r, meerasPhoto, host, now)).toBe(false);
+  test("before the reveal nothing is legible, including to the host", () => {
+    // Asked before ownership ever is: a sealed roll returns an empty grid whoever is looking,
+    // so there is nothing here but the clock.
+    expect(isOpen(roll(), now)).toBe(false);
   });
 
   test("not even the person who took the photo", () => {
     // The one that surprises people. A guest cannot review their own shot early — that is
-    // what makes the disposable camera a disposable camera.
-    expect(canViewPhoto(roll(), meerasPhoto, meera, now)).toBe(false);
+    // what makes the disposable camera a disposable camera. Ownership does not enter into it,
+    // which is exactly why this asserts nothing about ownership.
+    expect(isOpen(roll({ everyoneCanSee: true }), now)).toBe(false);
   });
 
   test("a DURING roll is open from the moment it exists", () => {
-    const r = roll({ revealMode: "DURING" });
-    expect(isOpen(r, now)).toBe(true);
-    expect(canViewPhoto(r, meerasPhoto, meera, now)).toBe(true);
+    expect(isOpen(roll({ revealMode: "DURING" }), now)).toBe(true);
   });
 
   test("revealing early overrides a future revealAt", () => {
-    const r = roll({ revealedEarly: true });
-    expect(isOpen(r, now)).toBe(true);
-    expect(canViewPhoto(r, meerasPhoto, host, now)).toBe(true);
+    expect(isOpen(roll({ revealedEarly: true }), now)).toBe(true);
   });
 
   test("the seal lifts on time", () => {
@@ -75,56 +89,38 @@ test.describe("the seal", () => {
   });
 });
 
-test.describe("visibility, once open", () => {
-  const open = new Date("2026-09-14T09:00:00Z");
-
-  test("with visibility off a guest sees their own and nobody else's", () => {
-    const r = roll({ everyoneCanSee: false });
-    expect(canViewPhoto(r, meerasPhoto, meera, open)).toBe(true);
-    expect(canViewPhoto(r, arjunsPhoto, meera, open)).toBe(false);
+test.describe("ownership, once open", () => {
+  test("with visibility off everyone gets their own frames and nobody else's", () => {
+    expect(admits(false, meera, meerasPhoto)).toBe(true);
+    expect(admits(false, meera, arjunsPhoto)).toBe(false);
+    expect(admits(false, arjun, arjunsPhoto)).toBe(true);
+    expect(admits(false, arjun, meerasPhoto)).toBe(false);
   });
 
-  test("with visibility on a guest sees everything", () => {
-    const r = roll({ everyoneCanSee: true });
-    expect(canViewPhoto(r, arjunsPhoto, meera, open)).toBe(true);
+  test("with visibility on a guest gets everything", () => {
+    expect(admits(true, meera, arjunsPhoto)).toBe(true);
+    expect(admits(true, arjun, meerasPhoto)).toBe(true);
   });
 
-  test("the host sees every photo in an open roll either way", () => {
-    expect(canViewPhoto(roll({ everyoneCanSee: false }), arjunsPhoto, host, open)).toBe(true);
-    expect(canViewPhoto(roll({ everyoneCanSee: true }), arjunsPhoto, host, open)).toBe(true);
+  test("the host gets every photo either way", () => {
+    expect(admits(false, host, arjunsPhoto)).toBe(true);
+    expect(admits(true, host, arjunsPhoto)).toBe(true);
+  });
+
+  test("a guest is pinned to themselves, not merely defaulted to themselves", () => {
+    // The photos route spreads `?guestId=` on top of this clause so a guest can narrow the
+    // grid to one photographer. This is what stops the same param widening it: with
+    // visibility off the clause already names them, and an intersection cannot reach further.
+    expect(visiblePhotoWhere({ id: "r1", everyoneCanSee: false }, meera).guestId).toBe("g-meera");
+    expect(visiblePhotoWhere({ id: "r1", everyoneCanSee: true }, meera).guestId).toBeUndefined();
   });
 
   test("visibility never unseals a closed roll", () => {
-    // everyoneCanSee is about ownership, not about the clock. Getting this backwards would
-    // publish every photo of every unrevealed roll.
-    const r = roll({ everyoneCanSee: true });
-    expect(canViewPhoto(r, arjunsPhoto, meera, now)).toBe(false);
+    // everyoneCanSee is about ownership, not about the clock. Getting the order backwards
+    // would publish every photo of every unrevealed roll — so callers ask `isOpen` first and
+    // this clause is never reached on a sealed roll.
+    expect(isOpen(roll({ everyoneCanSee: true }), now)).toBe(false);
   });
-});
-
-test.describe("the list query agrees with the single-photo guard", () => {
-  // The realistic failure is not writing the rule wrong once. It is these two paths to the
-  // same decision drifting apart later.
-  const open = new Date("2026-09-14T09:00:00Z");
-  const photos = [meerasPhoto, arjunsPhoto];
-
-  for (const everyoneCanSee of [true, false]) {
-    for (const viewer of [host, meera, arjun]) {
-      test(`everyoneCanSee=${everyoneCanSee}, viewer=${viewer.kind}:${
-        viewer.kind === "guest" ? viewer.guestId : "-"
-      }`, () => {
-        const r = roll({ everyoneCanSee });
-        const where = visiblePhotoWhere({ id: "r1", everyoneCanSee }, viewer);
-
-        for (const photo of photos) {
-          // What the query would return for this photo...
-          const queryAllows = where.guestId === undefined || where.guestId === photo.guestId;
-          // ...must match what the guard says about it.
-          expect(queryAllows).toBe(canViewPhoto(r, photo, viewer, open));
-        }
-      });
-    }
-  }
 });
 
 test.describe("phase", () => {

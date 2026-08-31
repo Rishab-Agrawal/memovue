@@ -3,7 +3,7 @@ import "server-only";
 import type { RevealMode } from "@prisma/client";
 
 import { rollCode } from "./codes";
-import { CouponError, claimCoupon } from "./coupons";
+import { claimCoupon } from "./coupons";
 import { prisma } from "./prisma";
 import { computeKeptUntil, computeRevealAt, isOpen, visiblePhotoWhere } from "./roll-access";
 import { purgeRoll } from "./retention";
@@ -38,36 +38,33 @@ export interface CreateRollInput {
 export async function createRoll(hostId: string, input: CreateRollInput) {
   const revealAt = computeRevealAt(input.finishesAt, input.revealMode, input.revealDelayHours);
 
-  try {
-    return await prisma.$transaction(async (tx) => {
-      const couponId = await claimCoupon(tx, input.couponCode, hostId);
+  // A `CouponError` from `claimCoupon` travels straight out to the server action, which is
+  // what turns it into a message under the coupon field.
+  return prisma.$transaction(async (tx) => {
+    const couponId = await claimCoupon(tx, input.couponCode, hostId);
 
-      const roll = await tx.roll.create({
-        data: {
-          code: rollCode(),
-          hostId,
-          name: input.name,
-          coverPreset: input.coverPreset,
-          maxGuests: input.maxGuests,
-          photosPerGuest: input.photosPerGuest,
-          everyoneCanSee: input.everyoneCanSee,
-          startsAt: input.startsAt,
-          finishesAt: input.finishesAt,
-          revealMode: input.revealMode,
-          revealDelayHours: input.revealMode === "DELAY" ? input.revealDelayHours : 0,
-          revealAt,
-          keptUntil: computeKeptUntil(input.finishesAt),
-        },
-        select: { id: true, code: true, name: true },
-      });
-
-      await tx.coupon.update({ where: { id: couponId }, data: { rollId: roll.id } });
-      return roll;
+    const roll = await tx.roll.create({
+      data: {
+        code: rollCode(),
+        hostId,
+        name: input.name,
+        coverPreset: input.coverPreset,
+        maxGuests: input.maxGuests,
+        photosPerGuest: input.photosPerGuest,
+        everyoneCanSee: input.everyoneCanSee,
+        startsAt: input.startsAt,
+        finishesAt: input.finishesAt,
+        revealMode: input.revealMode,
+        revealDelayHours: input.revealMode === "DELAY" ? input.revealDelayHours : 0,
+        revealAt,
+        keptUntil: computeKeptUntil(input.finishesAt),
+      },
+      select: { id: true, code: true, name: true },
     });
-  } catch (error) {
-    if (error instanceof CouponError) throw error;
-    throw error;
-  }
+
+    await tx.coupon.update({ where: { id: couponId }, data: { rollId: roll.id } });
+    return roll;
+  });
 }
 
 const rollSummary = {
@@ -338,5 +335,3 @@ export async function deleteRoll(id: string, hostId: string) {
   // photograph in the roll, while both legal documents said we delete the image files.
   await purgeRoll(id);
 }
-
-export { isOpen };

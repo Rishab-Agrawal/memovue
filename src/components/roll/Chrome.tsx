@@ -116,8 +116,3 @@ export function PillLink({
     </Link>
   );
 }
-
-/** A tracked caption. Matches the reference's small all-caps section labels. */
-export function Label({ children }: { children: ReactNode }) {
-  return <p className="marking">{children}</p>;
-}

@@ -105,21 +105,15 @@ export function takenAtWithin(claimed: Date, roll: RollTimings): Date {
   return claimed;
 }
 
-export function canViewPhoto(
-  roll: RollTimings & { everyoneCanSee: boolean },
-  photo: { guestId: string },
-  viewer: Viewer,
-  now: Date = new Date(),
-): boolean {
-  if (!isOpen(roll, now)) return false;
-  if (viewer.kind === "host") return true;
-  if (roll.everyoneCanSee) return true;
-  return photo.guestId === viewer.guestId;
-}
-
 /**
- * The same decision as `canViewPhoto`, expressed as a Prisma `where` so filtering happens
- * in the query rather than after it.
+ * Ownership, expressed as a Prisma `where` so filtering happens in the query rather than
+ * after it. The only place the rule is written.
+ *
+ * There was a predicate form of this too, asked a second time by `/photos/[id]/full` before
+ * it redirected to the bytes. That route is gone: an image key now carries a random secret,
+ * so holding the URL *is* the authorisation and there is no request left between a guest and
+ * a photograph to check. The query below is what decides which rows exist at all, and a key
+ * it never returned cannot be guessed.
  *
  * Deliberately says nothing about the seal: callers check `isOpen` first and return an
  * empty grid, because a sealed roll still has to render its blurred placeholders and its
@@ -177,26 +171,4 @@ export function retentionAction(
   if (roll.warnedAt) return "leave";
   if (roll.keptUntil.getTime() - now.getTime() <= WARN_BEFORE_DAYS * 86_400_000) return "warn";
   return "leave";
-}
-
-/* ------------------------------------------------------------------ display helpers */
-
-/** "2 days 4 hours", "5 minutes", "any moment now" — for countdowns. */
-export function formatCountdown(target: Date | string, now: Date = new Date()): string {
-  const ms = new Date(target).getTime() - now.getTime();
-  if (ms <= 0) return "any moment now";
-
-  const totalMinutes = Math.floor(ms / 60000);
-  const days = Math.floor(totalMinutes / 1440);
-  const hours = Math.floor((totalMinutes % 1440) / 60);
-  const minutes = totalMinutes % 60;
-
-  const unit = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
-
-  if (days > 0) return hours > 0 ? `${unit(days, "day")} ${unit(hours, "hour")}` : unit(days, "day");
-  if (hours > 0) {
-    return minutes > 0 ? `${unit(hours, "hour")} ${unit(minutes, "min")}` : unit(hours, "hour");
-  }
-  if (minutes > 0) return unit(minutes, "min");
-  return "less than a minute";
 }

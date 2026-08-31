@@ -99,8 +99,6 @@ export const editRollSchema = z.object({
   coverPreset: z.number().int().min(0).max(8),
 });
 
-export const rollVisibilitySchema = z.object({ everyoneCanSee: z.boolean() });
-
 /* ------------------------------------------------------------------ guests */
 
 /**

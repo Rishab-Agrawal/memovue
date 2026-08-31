@@ -89,10 +89,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
  * **Open**, `visiblePhotoWhere` decides whose frames this guest gets, and each item carries a
  * signed URL for the 1080px preview.
  *
- * The seal is one branch, checked once, here. It is worth saying plainly why the sealed
- * branch is safe to serve at all: `previewUrl` is the only field that leads to image data,
- * and it is not constructed on that path. `/photos/[id]/full` re-checks `canViewPhoto`
- * independently, so a guessed id gets a 403 rather than a photograph.
+ * The seal is one branch, checked once, here — and since the full-resolution URL travels in
+ * this payload, this is now the only place it is checked at all. That is worth saying plainly.
+ * A photo id is not a capability: `previewUrl` and `fullUrl` are the only fields that lead to
+ * image data, neither is constructed on the sealed path, and the keys they carry each hold a
+ * random segment. So an id guessed off the sealed grid has nothing to be exchanged for —
+ * there is no route left to present it to, and the address cannot be derived from it.
  */
 export async function GET(request: Request, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
