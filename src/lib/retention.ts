@@ -3,7 +3,7 @@ import "server-only";
 import { sendDeletionNotice } from "./email";
 import { prisma } from "./prisma";
 import { retentionAction, WARN_BEFORE_DAYS } from "./roll-access";
-import { coverKey, deleteObjects, storageConfigured, zipKey } from "./storage";
+import { coverKey, deleteObjects, legacyZipKey, storageConfigured, zipKey } from "./storage";
 
 /**
  * Making the date on a roll mean something.
@@ -52,6 +52,9 @@ export async function purgeRoll(rollId: string): Promise<void> {
       // it is a copy of.
       coverKey(rollId),
       zipKey(rollId),
+      // An archive built before the key carried a capability. Deleting a key that was never
+      // written is free, and leaving one behind would be photographs outliving their roll.
+      legacyZipKey(rollId),
     ];
 
     // Deliberately unguarded. If the bucket call throws, the row survives and tonight's pass

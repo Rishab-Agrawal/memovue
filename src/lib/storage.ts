@@ -6,6 +6,7 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
+import { createHmac } from "node:crypto";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { Readable } from "node:stream";
 
@@ -49,8 +50,33 @@ const prefix = env.isProduction ? "events" : "dev";
 
 export type PhotoVariant = "full" | "preview";
 
-export function photoKey(eventId: string, photoId: string, variant: PhotoVariant): string {
-  return `${prefix}/${eventId}/${photoId}/${variant}.jpg`;
+/**
+ * Where one photograph lives, and — since the bucket went behind a public cached domain —
+ * the thing that decides who can read it.
+ *
+ * The `secret` segment is the whole point. This key used to be `{rollId}/{photoId}/{variant}`,
+ * derivable from two values a guest legitimately holds: the roll id, which is printed inside
+ * every upload URL they are issued, and the photo ids of *everyone* in the roll, which the
+ * sealed wall hands out so it can draw one blurred tile per frame. Anybody who had taken a
+ * single photograph could therefore assemble the URL of any other guest's full-resolution
+ * original and fetch it straight off the CDN — before the reveal, and regardless of whether
+ * the host had opened the roll to everyone. That is the product's one promise, and it was
+ * open for a day.
+ *
+ * With a random segment the key is a capability rather than an address: holding it *is* the
+ * authorisation, and it is only ever handed out by a route that has already checked the
+ * seal and the ownership rule. Guessing is 21 random characters against no oracle.
+ *
+ * Generated once, at reservation, and stored — `fullKey` and `previewKey` are columns, so this
+ * is never recomputed and photographs taken before this existed keep working.
+ */
+export function photoKey(
+  eventId: string,
+  photoId: string,
+  secret: string,
+  variant: PhotoVariant,
+): string {
+  return `${prefix}/${eventId}/${photoId}/${secret}/${variant}.jpg`;
 }
 
 /**
@@ -77,6 +103,29 @@ export function coverKey(rollId: string): string {
  * be a second copy of a fact, and the two would eventually disagree.
  */
 export function zipKey(rollId: string): string {
+  return `${prefix}/zips/${rollId}-${opaque("zip", rollId)}.zip`;
+}
+
+/**
+ * An unguessable but reproducible suffix, so a key can stay a pure function of the roll and
+ * still not be derivable by someone holding only the roll id.
+ *
+ * The archive needed this more urgently than any single photograph did: it sat at
+ * `zips/{rollId}.zip`, and a roll id is inside every upload URL we hand a guest — so one guest
+ * could have pulled down the entire album, every photographer's frames, in one request, the
+ * moment a host built it.
+ *
+ * ponytail: derived from AUTH_SECRET rather than stored, so there is no column and no second
+ * copy of a fact. The ceiling is that rotating AUTH_SECRET orphans any archive built before
+ * the rotation — unreachable to everyone, but also invisible to `purgeRoll`, which is data
+ * outliving its deletion date. Store the key on the roll if you ever need to rotate.
+ */
+function opaque(scope: string, id: string): string {
+  return createHmac("sha256", env.authSecret).update(`${scope}:${id}`).digest("base64url").slice(0, 24);
+}
+
+/** The pre-capability archive key. Only still referenced so a purge can clean one up. */
+export function legacyZipKey(rollId: string): string {
   return `${prefix}/zips/${rollId}.zip`;
 }
 

@@ -46,8 +46,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
   if (!parsed.success) return Response.json({ error: "bad_request" }, { status: 400 });
 
   const photoId = nanoid();
-  const fullKey = photoKey(context.roll.id, photoId, "full");
-  const previewKey = photoKey(context.roll.id, photoId, "preview");
+  // The capability. Never derived from anything the client knows, and never sent to anyone
+  // the photograph is not already being shown to.
+  const secret = nanoid();
+  const fullKey = photoKey(context.roll.id, photoId, secret, "full");
+  const previewKey = photoKey(context.roll.id, photoId, secret, "preview");
 
   await prisma.photo.create({
     data: {
