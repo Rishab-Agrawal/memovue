@@ -162,12 +162,13 @@ export function publicUrl(key: string): string {
 }
 
 /**
- * A signed, expiring URL. Only for objects that are *saved* rather than displayed: the album
- * ZIP, and a single photograph downloaded out of the viewer.
+ * A signed, expiring URL. One caller: the album ZIP.
  *
- * Kept for those two because a public object carries no `Content-Disposition`, so a browser
- * saving one would name every photograph after its key and collide them all in the download
- * folder. Neither is fetched more than once, so caching would buy nothing anyway.
+ * Everything a guest looks at comes from `publicUrl`, and so does everything they save — the
+ * viewer reads a photograph into a blob and names the file itself, which is what let the
+ * saved copy come off the cache too. The archive is the one object that stays signed: it is
+ * fetched once, it is far too large for the edge to cache, and it is the only thing in the
+ * bucket that is worth putting behind a clock, being an entire wedding in one file.
  */
 export function presignDownload(
   key: string,

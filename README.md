@@ -71,14 +71,19 @@ with a live event's album.
 stable link through the Cloudflare domain in front of the bucket, so a cache hit never reaches
 R2 and viewing an album is free however often it is opened. Signed URLs bought nothing here:
 they cannot be cached by the edge or the browser, so every tile of every album was a billed
-read on every visit. The two things still signed are the ones that get *saved* rather than
-displayed — the album ZIP and a single photograph downloaded from the viewer — because a
-public object carries no filename to save it under.
+read on every visit. Saving a photograph goes through the same cached URL — the viewer reads
+it into a blob and names the file itself — so the only object still signed is the album ZIP.
 
-An image URL therefore does not expire; it is valid until the roll is purged, guarded by the
-key being unguessable. That is not a weakening of the seal, because the seal was never the
-expiry: a sealed roll is enforced by `/photos` returning no URL at all and `/full` re-checking
-`canViewPhoto` before it redirects anywhere.
+**A key is a capability.** Because the domain is public, the key is the only thing standing
+between a stranger and a photograph, so it carries a random segment that is not derivable
+from anything a guest holds. This was learned the hard way: the first version keyed on
+`{rollId}/{photoId}`, both of which a guest can read off their own upload URL and the sealed
+wall, which briefly let any guest fetch anyone's original before the reveal.
+
+Authorisation therefore happens once, where the list is built — `visiblePhotoWhere` decides
+which rows exist, and a sealed roll returns no URL of any kind. A URL does not expire; it is
+valid until the roll is purged. That is not a weakening of the seal, because the seal was
+never the expiry.
 
 ## Retention
 

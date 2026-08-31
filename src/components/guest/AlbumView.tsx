@@ -16,8 +16,10 @@ export interface FeedPhoto {
   by: string | null;
   mine: boolean;
   takenAt?: string;
-  /** Signed URL for the 1080px preview. Absent while the roll is sealed, which is the seal. */
+  /** The 1080px preview. Absent while the roll is sealed, which is the seal. */
   previewUrl?: string;
+  /** The full-resolution original, for the viewer. Absent while sealed, for the same reason. */
+  fullUrl?: string;
 }
 
 export interface Feed {
@@ -309,7 +311,9 @@ export function AlbumView({
               id: photo.id,
               by: photo.by,
               takenAt: photo.takenAt,
-              src: `/api/r/${code}/photos/${photo.id}/full`,
+              // Preview as the fallback rather than nothing: a smaller picture beats a
+              // broken frame if a payload ever arrives without the full one.
+              src: photo.fullUrl ?? photo.previewUrl ?? "",
             }),
           )}
           startIndex={viewing}

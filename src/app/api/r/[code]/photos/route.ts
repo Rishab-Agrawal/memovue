@@ -130,6 +130,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
       id: true,
       blurData: true,
       previewKey: true,
+      fullKey: true,
       width: true,
       height: true,
       takenAt: true,
@@ -158,6 +159,17 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
       guestId: photo.guest.id,
       guestName: photo.guest.name,
       previewUrl: publicUrl(photo.previewKey),
+      /*
+        The full-resolution capability, handed over in the same breath as the preview.
+
+        The viewer used to reach a route of its own for this, which re-derived the guest
+        session and re-checked the seal — four Postgres queries and a dynamic render for
+        every frame swiped past, on the screen people spend the whole evening in. The
+        authorisation has already happened, once, in the query above: `visiblePhotoWhere`
+        decides which rows exist here at all, and the sealed branch returns before this line.
+        Asking the same question a second time cost far more than it was worth.
+      */
+      fullUrl: publicUrl(photo.fullKey),
     };
   });
 

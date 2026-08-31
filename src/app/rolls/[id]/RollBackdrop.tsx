@@ -76,7 +76,7 @@ export function RollBackdrop({
 
         {roll.everyoneCanSee ? null : <VisibilityNotice />}
 
-        <PhotoGrid rollId={roll.id} photos={photos} sealed={!open} revealsIn={revealsIn} />
+        <PhotoGrid photos={photos} sealed={!open} revealsIn={revealsIn} />
 
         <p className="text-center text-[12px] text-dust">
           Photos available until {formatDay(roll.keptUntil)}

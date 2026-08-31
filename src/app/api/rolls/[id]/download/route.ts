@@ -3,6 +3,7 @@ import type { Readable } from "node:stream";
 import { PassThrough, Readable as NodeReadable } from "node:stream";
 
 import { prisma } from "@/lib/prisma";
+import { clientIp, rateLimit } from "@/lib/ratelimit";
 import { UPLOAD_GRACE_HOURS, isOpen } from "@/lib/roll-access";
 import { getCurrentUser } from "@/lib/session";
 import { getObjectStream, headObject, presignDownload, putStream, zipKey } from "@/lib/storage";
@@ -32,11 +33,31 @@ interface ArchivePhoto {
  * a phone that was out of signal has a day to drain its queue, and a ZIP built before that
  * window closes would be missing exactly the photographs that had the hardest journey.
  */
-export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
   const user = await getCurrentUser();
   if (!user) return Response.json({ error: "unauthorised" }, { status: 401 });
+
+  /*
+    The most expensive request in the app, and until now the only unmetered one.
+
+    Once a roll has settled this redirects to a prebuilt archive and costs almost nothing.
+    Before that it cannot: the album can still change, so there is nothing safe to cache and
+    the ZIP is assembled live, streaming every original through this server with a one-hour
+    `maxDuration`. Ten an hour is far more than a host retrying a failed download needs, and
+    it bounds what a single account can hold open.
+
+    ponytail: a rate, not a concurrency limit — ten sequential builds are fine, ten at once
+    are not. Add a per-host in-flight guard if this ever actually bites.
+  */
+  const limit = rateLimit(`zip:${user.id}:${clientIp(request)}`, 10, 3600);
+  if (!limit.ok) {
+    return Response.json(
+      { error: "rate_limited" },
+      { status: 429, headers: { "retry-after": String(limit.retryAfterSeconds) } },
+    );
+  }
 
   const roll = await prisma.roll.findFirst({
     where: { id, hostId: user.id },

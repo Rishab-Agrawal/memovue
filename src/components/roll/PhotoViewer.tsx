@@ -12,7 +12,7 @@ export interface ViewerPhoto {
   /** Who took it. Null on a sealed roll, where nothing is attributed. */
   by: string | null;
   takenAt?: string;
-  /** Endpoint serving full-resolution bytes. Guests and hosts have different ones. */
+  /** The full-resolution original, straight off the cached domain. */
   src: string;
 }
 
@@ -42,6 +42,7 @@ export function PhotoViewer({
 }) {
   const [index, setIndex] = useState(startIndex);
   const [offset, setOffset] = useState(0);
+  const [saving, setSaving] = useState(false);
 
   const trackRef = useRef<HTMLDivElement>(null);
   const animation = useRef<ReturnType<typeof spring> | null>(null);
@@ -144,6 +145,46 @@ export function PhotoViewer({
     settle(state.dx, -delta * width, velocity, index + delta);
   }
 
+  /**
+   * Saving, without leaving the cached domain.
+   *
+   * This used to open a route that redirected to a signed URL carrying a
+   * `Content-Disposition` — the only way to make a browser save a file rather than display
+   * it, and a signed URL is uncacheable by construction. So the one photograph everybody at
+   * the wedding wants was fetched from the bucket once per guest.
+   *
+   * Reading it into a blob puts the filename in our hands instead of in a header, which
+   * means the bytes can come from the same cached URL the viewer is already showing — very
+   * often out of the browser's own cache, with no request at all. The bucket allows this
+   * origin, which is why the cross-origin read is permitted.
+   *
+   * The fallback matters more than the happy path: if the fetch is refused for any reason,
+   * opening the picture is still better than a button that does nothing.
+   */
+  async function save(target: ViewerPhoto) {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const response = await fetch(target.src);
+      if (!response.ok) throw new Error(String(response.status));
+
+      const href = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      link.href = href;
+      link.download = `memovue-${target.id}.jpg`;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      // Not immediately: Firefox has historically dropped the download if the object URL is
+      // revoked in the same tick as the click.
+      setTimeout(() => URL.revokeObjectURL(href), 10_000);
+    } catch {
+      window.open(target.src, "_blank");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const photo = photos[index];
   if (!photo) return null;
 
@@ -202,9 +243,9 @@ export function PhotoViewer({
       </div>
 
       <div className="flex justify-center px-5 pt-4 pb-[calc(var(--safe-bottom)+2rem)]">
-        <Pill variant="quiet" onClick={() => window.open(`${photo.src}?download=1`, "_blank")}>
+        <Pill variant="quiet" disabled={saving} onClick={() => void save(photo)}>
           <Download className="h-4 w-4" />
-          Save
+          {saving ? "Saving…" : "Save"}
         </Pill>
       </div>
     </div>

@@ -281,11 +281,13 @@ test.describe("a roll from creation to reveal", () => {
     expect(sealed.ok()).toBeTruthy();
 
     const { items } = (await sealed.json()) as {
-      items: { blurData: string; previewUrl?: string }[];
+      items: { blurData: string; previewUrl?: string; fullUrl?: string }[];
     };
     expect(items.length).toBeGreaterThan(0);
     for (const item of items) {
       expect(item.previewUrl).toBeUndefined();
+      // The originals travel in the same payload now, so the seal has two fields to keep shut.
+      expect(item.fullUrl).toBeUndefined();
       expect(item.blurData).toMatch(/^data:image\/jpeg/);
     }
 

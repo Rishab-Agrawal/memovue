@@ -44,7 +44,7 @@ export async function loadRoll(id: string): Promise<{
   const photos = await prisma.photo.findMany({
     where: { rollId: found.id, status: "READY" },
     orderBy: { takenAt: "desc" },
-    select: { id: true, previewKey: true, guest: { select: { name: true } } },
+    select: { id: true, previewKey: true, fullKey: true, guest: { select: { name: true } } },
   });
 
   /*
@@ -58,6 +58,9 @@ export async function loadRoll(id: string): Promise<{
     is what the download button is for.
   */
   const urls = open ? photos.map((photo) => publicUrl(photo.previewKey)) : [];
+  // The originals, for the viewer. Same reasoning as the guest list: the host's ownership and
+  // the seal are both settled above, so the viewer has nothing left to ask a route about.
+  const fullUrls = open ? photos.map((photo) => publicUrl(photo.fullKey)) : [];
 
   return {
     roll: {
@@ -83,6 +86,7 @@ export async function loadRoll(id: string): Promise<{
       id: photo.id,
       by: open ? photo.guest.name : "",
       url: open ? urls[index] : null,
+      fullUrl: open ? fullUrls[index] : null,
       plate: index,
     })),
   };

@@ -8,8 +8,10 @@ import { PhotoViewer, type ViewerPhoto } from "@/components/roll/PhotoViewer";
 export interface GridPhoto {
   id: string;
   by: string;
-  /** Signed preview link. Null while the roll is sealed, which is what keeps it sealed. */
+  /** Preview link. Null while the roll is sealed, which is what keeps it sealed. */
   url: string | null;
+  /** The original, for the viewer. Null while sealed, for the same reason. */
+  fullUrl: string | null;
   plate: number;
 }
 
@@ -21,13 +23,10 @@ export interface GridPhoto {
  * viewer existed but only the guest album could reach it.
  */
 export function PhotoGrid({
-  rollId,
   photos,
   sealed,
   revealsIn,
 }: {
-  /** Not a callback for the URL: a function cannot cross the server/client boundary. */
-  rollId: string;
   photos: GridPhoto[];
   sealed: boolean;
   revealsIn: string;
@@ -39,7 +38,7 @@ export function PhotoGrid({
     : photos.map((photo) => ({
         id: photo.id,
         by: photo.by,
-        src: `/api/rolls/${rollId}/photos/${photo.id}/full`,
+        src: photo.fullUrl ?? photo.url ?? "",
       }));
 
   return (
@@ -59,8 +58,8 @@ export function PhotoGrid({
               unconditionally, so a host who opened their own album after the reveal was shown
               abstract art where their guests' photographs should have been.
 
-              Not next/image: the source is a presigned URL that changes on every render, which
-              defeats the optimiser's cache and would proxy every frame through our own server.
+              Not next/image: these are already cached at the edge, and the optimiser would
+              proxy every frame through our own server to no benefit.
             */}
             {photo.url ? (
               /* eslint-disable-next-line @next/next/no-img-element */
