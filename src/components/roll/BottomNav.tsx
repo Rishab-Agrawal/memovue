@@ -16,7 +16,7 @@ import { Home, Person } from "@/components/roll/Icons";
  */
 export function BottomNav({ current }: { current: "rolls" | "account" }) {
   return (
-    <nav className="flex h-14 shrink-0 items-stretch border-t border-hair bg-page/95 backdrop-blur">
+    <nav className="box-content flex h-14 shrink-0 items-stretch border-t border-hair bg-page/95 pb-[var(--safe-bottom)] backdrop-blur">
       <Link
         href="/rolls"
         aria-label="Home"

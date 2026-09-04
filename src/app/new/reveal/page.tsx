@@ -94,7 +94,8 @@ export default function StepReveal() {
           <Stepper
             label="Decrease delay"
             glyph="−"
-            onClick={() => update({ delayHours: Math.max(MIN_DELAY_HOURS, draft.delayHours - 1) })}
+            disabled={draft.delayHours <= MIN_DELAY_HOURS}
+            onClick={() => update({ delayHours: draft.delayHours - 1 })}
           />
           <p className="tabular w-16 text-center text-[22px] text-chalk" data-testid="delay-hours">
             {draft.delayHours}
@@ -102,7 +103,8 @@ export default function StepReveal() {
           <Stepper
             label="Increase delay"
             glyph="+"
-            onClick={() => update({ delayHours: Math.min(MAX_DELAY_HOURS, draft.delayHours + 1) })}
+            disabled={draft.delayHours >= MAX_DELAY_HOURS}
+            onClick={() => update({ delayHours: draft.delayHours + 1 })}
           />
           <span className="sr-only">hours after the roll closes</span>
         </div>
@@ -114,18 +116,21 @@ export default function StepReveal() {
 function Stepper({
   label,
   glyph,
+  disabled,
   onClick,
 }: {
   label: string;
   glyph: string;
+  disabled?: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
       aria-label={label}
+      disabled={disabled}
       onClick={onClick}
-      className="flex h-12 w-14 items-center justify-center rounded-2xl bg-surface text-[20px] text-chalk transition-colors hover:text-flame"
+      className="flex h-12 w-14 items-center justify-center rounded-2xl bg-surface text-[20px] text-chalk transition-colors hover:text-flame disabled:opacity-30 disabled:hover:text-chalk"
     >
       {glyph}
     </button>

@@ -1,5 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+
 import { WizardShell } from "@/components/roll/WizardShell";
 import { Pencil } from "@/components/roll/Icons";
 import { useDraft } from "../DraftContext";
@@ -11,6 +13,7 @@ import { useDraft } from "../DraftContext";
  */
 export default function StepName() {
   const { draft, update } = useDraft();
+  const router = useRouter();
 
   return (
     <WizardShell
@@ -25,6 +28,9 @@ export default function StepName() {
         <input
           value={draft.name}
           onChange={(event) => update({ name: event.target.value })}
+          onKeyDown={(event) =>
+            event.key === "Enter" && draft.name.trim() && router.push("/new/start")
+          }
           aria-label="Event name"
           className="w-full bg-transparent text-[17px] font-medium text-chalk placeholder:text-dust focus:outline-none"
         />

@@ -11,6 +11,7 @@ import { Counter } from "@/components/roll/Counter";
 import { Dialog } from "@/components/roll/Dialog";
 import { Person } from "@/components/roll/Icons";
 import { Plate } from "@/components/roll/Plate";
+import { ShareLink } from "@/components/roll/ShareLink";
 import { FRAMES } from "@/lib/imagery";
 import { Toggle } from "@/components/roll/Toggle";
 import { WizardShell } from "@/components/roll/WizardShell";
@@ -26,7 +27,7 @@ import {
 } from "@/lib/roll-config";
 
 import { createRollAction } from "../actions";
-import { draftToInput, useDraft } from "../DraftContext";
+import { draftToInput, forgetDraft, useDraft } from "../DraftContext";
 
 export default function StepGuests() {
   const { draft, update, hostName } = useDraft();
@@ -44,6 +45,11 @@ export default function StepGuests() {
   const [pending, startTransition] = useTransition();
 
   const price = priceFor(draft.participantIndex, draft.shotIndex);
+  // Only ever read after the roll exists, which is well past hydration.
+  const joinLink =
+    created && typeof window !== "undefined"
+      ? `${window.location.origin}/join/${created.code}`
+      : "";
 
   const create = () => {
     setError(null);
@@ -69,6 +75,8 @@ export default function StepGuests() {
         }
       }
 
+      // The roll exists, so the draft behind it has nothing left to protect.
+      forgetDraft();
       setCreated({ id: result.rollId, code: result.code, name: result.name });
     });
   };
@@ -178,6 +186,7 @@ export default function StepGuests() {
 
       <Dialog
         open={error !== null}
+        onClose={() => setError(null)}
         title="That didn't go through"
         actions={
           <Pill variant="quiet" full onClick={() => setError(null)}>
@@ -190,11 +199,17 @@ export default function StepGuests() {
 
       <Dialog
         open={created !== null}
+        onClose={() => router.push(`/rolls/${created?.id}`)}
         title="Roll Created!"
         actions={
-          <Pill variant="quiet" full onClick={() => router.push(`/rolls/${created?.id}`)}>
-            OK
-          </Pill>
+          <>
+            {/* The link was printed and nothing could pick it up. This is the same control
+                the invite sheet uses — the phone's own share sheet, clipboard behind it. */}
+            <ShareLink url={joinLink} rollName={created?.name ?? ""} />
+            <Pill variant="quiet" full onClick={() => router.push(`/rolls/${created?.id}`)}>
+              OK
+            </Pill>
+          </>
         }
       >
         <p>Your roll &ldquo;{created?.name}&rdquo; is ready!</p>

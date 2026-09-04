@@ -35,7 +35,12 @@ export function InvitationCover({
       <Cover url={coverUrl} preset={coverIndex} className="absolute inset-0" />
       <div className="absolute inset-0 bg-gradient-to-t from-void via-void/45 to-transparent" />
 
-      <div className={cn("relative", mini ? "px-3 pb-3" : "px-5 pb-6")}>
+      <div
+        className={cn(
+          "relative",
+          mini ? "px-3 pb-3" : "px-5 pb-[calc(var(--safe-bottom)+1.5rem)]",
+        )}
+      >
         <div className="flex justify-center">
           <span
             className={cn(

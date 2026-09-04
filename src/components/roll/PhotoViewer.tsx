@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Pill } from "@/components/roll/Chrome";
 import { Download } from "@/components/roll/Icons";
 import { formatStamp } from "@/lib/format";
+import { useOverlay } from "@/lib/useOverlay";
 import { spring, swipeDelta, velocityFrom } from "@/lib/spring";
 
 export interface ViewerPhoto {
@@ -54,6 +55,9 @@ export function PhotoViewer({
 
   useEffect(() => () => animation.current?.stop(), []);
 
+  // Escape, and the roll behind held still while a photograph is open over it.
+  useOverlay(onClose);
+
   /** Springs the strip to `to`, then commits the frame change once it has settled. */
   const settle = useCallback((from: number, to: number, velocity: number, nextIndex: number) => {
     animation.current?.stop();
@@ -100,11 +104,10 @@ export function PhotoViewer({
     function onKey(event: KeyboardEvent) {
       if (event.key === "ArrowLeft") go(-1);
       else if (event.key === "ArrowRight") go(1);
-      else if (event.key === "Escape") onClose();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [go, onClose]);
+  }, [go]);
 
   function onPointerDown(event: React.PointerEvent) {
     animation.current?.stop();

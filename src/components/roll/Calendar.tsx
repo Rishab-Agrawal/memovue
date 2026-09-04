@@ -44,14 +44,25 @@ export function Calendar({
     setCursor({ year: next.getUTCFullYear(), month: next.getUTCMonth() });
   };
 
+  /*
+    The arrows stop at the range. Past it every day in the grid is dead text, and a month of
+    numbers nobody may pick says nothing about why, or how far back the way out is.
+  */
+  const monthsFrom0 = (date: Date) => {
+    const wall = toWall(date);
+    return wall.year * 12 + wall.month;
+  };
+  const here = cursor.year * 12 + cursor.month;
+
   return (
     <div>
       <div className="flex items-center justify-between">
         <button
           type="button"
           aria-label="Previous month"
+          disabled={here <= monthsFrom0(range.min)}
           onClick={() => step(-1)}
-          className="tap px-2 text-[18px] text-ash transition-colors hover:text-flame"
+          className="tap px-2 text-[18px] text-ash transition-colors hover:text-flame disabled:opacity-25 disabled:hover:text-ash"
         >
           ←
         </button>
@@ -61,8 +72,9 @@ export function Calendar({
         <button
           type="button"
           aria-label="Next month"
+          disabled={here >= monthsFrom0(range.max)}
           onClick={() => step(1)}
-          className="tap px-2 text-[18px] text-ash transition-colors hover:text-flame"
+          className="tap px-2 text-[18px] text-ash transition-colors hover:text-flame disabled:opacity-25 disabled:hover:text-ash"
         >
           →
         </button>

@@ -5,8 +5,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import { type ProcessedPhoto, processCapture } from "@/lib/image";
 
+import { Pill } from "@/components/roll/Chrome";
 import { Counter } from "@/components/roll/Counter";
-import { FlashOff, Flip } from "@/components/roll/Icons";
+import { Flash, FlashOff, Flip } from "@/components/roll/Icons";
 
 type Facing = "environment" | "user";
 type Permission = "idle" | "starting" | "live" | "denied" | "unsupported";
@@ -44,6 +45,8 @@ export function CameraView({ shotsLeft, onCaptured, onLeave, latestThumb }: Came
 
   const [facing, setFacing] = useState<Facing>("environment");
   const [permission, setPermission] = useState<Permission>("idle");
+  /** Bumped by "Try again", which is the only way back from a refusal. */
+  const [attempt, setAttempt] = useState(0);
   const [torchOn, setTorchOn] = useState(false);
   const [hasTorch, setHasTorch] = useState(false);
   const [phase, setPhase] = useState<Phase>("idle");
@@ -102,7 +105,7 @@ export function CameraView({ shotsLeft, onCaptured, onLeave, latestThumb }: Came
       cancelled = true;
       stop();
     };
-  }, [facing, stop]);
+  }, [facing, stop, attempt]);
 
   async function toggleTorch() {
     const track = streamRef.current?.getVideoTracks()[0];
@@ -198,8 +201,14 @@ export function CameraView({ shotsLeft, onCaptured, onLeave, latestThumb }: Came
 
   return (
     <div className="flex h-full flex-col bg-page">
-      <div className="flex flex-1 items-center px-4 py-4">
-        <div ref={frameRef} className="relative aspect-[4/5] w-full overflow-hidden rounded-[2rem] bg-void">
+      {/* `min-h-0` + `max-h-full`: the frame keeps its 4:5 shape wherever there is room for
+          it and gives height back where there is not, rather than growing past the screen and
+          taking the shutter with it. */}
+      <div className="flex min-h-0 flex-1 items-center px-4 py-4">
+        <div
+          ref={frameRef}
+          className="relative aspect-[4/5] max-h-full w-full overflow-hidden rounded-[2rem] bg-void"
+        >
           <video
             ref={videoRef}
             playsInline
@@ -217,9 +226,15 @@ export function CameraView({ shotsLeft, onCaptured, onLeave, latestThumb }: Came
               <div>
                 <p className="text-[15px] leading-relaxed text-ash">
                   {permission === "unsupported"
-                    ? "This browser can't open the camera."
-                    : "MemoVue needs camera access to take photos."}
+                    ? "This browser can’t open the camera."
+                    : "MemoVue needs camera access. Allow it for this site in your browser’s settings, then try again."}
                 </p>
+                {/* Refusing once used to end the screen: a sentence, and nothing to press. */}
+                {permission === "denied" ? (
+                  <Pill variant="quiet" className="mt-5" onClick={() => setAttempt((n) => n + 1)}>
+                    Try again
+                  </Pill>
+                ) : null}
               </div>
             </div>
           ) : null}
@@ -256,7 +271,7 @@ export function CameraView({ shotsLeft, onCaptured, onLeave, latestThumb }: Came
           disabled={!hasTorch}
           className={cn("tap transition-colors", torchOn ? "text-flame" : "text-chalk", !hasTorch && "opacity-30")}
         >
-          <FlashOff className="h-6 w-6" />
+          {torchOn ? <Flash className="h-6 w-6" /> : <FlashOff className="h-6 w-6" />}
         </button>
 
         <button

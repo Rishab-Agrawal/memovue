@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { cn } from "@/lib/cn";
 import { PhotoViewer, type ViewerPhoto } from "@/components/roll/PhotoViewer";
 
 export interface GridPhoto {
@@ -65,7 +66,7 @@ export function PhotoGrid({
             <img
               src={photo.url ?? photo.blurData}
               alt=""
-              className="absolute inset-0 h-full w-full object-cover"
+              className={cn("absolute inset-0 h-full w-full object-cover", !sealed && "animate-develop")}
               style={sealed ? { filter: "blur(14px) saturate(0.6)" } : undefined}
             />
 

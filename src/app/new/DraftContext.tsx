@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { fromWall, toWall } from "@/lib/format";
 import { PARTICIPANT_TIERS, SHOT_TIERS } from "@/lib/roll-config";
@@ -64,6 +64,51 @@ function defaultWindow() {
   };
 }
 
+const STORE = "memovue.draft";
+
+/**
+ * The draft, across a reload.
+ *
+ * Layout state survives navigation between the six steps but not a refresh, and losing it
+ * dropped the host on the last step with a Create button that was inert and would not say
+ * why — it was waiting on a name from a screen they could no longer see.
+ *
+ * The picked cover is left behind on purpose: it is a `Blob` behind an object URL, and both
+ * die with the page that minted them. Everything else is JSON, with the two dates revived.
+ */
+export function readDraft(): Draft | null {
+  try {
+    const saved = sessionStorage.getItem(STORE);
+    if (!saved) return null;
+    const parsed = JSON.parse(saved) as Draft;
+    return {
+      ...parsed,
+      startsAt: new Date(parsed.startsAt),
+      finishesAt: new Date(parsed.finishesAt),
+      coverBlob: null,
+      coverPreviewUrl: null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function writeDraft(draft: Draft) {
+  try {
+    sessionStorage.setItem(
+      STORE,
+      JSON.stringify({ ...draft, coverBlob: null, coverPreviewUrl: null }),
+    );
+  } catch {
+    /* A refusal to store costs a reload, not the roll. */
+  }
+}
+
+/** Called once a roll exists, so the next one does not start half-filled with the last. */
+export function forgetDraft() {
+  sessionStorage.removeItem(STORE);
+}
+
 export function DraftProvider({
   children,
   hostName,
@@ -87,6 +132,20 @@ export function DraftProvider({
       everyoneCanSee: false,
     };
   });
+
+  /*
+    Restored in an effect, not in the initialiser: these screens are server-rendered, and
+    seeding state from storage during the first client render is a hydration mismatch. The
+    write below fires once with the defaults before the restore lands, which costs nothing —
+    the value was already read by then.
+  */
+  useEffect(() => {
+    const saved = readDraft();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (saved) setDraft(saved);
+  }, []);
+
+  useEffect(() => writeDraft(draft), [draft]);
 
   const value = useMemo(
     () => ({

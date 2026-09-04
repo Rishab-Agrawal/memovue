@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { Pill, PillLink } from "@/components/roll/Chrome";
+import { Pill } from "@/components/roll/Chrome";
 import { Dialog } from "@/components/roll/Dialog";
 import {
   Calendar as CalendarIcon,
@@ -128,6 +128,7 @@ export function SettingsSheet({
       <Dialog
         open={revealing}
         title="Open the roll now?"
+        onClose={() => setRevealing(false)}
         actions={
           <>
             <Pill variant="quiet" full disabled={pending} onClick={() => setRevealing(false)}>
@@ -157,11 +158,12 @@ export function SettingsSheet({
       <Dialog
         open={confirming}
         title="Delete this roll?"
+        onClose={() => setConfirming(false)}
         actions={
           <>
-            <PillLink href={`/rolls/${rollId}/settings`} variant="quiet" full>
+            <Pill variant="quiet" full disabled={pending} onClick={() => setConfirming(false)}>
               Cancel
-            </PillLink>
+            </Pill>
             <Pill
               full
               disabled={pending}

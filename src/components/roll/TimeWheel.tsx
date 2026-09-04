@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/cn";
+import { useOverlay } from "@/lib/useOverlay";
 
 import { Pill } from "@/components/roll/Chrome";
 
@@ -43,6 +44,8 @@ export function TimeWheel({
   const [draftHour, setDraftHour] = useState(hour);
   const [draftMinute, setDraftMinute] = useState(minute);
 
+  useOverlay(onCancel);
+
   // A column offers only what may be chosen, rather than showing numbers that would be
   // refused on Done. Minutes narrow only in the floor's own hour; every later hour is whole.
   const hours = floor ? HOURS.filter((h) => h >= floor.hour) : HOURS;
@@ -56,7 +59,10 @@ export function TimeWheel({
   };
 
   return (
-    <div className="animate-fade fixed inset-0 z-40 flex items-center justify-center bg-void/70 px-6 backdrop-blur-sm">
+    <div
+      className="animate-fade fixed inset-0 z-40 flex items-center justify-center bg-void/70 px-6 backdrop-blur-sm"
+      onClick={(event) => event.target === event.currentTarget && onCancel()}
+    >
       <div className="w-full max-w-[320px] rounded-3xl bg-surface p-5">
         <div className="relative flex justify-center gap-6">
           {/* The band sits behind both columns so the selected row reads as one row. */}

@@ -20,6 +20,8 @@ export interface BackdropRoll {
   keptUntil: Date;
   photoCount: number;
   guestCount: number;
+  /** What the roll was set up to hold, which is what a joined count is worth comparing to. */
+  maxGuests: number;
   /** What the host has left of their own film, for the camera control below. */
   shotsLeft: number;
 }

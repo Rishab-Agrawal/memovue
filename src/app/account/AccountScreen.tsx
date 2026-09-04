@@ -44,7 +44,7 @@ export function AccountScreen({
 
   return (
     <div className="flex h-dvh flex-col">
-      <div className="flex-1 overflow-y-auto px-5 pt-8 pb-6">
+      <div className="flex-1 overflow-y-auto px-5 pt-[calc(var(--safe-top)+2rem)] pb-6">
         <h1 className="display text-[30px] text-chalk">Settings</h1>
 
         <section className="mt-6">
@@ -55,18 +55,39 @@ export function AccountScreen({
             </span>
 
             {editing ? (
-              <div className="flex flex-1 items-center gap-2">
+              /* A real form, so the phone keyboard's Go key submits it — and a way back out,
+                 which a field whose only exit was Save did not have. */
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  saveName();
+                }}
+                className="flex flex-1 items-center gap-2"
+              >
                 <input
                   value={name}
                   onChange={(event) => setName(event.target.value)}
                   aria-label="Your name"
                   autoFocus
-                  className="h-16 flex-1 rounded-2xl bg-surface px-4 text-[16px] text-chalk focus:outline-none focus-visible:ring-1 focus-visible:ring-flame"
+                  className="h-16 min-w-0 flex-1 rounded-2xl bg-surface px-4 text-[16px] text-chalk focus:outline-none focus-visible:ring-1 focus-visible:ring-flame"
                 />
-                <Pill variant="flame" className="h-16 px-5" disabled={pending} onClick={saveName}>
+                <Pill type="submit" variant="flame" className="h-16 px-5" disabled={pending}>
                   Save
                 </Pill>
-              </div>
+                <Pill
+                  type="button"
+                  variant="quiet"
+                  aria-label="Cancel"
+                  className="h-16 w-12 px-0"
+                  disabled={pending}
+                  onClick={() => {
+                    setName(initialName);
+                    setEditing(false);
+                  }}
+                >
+                  ✕
+                </Pill>
+              </form>
             ) : (
               <button
                 type="button"
@@ -140,6 +161,7 @@ export function AccountScreen({
 
       <Dialog
         open={confirming}
+        onClose={() => setConfirming(false)}
         title={
           <span className="flex flex-col items-center gap-3 text-center">
             <Warning className="h-8 w-8 text-danger" />

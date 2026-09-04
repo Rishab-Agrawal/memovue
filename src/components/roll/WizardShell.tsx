@@ -31,7 +31,7 @@ export function WizardShell({
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-h-full flex-col px-5 pt-4 pb-5">
+    <div className="pad-safe-top flex min-h-dvh flex-col px-5 pb-[calc(var(--safe-bottom)+1.25rem)]">
       <BackButton href={back} />
 
       <h1 className="display mt-5 text-center text-[30px] text-balance text-chalk">{title}</h1>

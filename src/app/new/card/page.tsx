@@ -95,6 +95,7 @@ function CoverDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
   return (
     <Dialog
       open={open}
+      onClose={onClose}
       title="Choose your cover"
       actions={
         <Pill variant="light" full onClick={onClose}>

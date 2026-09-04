@@ -62,7 +62,7 @@ export function GuestApp({ code, rollName, shotsLeft: initialShots, home, latest
 
   return (
     <div className="fixed inset-0 bg-page">
-      <div className="h-full pt-[var(--safe-top)]">
+      <div className="h-full pt-[var(--safe-top)] pb-[var(--safe-bottom)]">
         <CameraView
           shotsLeft={shotsLeft}
           onCaptured={handleCaptured}

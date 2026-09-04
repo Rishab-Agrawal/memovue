@@ -9,10 +9,20 @@ import { cn } from "@/lib/cn";
  * geometry wins and only the palette and typeface are ours.
  */
 
-export function BackButton({ href, label = "Back" }: { href: string; label?: string }) {
+export function BackButton({
+  href,
+  label = "Back",
+  onNavigate,
+}: {
+  href: string;
+  label?: string;
+  /** Runs on a client-side navigation; `preventDefault()` inside it cancels the departure. */
+  onNavigate?: ComponentPropsWithoutRef<typeof Link>["onNavigate"];
+}) {
   return (
     <Link
       href={href}
+      onNavigate={onNavigate}
       aria-label={label}
       className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-surface text-[20px] text-chalk transition-colors hover:text-flame"
     >

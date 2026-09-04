@@ -23,7 +23,7 @@ export default async function PeoplePage({ params }: PageProps<"/rolls/[id]/peop
       <Sheet
         back={`/rolls/${roll.id}`}
         title="People"
-        subtitle={`${people.length} of ${roll.guestCount === 0 ? 0 : roll.guestCount} joined so far.`}
+        subtitle={`${people.length} of ${roll.maxGuests} joined so far.`}
       >
         {people.length === 0 ? (
           <p className="mt-6 text-[15px] text-dust">

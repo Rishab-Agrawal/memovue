@@ -148,6 +148,12 @@ export const FlashOff = (p: IconProps) => (
   </Svg>
 );
 
+export const Flash = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M13.5 2.5 6 13h5l-1 8.5 6-8.4" />
+  </Svg>
+);
+
 export const Flip = (p: IconProps) => (
   <Svg {...p}>
     <path d="M20 11.5a8 8 0 0 0-13.7-5.2L4 8.5M4 4v4.5h4.5M4 12.5a8 8 0 0 0 13.7 5.2L20 15.5M20 20v-4.5h-4.5" />

@@ -48,7 +48,7 @@ export function JoinScreen({ back }: { back: string }) {
   const scanning = scanner === "live" || scanner === "starting";
 
   return (
-    <div className="flex min-h-dvh flex-col px-5 pt-4 pb-8">
+    <div className="pad-safe-top flex min-h-dvh flex-col px-5 pb-[calc(var(--safe-bottom)+2rem)]">
       <BackButton href={back} />
 
       <div className="flex flex-1 flex-col justify-center gap-6 py-6">

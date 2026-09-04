@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition, type MouseEvent, type ReactNode } from "react";
+import { useCallback, useState, useTransition, type MouseEvent, type ReactNode } from "react";
 
 import { cn } from "@/lib/cn";
+import { useOverlay } from "@/lib/useOverlay";
 
 /**
  * The reference's bottom sheet: a drag handle, a serif-scale title, then content. It sits
@@ -40,17 +41,23 @@ export function Sheet({
   const [closing, setClosing] = useState(false);
   const [, startTransition] = useTransition();
 
-  function dismiss(event: MouseEvent<HTMLAnchorElement>) {
-    // Leave "open in a new tab" alone — that is a different request entirely.
-    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-
-    event.preventDefault();
+  const close = useCallback(() => {
     if (closing) return;
-
     setClosing(true);
     // A transition, so React keeps this tree on screen while the next route loads. Without
     // it the sheet would unmount on the click and there would be nothing left to animate.
     startTransition(() => router.replace(back));
+  }, [back, closing, router]);
+
+  // Escape closes it, and the roll behind stops scrolling while it is open — an overlay that
+  // lets the screen underneath slide about leaves you somewhere else when it goes.
+  useOverlay(close);
+
+  function dismiss(event: MouseEvent<HTMLAnchorElement>) {
+    // Leave "open in a new tab" alone — that is a different request entirely.
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    close();
   }
 
   return (
@@ -78,9 +85,11 @@ export function Sheet({
         )}
       />
 
+      {/* The last row of a sheet used to end inside the home-gesture strip, where the phone
+          takes the touch instead of us. */}
       <div
         className={cn(
-          "relative max-h-[85%] overflow-y-auto rounded-t-3xl bg-surface pb-8",
+          "pad-safe-bottom relative max-h-[85%] overflow-y-auto rounded-t-3xl bg-surface",
           closing ? "animate-sheet-out" : "animate-sheet-in",
         )}
       >

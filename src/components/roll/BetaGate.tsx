@@ -80,6 +80,7 @@ export function BetaGate({
     <>
       <Dialog
         open={open && !asking}
+        onClose={close}
         title="You don't have access yet"
         actions={
           <>
@@ -100,6 +101,7 @@ export function BetaGate({
 
       <Dialog
         open={open && asking}
+        onClose={close}
         title="Request beta access"
         actions={
           <>

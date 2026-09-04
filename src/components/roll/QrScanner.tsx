@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/cn";
 
-import { FlashOff } from "@/components/roll/Icons";
+import { Flash, FlashOff } from "@/components/roll/Icons";
 
 export type ScannerState = "starting" | "live" | "denied" | "unsupported";
 
@@ -244,7 +244,7 @@ export function QrScanner({
                 torchOn ? "text-flame" : "text-chalk",
               )}
             >
-              <FlashOff className="h-5 w-5" />
+              {torchOn ? <Flash className="h-5 w-5" /> : <FlashOff className="h-5 w-5" />}
             </button>
           ) : null}
         </>

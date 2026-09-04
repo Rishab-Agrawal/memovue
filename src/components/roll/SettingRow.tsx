@@ -47,6 +47,19 @@ export function SettingRow({
     href && "hover:text-flame",
   );
 
+  if (href && !href.startsWith("/")) {
+    return (
+      <a
+        href={href}
+        target={href.startsWith("http") ? "_blank" : undefined}
+        rel="noreferrer"
+        className={className}
+      >
+        {body}
+      </a>
+    );
+  }
+
   if (href) {
     return (
       <Link href={href} className={className}>

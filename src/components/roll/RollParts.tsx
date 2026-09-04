@@ -38,96 +38,114 @@ export function RollControls({
   /** No shots left for whoever is looking. The camera stays put, but says why it is dead. */
   outOfFilm?: boolean;
 }) {
-  const [notice, setNotice] = useState(false);
+  /*
+    One line of transient text for the whole row.
+
+    Every control here can be tapped and produce no visible result — a spent camera, a
+    download that is not available yet, a ZIP that takes a minute to build before the browser
+    shows anything. A control that silently declines is indistinguishable from a broken one,
+    so each of them answers.
+  */
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (!notice) return;
-    const timer = setTimeout(() => setNotice(false), 2600);
+    const timer = setTimeout(() => setNotice(null), 2600);
     return () => clearTimeout(timer);
   }, [notice]);
 
-  if (revealed) {
-    // A guest has neither, and two dead buttons are worse than none.
-    if (!sendHref && !saveHref) return null;
-
-    return (
-      <div className="flex gap-3">
-        {sendHref ? (
-          <Control href={sendHref} label="Send" icon={<Send className="h-5 w-5" />} wide />
-        ) : null}
-        {saveHref ? (
-          <Control href={saveHref} label="Save" icon={<Download className="h-5 w-5" />} wide />
-        ) : null}
-      </div>
-    );
-  }
+  // A guest has neither, and two dead buttons are worse than none.
+  if (revealed && !sendHref && !saveHref) return null;
 
   return (
-    <div className="flex gap-3">
-      {/*
-        Out of film. Removing the control would leave the row a different shape every time
-        somebody spends their last shot, and a live camera that refuses to take a photo is
-        worse still — so it stays where it was and answers when tapped.
-      */}
-      {outOfFilm ? (
-        <>
-          <button
-            type="button"
-            aria-disabled="true"
-            aria-label="Take a photo"
-            onClick={() => setNotice(true)}
-            className="flex h-14 flex-1 items-center justify-center rounded-full bg-surface text-dust/60"
-          >
-            <Camera className="h-6 w-6" />
-          </button>
-          {notice ? (
-            <p
-              role="status"
-              className="animate-fade pointer-events-none fixed top-1/2 left-1/2 z-50 max-w-[16rem] -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-surface/95 px-5 py-3.5 text-center text-[14px] leading-snug text-chalk shadow-[0_8px_40px_-8px_rgba(0,0,0,0.9)] backdrop-blur-sm"
+    <>
+      <div className="flex gap-3">
+        {revealed ? (
+          <>
+            {sendHref ? (
+              <Control href={sendHref} label="Send" icon={<Send className="h-5 w-5" />} />
+            ) : null}
+            {saveHref ? (
+              <Control
+                href={saveHref}
+                label="Save"
+                icon={<Download className="h-5 w-5" />}
+                onClick={() =>
+                  setNotice("Building your album — the download starts on its own. Big rolls take a minute.")
+                }
+              />
+            ) : null}
+          </>
+        ) : (
+          <>
+            {/*
+              Out of film. Removing the control would leave the row a different shape every
+              time somebody spends their last shot, and a live camera that refuses to take a
+              photo is worse still — so it stays where it was and answers when tapped.
+            */}
+            {outOfFilm ? (
+              <button
+                type="button"
+                aria-disabled="true"
+                aria-label="Take a photo"
+                onClick={() => setNotice("That’s all your shots for this roll.")}
+                className="flex h-14 flex-1 items-center justify-center rounded-full bg-surface text-dust/60"
+              >
+                <Camera className="h-6 w-6" />
+              </button>
+            ) : onCamera ? (
+              <button
+                type="button"
+                onClick={onCamera}
+                aria-label="Take a photo"
+                className="flex h-14 flex-1 items-center justify-center rounded-full bg-chalk text-void transition-colors hover:bg-white"
+              >
+                <Camera className="h-6 w-6" />
+              </button>
+            ) : cameraHref ? (
+              <Link
+                href={cameraHref}
+                aria-label="Take a photo"
+                className="flex h-14 flex-1 items-center justify-center rounded-full bg-chalk text-void transition-colors hover:bg-white"
+              >
+                <Camera className="h-6 w-6" />
+              </Link>
+            ) : null}
+
+            {inviteHref ? (
+              <Link
+                href={inviteHref}
+                aria-label="Invite guests"
+                className="flex h-14 w-14 items-center justify-center rounded-2xl bg-surface text-chalk transition-colors hover:text-flame"
+              >
+                <Qr className="h-5 w-5" />
+              </Link>
+            ) : null}
+
+            {/* Nothing to download until the reveal. It was a bare span, so the one dead
+                control that said nothing sat right beside the one that did. */}
+            <button
+              type="button"
+              aria-disabled="true"
+              aria-label="Download album"
+              onClick={() => setNotice("The album can be saved once the roll is revealed.")}
+              className="flex h-14 w-14 items-center justify-center rounded-2xl bg-surface text-dust/50"
             >
-              That&rsquo;s all your shots for this roll.
-            </p>
-          ) : null}
-        </>
-      ) : onCamera ? (
-        <button
-          type="button"
-          onClick={onCamera}
-          aria-label="Take a photo"
-          className="flex h-14 flex-1 items-center justify-center rounded-full bg-chalk text-void transition-colors hover:bg-white"
-        >
-          <Camera className="h-6 w-6" />
-        </button>
-      ) : cameraHref ? (
-        <Link
-          href={cameraHref}
-          aria-label="Take a photo"
-          className="flex h-14 flex-1 items-center justify-center rounded-full bg-chalk text-void transition-colors hover:bg-white"
-        >
-          <Camera className="h-6 w-6" />
-        </Link>
-      ) : null}
+              <Download className="h-5 w-5" />
+            </button>
+          </>
+        )}
+      </div>
 
-      {inviteHref ? (
-        <Link
-          href={inviteHref}
-          aria-label="Invite guests"
-          className="flex h-14 w-14 items-center justify-center rounded-2xl bg-surface text-chalk transition-colors hover:text-flame"
+      {notice ? (
+        <p
+          role="status"
+          className="animate-fade pointer-events-none fixed top-1/2 left-1/2 z-50 max-w-[16rem] -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-surface/95 px-5 py-3.5 text-center text-[14px] leading-snug text-chalk shadow-[0_8px_40px_-8px_rgba(0,0,0,0.9)] backdrop-blur-sm"
         >
-          <Qr className="h-5 w-5" />
-        </Link>
+          {notice}
+        </p>
       ) : null}
-
-      {/* Nothing to download until the reveal, and saying so is better than letting the tap
-          fail. */}
-      <span
-        aria-label="Download album"
-        aria-disabled="true"
-        className="flex h-14 w-14 items-center justify-center rounded-2xl bg-surface text-dust/50"
-      >
-        <Download className="h-5 w-5" />
-      </span>
-    </div>
+    </>
   );
 }
 
@@ -135,20 +153,21 @@ function Control({
   href,
   label,
   icon,
-  wide,
+  onClick,
 }: {
   href: string;
   label: string;
   icon: React.ReactNode;
-  wide?: boolean;
+  onClick?: () => void;
 }) {
-  const className = `flex h-14 items-center justify-center gap-2.5 rounded-2xl bg-surface text-[15px] text-chalk transition-colors hover:text-flame ${wide ? "flex-1" : ""}`;
+  const className =
+    "flex h-14 flex-1 items-center justify-center gap-2.5 rounded-2xl bg-surface text-[15px] text-chalk transition-colors hover:text-flame";
 
   // An API route serves a file, not a page. A client-side navigation would try to render the
   // ZIP as one, so the download leaves through a plain anchor.
   if (href.startsWith("/api/")) {
     return (
-      <a href={href} className={className}>
+      <a href={href} onClick={onClick} className={className}>
         {icon}
         {label}
       </a>
@@ -156,7 +175,7 @@ function Control({
   }
 
   return (
-    <Link href={href} className={className}>
+    <Link href={href} onClick={onClick} className={className}>
       {icon}
       {label}
     </Link>

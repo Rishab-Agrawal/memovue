@@ -40,7 +40,7 @@ export function RollHeader({
       <Cover url={coverUrl} preset={coverIndex} className="absolute inset-0" />
       <div className="absolute inset-0 bg-gradient-to-b from-void/60 via-transparent to-void/85" />
 
-      <div className="absolute inset-x-0 top-0 flex items-start justify-between p-4">
+      <div className="pad-safe-top absolute inset-x-0 top-0 flex items-start justify-between p-4">
         <BackButton href={back} />
         {settingsHref ? (
           <Link

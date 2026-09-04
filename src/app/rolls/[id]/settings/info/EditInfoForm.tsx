@@ -94,10 +94,17 @@ export function EditInfoForm({
   };
 
   const working = pending || busy;
+  /** Anything the Save button would send. Leaving with it unsent used to cost it silently. */
+  const dirty = name !== initialName || cover !== initialCover || picked !== null || removed;
 
   return (
-    <div className="flex min-h-dvh flex-col px-5 pt-4 pb-6">
-      <BackButton href={`/rolls/${rollId}/settings`} />
+    <div className="pad-safe-top flex min-h-dvh flex-col px-5 pb-[calc(var(--safe-bottom)+1.5rem)]">
+      <BackButton
+        href={`/rolls/${rollId}/settings`}
+        onNavigate={(event) => {
+          if (dirty && !window.confirm("Discard your changes?")) event.preventDefault();
+        }}
+      />
 
       <h1 className="display mt-5 text-center text-[30px] text-chalk">Edit your roll info</h1>
       <p className="mt-3 text-center text-[15px] text-ash">
@@ -111,6 +118,7 @@ export function EditInfoForm({
           <input
             value={name}
             onChange={(event) => setName(event.target.value)}
+            onKeyDown={(event) => event.key === "Enter" && !working && save()}
             aria-label="Roll title"
             className="w-full bg-transparent text-[17px] font-medium text-chalk focus:outline-none"
           />

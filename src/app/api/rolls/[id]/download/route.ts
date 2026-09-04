@@ -33,11 +33,25 @@ interface ArchivePhoto {
  * a phone that was out of signal has a day to drain its queue, and a ZIP built before that
  * window closes would be missing exactly the photographs that had the hardest journey.
  */
+/**
+ * A refusal somebody reads, not one a program parses.
+ *
+ * The Save button is an anchor, so a browser lands on whatever this returns and renders it —
+ * and `{"error":"rate_limited"}` on a white page is the app apparently breaking. Nothing
+ * consumes these bodies; the status code is what the tests and the browser go by.
+ */
+function refuse(status: number, message: string, headers: HeadersInit = {}) {
+  return new Response(message, {
+    status,
+    headers: { "content-type": "text/plain; charset=utf-8", ...headers },
+  });
+}
+
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
   const user = await getCurrentUser();
-  if (!user) return Response.json({ error: "unauthorised" }, { status: 401 });
+  if (!user) return refuse(401, "Sign in to download this album.");
 
   /*
     The most expensive request in the app, and until now the only unmetered one.
@@ -53,9 +67,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   */
   const limit = rateLimit(`zip:${user.id}:${clientIp(request)}`, 10, 3600);
   if (!limit.ok) {
-    return Response.json(
-      { error: "rate_limited" },
-      { status: 429, headers: { "retry-after": String(limit.retryAfterSeconds) } },
+    return refuse(
+      429,
+      `That is a lot of downloads at once. Try again in ${Math.ceil(limit.retryAfterSeconds / 60)} minutes.`,
+      { "retry-after": String(limit.retryAfterSeconds) },
     );
   }
 
@@ -71,12 +86,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       revealedEarly: true,
     },
   });
-  if (!roll) return Response.json({ error: "not_found" }, { status: 404 });
+  if (!roll) return refuse(404, "That roll no longer exists.");
 
   // The host waits with everyone else unless they chose DURING — otherwise the promise
   // the guests were shown on their own screen would not be true.
   if (!isOpen(roll)) {
-    return Response.json({ error: "not_revealed" }, { status: 403 });
+    return refuse(403, "This album opens at the reveal. Nothing to download yet.");
   }
 
   const photos = await prisma.photo.findMany({
@@ -86,7 +101,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   });
 
   if (photos.length === 0) {
-    return Response.json({ error: "empty" }, { status: 404 });
+    return refuse(404, "Nobody took a photograph on this roll.");
   }
 
   const filename = `${safeSegment(roll.name)}-memovue.zip`;

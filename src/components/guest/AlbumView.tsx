@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { cn } from "@/lib/cn";
 import { RollHeader } from "@/components/roll/RollHeader";
 import { RollControls, VisibilityNotice } from "@/components/roll/RollParts";
 import { formatDay, formatDuration } from "@/lib/format";
@@ -160,14 +161,14 @@ export function AlbumView({
   }, [loadStatus]);
 
   /*
-    While a roll is sealed the wall is still filling, and watching it fill is the point — so a
-    changed count from the status poll means there are new placeholders to go and get. That is
-    one page of 48, not the whole roll, which is the difference between this and what the feed
-    used to do. Once the roll opens the album is settled and the grid only ever grows by
-    scrolling, so this pins to null and stops re-fetching.
-  */
-  const sealedCount = feed && !feed.open ? feed.totalPhotos : null;
+    The grid is rebuilt when the seal lifts, and at no other time.
 
+    It used to restart whenever the sealed photo count changed — which is every time anybody
+    at the event takes a picture. Every page that had been scrolled to was thrown away and the
+    reader landed back at the top of the wall, mid-scroll, several times a minute. The count
+    in the header still ticks up live off the same poll; the grid catches up the next time
+    this screen is opened.
+  */
   useEffect(() => {
     // Invalidate anything in flight and take the lock off it, so the restart below is not
     // refused by a request whose result is about to be thrown away.
@@ -179,7 +180,7 @@ export function AlbumView({
     setCursor(null);
     setExhausted(false);
     void loadPage(null);
-  }, [loadPage, generation, sealedCount]);
+  }, [loadPage, generation]);
 
   useEffect(() => {
     /*
@@ -201,7 +202,15 @@ export function AlbumView({
     return <p className="px-5 py-10 text-center text-[15px] text-ash">{error}</p>;
   }
   if (!feed) {
-    return <p className="px-5 py-10 text-center text-[15px] text-dust">Loading…</p>;
+    // Frames waiting to be filled, rather than a word. A bare "Loading…" on a black screen
+    // reads as a page that failed, which is the wrong thing to think about your photographs.
+    return (
+      <div className="grid grid-cols-2 gap-3 px-5 py-6" aria-busy="true" aria-label="Loading">
+        {Array.from({ length: 6 }, (_, index) => (
+          <div key={index} className="animate-wait aspect-[4/5] rounded-2xl bg-surface" />
+        ))}
+      </div>
+    );
   }
 
   const revealsIn = formatDuration(new Date(feed.revealAt).getTime() - now);
@@ -285,7 +294,7 @@ export function AlbumView({
                       : (photo.blurData || undefined)
                   }
                   alt=""
-                  className="h-full w-full object-cover"
+                  className={cn("h-full w-full object-cover", feed.open && "animate-develop")}
                   style={feed.open ? undefined : { filter: "blur(14px) saturate(0.6)" }}
                 />
 

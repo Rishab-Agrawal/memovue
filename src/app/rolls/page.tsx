@@ -39,7 +39,7 @@ export default async function RollsHome() {
   return (
     <div className="flex h-dvh flex-col">
       <div className="flex-1 overflow-y-auto">
-        <header className="flex items-center justify-between px-5 pt-6 pb-4">
+        <header className="flex items-center justify-between px-5 pt-[calc(var(--safe-top)+1.5rem)] pb-4">
           <Link href="/rolls" aria-label="MemoVue home" className="flex h-11 items-center">
             <Logo />
           </Link>

@@ -84,6 +84,7 @@ export async function loadRoll(id: string): Promise<{
       keptUntil: found.keptUntil,
       photoCount: found._count.photos,
       guestCount: found._count.guests,
+      maxGuests: found.maxGuests,
       shotsLeft,
     },
     /*
