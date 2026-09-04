@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 
-import { Plate } from "@/components/roll/Plate";
 import { PhotoViewer, type ViewerPhoto } from "@/components/roll/PhotoViewer";
 
 export interface GridPhoto {
@@ -12,7 +11,8 @@ export interface GridPhoto {
   url: string | null;
   /** The original, for the viewer. Null while sealed, for the same reason. */
   fullUrl: string | null;
-  plate: number;
+  /** The ~32px inlined JPEG. The whole tile while sealed, which is what sealed looks like. */
+  blurData: string;
 }
 
 /**
@@ -51,22 +51,23 @@ export function PhotoGrid({
             disabled={sealed}
             onClick={() => setViewing(index)}
             aria-label={sealed ? "Hidden photo" : `Photo by ${photo.by}`}
-            className="relative block aspect-[4/5] overflow-hidden rounded-2xl"
+            className="relative block aspect-[4/5] overflow-hidden rounded-2xl bg-void"
           >
             {/*
-              A gradient only while there is genuinely nothing to show. This grid drew one
-              unconditionally, so a host who opened their own album after the reveal was shown
-              abstract art where their guests' photographs should have been.
+              The guest's own photograph, blurred, exactly as the guest album shows it. This
+              grid used to draw a generated wash while sealed, so a host watching their roll
+              fill up was shown abstract art bearing no relation to anything anyone had shot.
 
               Not next/image: these are already cached at the edge, and the optimiser would
               proxy every frame through our own server to no benefit.
             */}
-            {photo.url ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img src={photo.url} alt="" className="absolute inset-0 h-full w-full object-cover" />
-            ) : (
-              <Plate index={photo.plate} className="absolute inset-0" sealed={sealed} />
-            )}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={photo.url ?? photo.blurData}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover"
+              style={sealed ? { filter: "blur(14px) saturate(0.6)" } : undefined}
+            />
 
             {sealed ? (
               <span className="tabular absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-void/60 px-3 py-1.5 text-[13px] whitespace-nowrap text-chalk">

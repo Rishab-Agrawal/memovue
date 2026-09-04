@@ -31,6 +31,29 @@ export async function getRollByJoinCode(code: string) {
   return findRoll(code);
 }
 
+/** Enough of a roll to work out where its screens are. */
+type Located = { id: string; code: string; hostId: string };
+
+/**
+ * The roll's own screen, for whoever is holding its camera.
+ *
+ * The host has `/rolls/[id]`, with its settings and its invite QR. Everybody else has the
+ * guest album, and that includes guests who never made an account — the reason this returns a
+ * string rather than a nullable one. It used to be null for them, so the camera's back arrow
+ * simply wasn't drawn and the roll had no screen they could reach.
+ */
+export async function rollHome(roll: Located): Promise<string> {
+  const user = await getCurrentUser();
+  return user?.id === roll.hostId ? `/rolls/${roll.id}` : `/e/${roll.code}/album`;
+}
+
+/** Out of the roll altogether: your own list if you have one, the way you came in if not. */
+export async function guestHome(roll: Located): Promise<string> {
+  const user = await getCurrentUser();
+  if (!user) return "/";
+  return user.id === roll.hostId ? `/rolls/${roll.id}` : "/rolls";
+}
+
 const guestFields = {
   id: true,
   name: true,

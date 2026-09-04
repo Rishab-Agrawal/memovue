@@ -44,7 +44,13 @@ export async function loadRoll(id: string): Promise<{
   const photos = await prisma.photo.findMany({
     where: { rollId: found.id, status: "READY" },
     orderBy: { takenAt: "desc" },
-    select: { id: true, previewKey: true, fullKey: true, guest: { select: { name: true } } },
+    select: {
+      id: true,
+      previewKey: true,
+      fullKey: true,
+      blurData: true,
+      guest: { select: { name: true } },
+    },
   });
 
   /*
@@ -80,14 +86,17 @@ export async function loadRoll(id: string): Promise<{
       guestCount: found._count.guests,
       shotsLeft,
     },
-    // Sealed rolls still render a wall of blurred frames, so the grid needs one entry per
-    // photograph — just nothing identifying inside it, and no URL that resolves to bytes.
+    /*
+      Sealed rolls render the wall from `blurData` — the same ~32px inlined JPEG the guest
+      album uses. It is a picture of the real photograph and nothing more: 32 pixels wide,
+      under a blur, with no key that resolves to bytes and no name attached.
+    */
     photos: photos.map((photo, index) => ({
       id: photo.id,
       by: open ? photo.guest.name : "",
       url: open ? urls[index] : null,
       fullUrl: open ? fullUrls[index] : null,
-      plate: index,
+      blurData: photo.blurData,
     })),
   };
 }

@@ -18,10 +18,10 @@ const FLIGHT_MS = 420;
 
 interface CameraViewProps {
   shotsLeft: number;
-  disabled?: boolean;
-  inert?: boolean;
   onCaptured: (photo: ProcessedPhoto) => void;
-  onOpenAlbum: () => void;
+  /** Leaves the camera for the roll. Absent for a guest who has no roll screen of their own. */
+  onLeave?: () => void;
+  /** Blur data for the last shot, which is all the thumbnail ever shows. */
   latestThumb?: string | null;
 }
 
@@ -35,14 +35,7 @@ interface CameraViewProps {
  * into the gallery thumbnail. That throw is the only confirmation, which is what makes the
  * number on the dial feel like it cost something.
  */
-export function CameraView({
-  shotsLeft,
-  disabled,
-  inert,
-  onCaptured,
-  onOpenAlbum,
-  latestThumb,
-}: CameraViewProps) {
+export function CameraView({ shotsLeft, onCaptured, onLeave, latestThumb }: CameraViewProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const thumbRef = useRef<HTMLButtonElement>(null);
@@ -158,7 +151,7 @@ export function CameraView({
   async function capture() {
     const video = videoRef.current;
     const frame = frameRef.current;
-    if (!video || !frame || phase !== "idle" || disabled || shotsLeft <= 0) return;
+    if (!video || !frame || phase !== "idle" || shotsLeft <= 0) return;
 
     setPhase("flash");
     navigator.vibrate?.(12);
@@ -204,7 +197,7 @@ export function CameraView({
   const flying = phase === "hold" || phase === "fly";
 
   return (
-    <div inert={inert} className="flex h-full flex-col bg-page">
+    <div className="flex h-full flex-col bg-page">
       <div className="flex flex-1 items-center px-4 py-4">
         <div ref={frameRef} className="relative aspect-[4/5] w-full overflow-hidden rounded-[2rem] bg-void">
           <video
@@ -291,20 +284,32 @@ export function CameraView({
           type="button"
           aria-label="Take photo"
           onClick={capture}
-          disabled={out || disabled || phase !== "idle" || permission !== "live"}
+          disabled={out || phase !== "idle" || permission !== "live"}
           className="h-[88px] w-[88px] rounded-full border-4 border-chalk bg-surface transition-transform active:scale-95 disabled:opacity-40"
         />
 
+        {/*
+          The last shot, blurred — the same seal everything else in the roll is under, and the
+          only thing that makes this square read as a camera roll rather than a hole in the
+          layout. It is the flight's landing pad, so it keeps its ref whether or not it leads
+          anywhere: an anonymous guest has no roll screen to send them to.
+        */}
         <button
           ref={thumbRef}
           type="button"
-          onClick={onOpenAlbum}
-          aria-label="Open album"
+          onClick={onLeave}
+          disabled={!onLeave}
+          aria-label="Open the roll"
           className="h-[72px] w-[72px] overflow-hidden rounded-2xl bg-surface"
         >
           {latestThumb ? (
             /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={latestThumb} alt="" className="h-full w-full object-cover" />
+            <img
+              src={latestThumb}
+              alt=""
+              className="h-full w-full object-cover"
+              style={{ filter: "blur(4px) saturate(0.6)" }}
+            />
           ) : null}
         </button>
       </div>

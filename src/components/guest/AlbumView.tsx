@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { RollHeader } from "@/components/roll/RollHeader";
@@ -60,13 +61,16 @@ export interface Feed {
  */
 export function AlbumView({
   code,
-  onRevealed,
-  onOpenCamera,
+  back,
+  cameraHref,
 }: {
   code: string;
-  onRevealed?: () => void;
-  onOpenCamera?: () => void;
+  /** Where the header's arrow goes. Decided by the page, which knows who is holding this. */
+  back: string;
+  /** The viewfinder, while the roll is still shooting. Absent once it has closed. */
+  cameraHref?: string;
 }) {
+  const router = useRouter();
   const [feed, setFeed] = useState<Feed | null>(null);
   const [photos, setPhotos] = useState<FeedPhoto[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -98,14 +102,16 @@ export function AlbumView({
         // product exists for, so the page refreshes itself rather than waiting for a tap.
         if (previous && !previous.open && next.open) {
           setGeneration((n) => n + 1);
-          onRevealed?.();
+          // The server decided this page's back link and camera link from a roll that was
+          // sealed a moment ago, so they are re-derived rather than left stale.
+          router.refresh();
         }
         return next;
       });
     } catch {
       setError("We couldn't load this roll.");
     }
-  }, [code, onRevealed]);
+  }, [code, router]);
 
   /** The next page of the grid. `after` null starts again from the top. */
   const loadPage = useCallback(
@@ -214,14 +220,16 @@ export function AlbumView({
             : formatDuration(new Date(feed.finishesAt).getTime() - now)
         }
         middleLabel={feed.open ? "Ended" : "Left"}
-        // A guest with an account has somewhere of their own to go back to; one without
-        // has only the marketing page they arrived past.
-        back={feed.me.linked ? "/rolls" : "/"}
+        back={back}
       />
 
       <div className="space-y-4 px-5 pt-4 pb-6">
-        {onOpenCamera && feed.capturing ? (
-          <RollControls revealed={feed.open} onCamera={onOpenCamera} />
+        {cameraHref && feed.capturing ? (
+          <RollControls
+            revealed={feed.open}
+            cameraHref={cameraHref}
+            outOfFilm={feed.me.shotsLeft <= 0}
+          />
         ) : null}
 
         {/*
