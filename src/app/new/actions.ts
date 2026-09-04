@@ -1,6 +1,7 @@
 "use server";
 
 import { BetaAccessError } from "@/lib/beta";
+import { rateLimit } from "@/lib/ratelimit";
 import { createRoll } from "@/lib/rolls";
 import { requireHost } from "@/lib/session";
 import { createRollSchema, fieldErrors } from "@/lib/validation";
@@ -21,6 +22,18 @@ export async function createRollAction(
   input: Record<string, unknown>,
 ): Promise<CreateRollResult> {
   const user = await requireHost();
+
+  /*
+    The allowance is what says how many rolls this account may have; this says how fast.
+
+    They are not the same bound, because deleting a roll that has not started yet gives the
+    allowance back — so create-and-delete is free forever, and each pass writes a roll, walks
+    its objects out of R2 and refunds itself. The allowance never notices. An admin, who is
+    not on the list at all, is bounded by nothing else whatsoever.
+  */
+  if (!rateLimit(`create-roll:${user.id}`, 20, 3_600).ok) {
+    return { ok: false, error: "That's a lot of rolls at once. Try again shortly." };
+  }
 
   const parsed = createRollSchema.safeParse(input);
   if (!parsed.success) {

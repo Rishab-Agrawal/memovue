@@ -1,11 +1,27 @@
 import { UPLOAD_LIMITS } from "@/lib/constants";
 import { getGuestContext } from "@/lib/guest-context";
 import { prisma } from "@/lib/prisma";
+import { limited } from "@/lib/ratelimit";
 import { takenAtWithin } from "@/lib/roll-access";
 import { deleteObjects, headObject, presignUpload, storageConfigured, zipKey } from "@/lib/storage";
 import { photoConfirmSchema } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * One budget across all three verbs, because they are one piece of work.
+ *
+ * The queue drains a photograph at a time — re-sign, upload, confirm — so what this bounds is
+ * how fast a guest can march through their reservations, not how many times they may use one
+ * particular method. That matters most for the confirm, which is the only route in the app
+ * that asks R2 about an object, twice, on somebody else's schedule.
+ *
+ * Ninety a minute sits comfortably above the forty reservations a minute the route next door
+ * allows, so a queue running flat out is never refused by this.
+ */
+function overBudget(guestId: string): Response | null {
+  return limited(`photo:${guestId}`, 90, 60);
+}
 
 /**
  * Re-signs upload URLs for a shot that's already reserved.
@@ -22,6 +38,9 @@ export async function PUT(
 
   const context = await getGuestContext(code);
   if (!context) return Response.json({ error: "not_joined" }, { status: 401 });
+
+  const over = overBudget(context.guest.id);
+  if (over) return over;
 
   const photo = await prisma.photo.findUnique({
     where: { id: photoId },
@@ -49,6 +68,9 @@ export async function POST(
 
   const context = await getGuestContext(code);
   if (!context) return Response.json({ error: "not_joined" }, { status: 401 });
+
+  const over = overBudget(context.guest.id);
+  if (over) return over;
 
   const body = await request.json().catch(() => null);
   const parsed = photoConfirmSchema.safeParse({ ...body, photoId });
@@ -140,6 +162,9 @@ export async function DELETE(
 
   const context = await getGuestContext(code);
   if (!context) return Response.json({ error: "not_joined" }, { status: 401 });
+
+  const over = overBudget(context.guest.id);
+  if (over) return over;
 
   const photo = await prisma.photo.findUnique({
     where: { id: photoId },

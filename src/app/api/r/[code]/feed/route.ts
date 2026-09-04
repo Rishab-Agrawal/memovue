@@ -1,5 +1,6 @@
 import { getGuestContext } from "@/lib/guest-context";
 import { prisma } from "@/lib/prisma";
+import { limited } from "@/lib/ratelimit";
 import { coverUrlFor } from "@/lib/rolls";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +22,15 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
 
   const context = await getGuestContext(code);
   if (!context) return Response.json({ error: "not_joined" }, { status: 401 });
+
+  /*
+    Keyed on the guest, not the address — a signed cookie is a better name for a caller than
+    an IP that a whole venue shares. The album asks three times a minute; sixty leaves room
+    for a second tab, a refresh, and a phone waking up, and still bounds the two counts below
+    to something a roll can absorb from every guest at once.
+  */
+  const over = limited(`feed:${context.guest.id}`, 60, 60);
+  if (over) return over;
 
   const { roll, guest, phase, open, capturing, shotsLeft, shotsUsed } = context;
 

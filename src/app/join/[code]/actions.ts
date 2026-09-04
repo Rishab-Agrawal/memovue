@@ -3,11 +3,16 @@
 import { redirect } from "next/navigation";
 
 import { setGuestCookie, signGuestToken } from "@/lib/auth";
+import { AUTOMATED_MESSAGE, MIN_RENDER_MS, looksAutomated } from "@/lib/bot-check";
 import { nameKey, normalizeCode } from "@/lib/codes";
 import { prisma } from "@/lib/prisma";
+import { callerIp, outOfGuesses, rateLimit, wrongGuess } from "@/lib/ratelimit";
 import { rollPhase } from "@/lib/roll-access";
 import { getCurrentUser } from "@/lib/session";
 import { fieldErrors, joinRollSchema } from "@/lib/validation";
+
+/** One message for a code that never existed and for one this caller has stopped earning. */
+const NO_SUCH_ROLL = "We couldn't find that roll.";
 
 export interface JoinState {
   error?: string;
@@ -24,14 +29,40 @@ export interface JoinState {
  * reaches their own home screen and a second device recognises them without a cookie.
  */
 export async function joinAction(code: string, formData: FormData): Promise<JoinState> {
+  // Free checks before any of the paid ones: neither of these touches the database. The
+  // floor is the door's, not the beta form's — see `MIN_RENDER_MS` for why it is so low.
+  const signals = {
+    trap: String(formData.get("trap") ?? ""),
+    elapsedMs: Number(formData.get("elapsedMs")),
+  };
+  if (looksAutomated(signals, MIN_RENDER_MS)) return { error: AUTOMATED_MESSAGE };
+
+  const ip = await callerIp();
+  if (outOfGuesses(ip)) return { error: NO_SUCH_ROLL };
+
   const roll = await prisma.roll.findUnique({ where: { code: normalizeCode(code) } });
-  if (!roll) return { error: "We couldn't find that roll." };
+  if (!roll) {
+    wrongGuess(ip);
+    return { error: NO_SUCH_ROLL };
+  }
 
   const phase = rollPhase(roll);
   if (phase === "scheduled") return { error: "This roll hasn't opened yet." };
 
   const parsed = joinRollSchema.safeParse({ name: formData.get("name") });
   if (!parsed.success) return { fields: fieldErrors(parsed.error) };
+
+  /*
+    A ceiling on joins from one address, set high enough that it is a backstop and not a door.
+
+    A five-hundred-guest wedding is five hundred phones on one venue router, all scanning the
+    card on their table within the same twenty minutes, and every one of them shares this IP.
+    So this number cannot be tuned to "how many people plausibly join" — it is only here to
+    stop a loop, and `maxGuests` is what actually bounds how many rows a roll can ever hold.
+  */
+  if (!rateLimit(`join:${ip}`, 100, 600).ok) {
+    return { error: "Too many people joined from this network at once. Try again in a minute." };
+  }
 
   const { name } = parsed.data;
   const key = nameKey(name);
@@ -94,13 +125,34 @@ export async function joinAction(code: string, formData: FormData): Promise<Join
  * could serve is someone taking a name that is not theirs.
  */
 export async function reclaimAction(code: string, name: string): Promise<JoinState> {
+  /*
+    The tightest limit in the app, because this is the only route that takes a session away
+    from somebody.
+
+    A name is not a secret — an open roll prints them beside the photographs — so what stands
+    between a stranger and a guest's camera is that they have to type one. Typing many is
+    what this stops. Every attempt is counted, not only the wrong ones: unlike a roll code,
+    a correct answer here is exactly what the attack looks like, and one person recovering a
+    lost session does it once.
+  */
+  const ip = await callerIp();
+  if (outOfGuesses(ip) || !rateLimit(`reclaim:${ip}`, 5, 600).ok) {
+    return { error: "Too many attempts. Try again in a few minutes." };
+  }
+
   const roll = await prisma.roll.findUnique({ where: { code: normalizeCode(code) } });
-  if (!roll) return { error: "We couldn't find that roll." };
+  if (!roll) {
+    wrongGuess(ip);
+    return { error: NO_SUCH_ROLL };
+  }
 
   const guest = await prisma.guest.findUnique({
     where: { rollId_nameKey: { rollId: roll.id, nameKey: nameKey(name) } },
   });
-  if (!guest) return { error: "We couldn't find that name in this roll." };
+  if (!guest) {
+    wrongGuess(ip);
+    return { error: "We couldn't find that name in this roll." };
+  }
 
   const user = await getCurrentUser();
 

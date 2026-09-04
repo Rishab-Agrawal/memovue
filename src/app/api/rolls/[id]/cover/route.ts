@@ -1,6 +1,6 @@
 import { UPLOAD_LIMITS } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
-import { clientIp, rateLimit } from "@/lib/ratelimit";
+import { limited } from "@/lib/ratelimit";
 import { clearRollCover, setRollCover } from "@/lib/rolls";
 import { getCurrentUser } from "@/lib/session";
 import { coverKey, deleteObjects, headObject, presignUpload, storageConfigured } from "@/lib/storage";
@@ -27,6 +27,18 @@ async function authorize(rollId: string): Promise<{ userId: string } | Response>
   const user = await getCurrentUser();
   if (!user) return Response.json({ error: "unauthorized" }, { status: 401 });
 
+  /*
+    One budget for the whole resource, spent here because all three verbs come through here.
+    Picking a cover is POST then PUT, plus whatever re-picking somebody does before they are
+    happy with it — thirty a minute is far past that, and it is what stops the two verbs that
+    reach R2 from being called in a loop.
+
+    Ahead of the ownership query on purpose: the point of a limit is to refuse before the work,
+    and this is the work.
+  */
+  const over = limited(`cover:${user.id}`, 30, 60);
+  if (over) return over;
+
   const roll = await prisma.roll.findFirst({
     where: { id: rollId, hostId: user.id },
     select: { id: true },
@@ -38,7 +50,7 @@ async function authorize(rollId: string): Promise<{ userId: string } | Response>
   return { userId: user.id };
 }
 
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
   const auth = await authorize(id);
@@ -47,9 +59,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!storageConfigured) {
     return Response.json({ error: "storage_unavailable" }, { status: 503 });
   }
-
-  const limit = rateLimit(`cover:${auth.userId}:${clientIp(request)}`, 20, 60);
-  if (!limit.ok) return Response.json({ error: "rate_limited" }, { status: 429 });
 
   const uploadUrl = await presignUpload(coverKey(id), "image/jpeg");
   return Response.json({ uploadUrl });

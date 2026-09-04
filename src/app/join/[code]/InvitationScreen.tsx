@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { Pill } from "@/components/roll/Chrome";
 import { Pencil } from "@/components/roll/Icons";
 import { InvitationCover } from "@/components/roll/InvitationCover";
+import { Honeypot, useFormAge } from "@/components/ui/Honeypot";
 import { formatDateTime } from "@/lib/format";
 import type { RollPhase } from "@/lib/roll-access";
 
@@ -45,11 +46,18 @@ export function InvitationScreen({
   const [state, setState] = useState<JoinState>({});
   const [pending, startTransition] = useTransition();
 
+  const [trap, setTrap] = useState("");
+  // Not reset by a refused attempt, on purpose: if the server thought that was too quick, the
+  // retry is by definition slower and goes through.
+  const formAge = useFormAge();
+
   const scheduled = phase === "scheduled";
 
   const submit = () => {
     const data = new FormData();
     data.set("name", name);
+    data.set("trap", trap);
+    data.set("elapsedMs", String(formAge()));
     startTransition(async () => setState(await joinAction(code, data)));
   };
 
@@ -81,6 +89,8 @@ export function InvitationScreen({
             className="w-full bg-transparent text-[16px] text-chalk placeholder:text-dust focus:outline-none"
           />
         </label>
+
+        <Honeypot value={trap} onChange={setTrap} />
 
         {state.error ? <p className="text-[13px] text-danger">{state.error}</p> : null}
         {state.fields?.name ? (

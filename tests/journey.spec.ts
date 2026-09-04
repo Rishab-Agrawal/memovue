@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 
+import { MIN_FILL_MS } from "@/lib/bot-check";
 import { MONTHS, toWall } from "@/lib/format";
 
 import { GUEST_STORAGE_STATE, STORAGE_STATE, TEST_GUEST, TEST_HOST } from "./global-setup";
@@ -243,6 +244,17 @@ test.describe("a roll from creation to reveal", () => {
     // And the way out of the refusal is a form, not a dead end.
     await page.getByRole("button", { name: "Request" }).click();
     await page.getByLabel("Event type").fill("Playwright wedding");
+
+    /*
+      The one wait in this file that is not waiting for anything.
+
+      The form refuses a submission that arrives faster than somebody could have read it, and
+      Playwright gets from page load to Submit in a few hundred milliseconds — so without this
+      the test asserts that the bot check works rather than that the form does. It stands in
+      for a person here, so it spends what a person would.
+    */
+    await page.waitForTimeout(MIN_FILL_MS);
+
     await page.getByRole("button", { name: "Submit" }).click();
     await expect(page.getByText("Beta access request sent")).toBeVisible();
 

@@ -3,7 +3,7 @@ import type { Readable } from "node:stream";
 import { PassThrough, Readable as NodeReadable } from "node:stream";
 
 import { prisma } from "@/lib/prisma";
-import { clientIp, rateLimit } from "@/lib/ratelimit";
+import { rateLimit } from "@/lib/ratelimit";
 import { UPLOAD_GRACE_HOURS, isOpen } from "@/lib/roll-access";
 import { getCurrentUser } from "@/lib/session";
 import { getObjectStream, headObject, presignDownload, putStream, zipKey } from "@/lib/storage";
@@ -47,7 +47,7 @@ function refuse(status: number, message: string, headers: HeadersInit = {}) {
   });
 }
 
-export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
   const user = await getCurrentUser();
@@ -65,7 +65,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     ponytail: a rate, not a concurrency limit — ten sequential builds are fine, ten at once
     are not. Add a per-host in-flight guard if this ever actually bites.
   */
-  const limit = rateLimit(`zip:${user.id}:${clientIp(request)}`, 10, 3600);
+  const limit = rateLimit(`zip:${user.id}`, 10, 3600);
   if (!limit.ok) {
     return refuse(
       429,

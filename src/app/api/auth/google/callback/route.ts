@@ -5,6 +5,7 @@ import { env } from "@/lib/env";
 import { exchangeCode, verifyIdToken } from "@/lib/google";
 import { linkGuestSessions } from "@/lib/guest-link";
 import { prisma } from "@/lib/prisma";
+import { OAUTH_LIMIT, OAUTH_WINDOW_SECONDS, clientIp, rateLimit } from "@/lib/ratelimit";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,12 @@ function back(reason: string) {
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
+
+  // Shares the budget with `/start`, before anything here is spent: the state check below is
+  // cheap, but past it this route calls Google and writes a user row.
+  if (!rateLimit(`oauth:${clientIp(request)}`, OAUTH_LIMIT, OAUTH_WINDOW_SECONDS).ok) {
+    return back("too_many");
+  }
 
   // Google reports user-side refusals here rather than by failing the request.
   if (url.searchParams.get("error")) return back("declined");

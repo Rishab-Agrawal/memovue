@@ -1,3 +1,5 @@
+import { headers } from "next/headers";
+
 /**
  * Deliberately in-process. MemoVue runs as a single Railway container, so a shared store
  * would be infrastructure for a problem we don't have yet. If this ever scales to multiple
@@ -43,9 +45,101 @@ export function rateLimit(key: string, limit: number, windowSeconds: number): Ra
   return { ok: true, retryAfterSeconds: 0 };
 }
 
-/** Best-effort client IP behind Railway's proxy. */
+/**
+ * The same check, already shaped as the refusal a route handler returns. `null` means carry
+ * on, so every call site reads `const over = limited(...); if (over) return over;`.
+ *
+ * `retry-after` is set from the same number the body would have carried, which is what a
+ * well-behaved client — and the upload queue's backoff — actually reads.
+ */
+export function limited(key: string, limit: number, windowSeconds: number): Response | null {
+  const result = rateLimit(key, limit, windowSeconds);
+  if (result.ok) return null;
+
+  return Response.json(
+    { error: "rate_limited" },
+    { status: 429, headers: { "retry-after": String(result.retryAfterSeconds) } },
+  );
+}
+
+/* ------------------------------------------------------------------ wrong guesses */
+
+/**
+ * A budget that only wrong answers spend.
+ *
+ * The identifiers a stranger can attack are a roll code and a guest's name, and both are
+ * reached from screens a whole wedding shares one wifi router to load. Counting *requests*
+ * per IP there is the wrong instrument: 200 guests scanning the card on their table look
+ * exactly like a script, so any limit tight enough to stop the script closes the door on
+ * the event it was protecting.
+ *
+ * What separates them is that guests arrive with codes and names that exist. So the budget
+ * is spent on misses only — an unknown roll code, a name nobody in the roll is using. A
+ * venue full of people never touches it; something walking the 31^6 code space runs out
+ * after ten.
+ *
+ * One shared bucket per IP across all three guessing surfaces, because they are one
+ * activity: trying identifiers until something answers.
+ */
+const GUESS_LIMIT = 10;
+const GUESS_WINDOW_SECONDS = 600;
+
+/** Whether this caller has already spent their wrong answers. Costs nothing to ask. */
+export function outOfGuesses(ip: string): boolean {
+  const bucket = buckets.get(`guess:${ip}`);
+  return bucket !== undefined && bucket.resetAt > Date.now() && bucket.count >= GUESS_LIMIT;
+}
+
+/** Records one. Call it only when the code or the name turned out not to exist. */
+export function wrongGuess(ip: string): void {
+  rateLimit(`guess:${ip}`, GUESS_LIMIT, GUESS_WINDOW_SECONDS);
+}
+
+/* ------------------------------------------------------------------ sign-in */
+
+/**
+ * How fast one address may attempt a Google sign-in.
+ *
+ * Every other budget in the app is written at the one place that spends it. This one is here
+ * because it is spent in two — `/start` and `/callback` are halves of a single round trip,
+ * and a budget on only the second half is a budget on nothing. Thirty is fifteen whole
+ * attempts in ten minutes: more than anyone signing in needs, and immediate for a loop
+ * minting state cookies or replaying codes at Google.
+ */
+export const OAUTH_LIMIT = 30;
+export const OAUTH_WINDOW_SECONDS = 600;
+
+/* ------------------------------------------------------------------ who is calling */
+
+/**
+ * The caller's address, from the one header that is not the caller's to choose.
+ *
+ * `x-forwarded-for` used to be read first, and it is now not read at all. Railway's edge
+ * documents `x-real-ip` as the client's remote address and does not set XFF — so whatever
+ * arrives in XFF came from the other end of the connection, and keying a budget on it handed
+ * a fresh bucket to anyone who thought to send the header. Every IP-keyed limit in the app
+ * was one line of curl away from being nothing.
+ *
+ * Reading XFF's *last* entry instead does not rescue it. That entry is trustworthy only
+ * because a proxy appended it, and a request that arrived without passing through one has
+ * nobody who could have — which is indistinguishable, from inside this function, from the
+ * case where one did. The header can only be believed by a deployment that knows how many
+ * proxies it sits behind, and encoding that as a guess is how this went wrong the first time.
+ *
+ * With no edge in front, every caller shares one bucket. That is the right direction for this
+ * to fail: strict and immediately obvious, rather than quietly per-request. Anything put in
+ * front of Railway needs a line here saying so.
+ */
+function ipFrom(source: Headers): string {
+  return source.get("x-real-ip")?.trim() || "unknown";
+}
+
+/** For route handlers, which are handed the request. */
 export function clientIp(request: Request): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0].trim();
-  return request.headers.get("x-real-ip") ?? "unknown";
+  return ipFrom(request.headers);
+}
+
+/** For server actions, which are not. */
+export async function callerIp(): Promise<string> {
+  return ipFrom(await headers());
 }

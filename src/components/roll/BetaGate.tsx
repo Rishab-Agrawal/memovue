@@ -5,6 +5,7 @@ import { useEffect, useState, useTransition } from "react";
 import { requestBetaAccessAction } from "@/app/actions";
 import { Pill } from "@/components/roll/Chrome";
 import { Dialog } from "@/components/roll/Dialog";
+import { Honeypot, useFormAge } from "@/components/ui/Honeypot";
 
 /**
  * What somebody without beta access sees when they try to make a roll.
@@ -44,6 +45,11 @@ export function BetaGate({
   const [sent, setSent] = useState(false);
   const [pending, startTransition] = useTransition();
 
+  const [trap, setTrap] = useState("");
+  // Counted from this dialog appearing rather than from the Request tap inside it, which only
+  // ever makes the span longer. The floor is a floor; nothing here needs it to be tight.
+  const formAge = useFormAge();
+
   useEffect(() => {
     if (!sent) return;
     const timer = setTimeout(() => setSent(false), SNACKBAR_MS);
@@ -64,6 +70,8 @@ export function BetaGate({
         phone: phone.trim() || undefined,
         eventType,
         remarks: remarks.trim() || undefined,
+        trap,
+        elapsedMs: formAge(),
       });
 
       if (!result.ok) {
@@ -161,6 +169,8 @@ export function BetaGate({
             className={`${field} h-auto py-3 leading-relaxed`}
           />
         </label>
+
+        <Honeypot value={trap} onChange={setTrap} />
 
         {error ? <p className="mt-2 text-[13px] text-danger">{error}</p> : null}
       </Dialog>

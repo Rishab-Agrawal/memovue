@@ -14,6 +14,7 @@ const MESSAGES: Record<string, string> = {
   no_code: "Google didn't complete the sign-in. Please try again.",
   bad_state: "That sign-in link expired. Please try again.",
   verification_failed: "We couldn't verify that Google account. Please try again.",
+  too_many: "Too many sign-in attempts from this network. Try again in a few minutes.",
 };
 
 /**

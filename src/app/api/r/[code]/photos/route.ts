@@ -2,7 +2,7 @@ import { nanoid } from "nanoid";
 
 import { getGuestContext } from "@/lib/guest-context";
 import { prisma } from "@/lib/prisma";
-import { clientIp, rateLimit } from "@/lib/ratelimit";
+import { limited } from "@/lib/ratelimit";
 import { visiblePhotoWhere } from "@/lib/roll-access";
 import { photoKey, presignUpload, publicUrl } from "@/lib/storage";
 import { photoInitSchema } from "@/lib/validation";
@@ -36,10 +36,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
     return Response.json({ error: "no_shots_left" }, { status: 409 });
   }
 
-  const limit = rateLimit(`photo:${context.guest.id}:${clientIp(request)}`, 40, 60);
-  if (!limit.ok) {
-    return Response.json({ error: "rate_limited" }, { status: 429 });
-  }
+  /*
+    The address used to be part of this key. It only ever weakened it: a guest is identified
+    by a signed cookie, so folding in an IP handed the same guest a fresh budget every time
+    their phone changed network, and gave a whole venue's worth of honest guests nothing.
+  */
+  const over = limited(`reserve:${context.guest.id}`, 40, 60);
+  if (over) return over;
 
   const body = await request.json().catch(() => null);
   const parsed = photoInitSchema.safeParse(body);
@@ -101,6 +104,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
 
   const context = await getGuestContext(code);
   if (!context) return Response.json({ error: "not_joined" }, { status: 401 });
+
+  // Higher than the feed's, because the grid pages: opening a five-hundred-photo album and
+  // scrolling to the bottom is eleven of these in a burst, and doing that twice is normal.
+  const over = limited(`grid:${context.guest.id}`, 120, 60);
+  if (over) return over;
 
   const url = new URL(request.url);
   const cursor = url.searchParams.get("cursor");

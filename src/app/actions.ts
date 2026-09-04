@@ -1,6 +1,7 @@
 "use server";
 
 import { recordRequest } from "@/lib/beta";
+import { AUTOMATED_MESSAGE, type BotSignals, looksAutomated } from "@/lib/bot-check";
 import { sendBetaRequest } from "@/lib/email";
 import { rateLimit } from "@/lib/ratelimit";
 import { requireHost } from "@/lib/session";
@@ -18,9 +19,17 @@ import { betaRequestSchema, fieldErrors } from "@/lib/validation";
 export type RequestAccessResult = { ok: true } | { ok: false; error: string };
 
 export async function requestBetaAccessAction(
-  input: { name: string; phone?: string; eventType: string; remarks?: string },
+  input: { name: string; phone?: string; eventType: string; remarks?: string } & BotSignals,
 ): Promise<RequestAccessResult> {
   const user = await requireHost();
+
+  /*
+    Checked before the rate limit rather than after, so a script cannot spend a real person's
+    three-an-hour on their behalf — the account here belongs to whoever signed in, and the
+    form is a dialog rendered by React state, so a submission that skipped the screen
+    entirely is the only thing this can be.
+  */
+  if (looksAutomated(input)) return { ok: false, error: AUTOMATED_MESSAGE };
 
   const parsed = betaRequestSchema.safeParse(input);
   if (!parsed.success) {

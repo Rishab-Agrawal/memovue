@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { clearHostSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { rateLimit } from "@/lib/ratelimit";
 import { purgeRollsOfHost } from "@/lib/retention";
 import { requireHost } from "@/lib/session";
 import { fieldErrors, updateNameSchema } from "@/lib/validation";
@@ -13,6 +14,10 @@ export async function updateNameAction(
   input: { name: string },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const user = await requireHost();
+
+  if (!rateLimit(`rename:${user.id}`, 20, 60).ok) {
+    return { ok: false, error: "That's a lot of edits. Give it a moment." };
+  }
 
   const parsed = updateNameSchema.safeParse(input);
   if (!parsed.success) {
@@ -41,6 +46,16 @@ export async function logoutAction(): Promise<never> {
  */
 export async function deleteAccountAction(): Promise<never> {
   const user = await requireHost();
+
+  /*
+    Not a defence against somebody deleting their own account — that is what the button is
+    for, and after the first one succeeds there is no session left to call it with. It bounds
+    the *overlap*: twenty of these fired at once all pass the check above and all start
+    walking the same objects out of R2, which is a bill for work that only had to happen once.
+    A screen coming back unchanged is the right answer to the second tap.
+  */
+  if (!rateLimit(`delete-account:${user.id}`, 3, 3_600).ok) redirect("/account");
+
   await purgeRollsOfHost(user.id);
   await prisma.user.delete({ where: { id: user.id } });
   await clearHostSession();
