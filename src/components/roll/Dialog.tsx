@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 /**
  * The reference's centred modal: a rounded card on a blurred scrim, with its actions as a
- * row of pills at the bottom. Used for the coupon gate, roll-created, invalid-link, delete
+ * row of pills at the bottom. Used for the beta gate, roll-created, invalid-link, delete
  * confirmations and the QR-saved toast.
  */
 export function Dialog({

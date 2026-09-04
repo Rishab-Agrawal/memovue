@@ -55,9 +55,8 @@ model User {
   tokenVersion Int      @default(0)
   createdAt    DateTime @default(now())
 
-  rolls   Roll[]
-  guests  Guest[]
-  coupons Coupon[]
+  rolls  Roll[]
+  guests Guest[]
 }
 
 model Roll {
@@ -102,7 +101,6 @@ model Roll {
 
   guests Guest[]
   photos Photo[]
-  coupon Coupon?
 
   @@index([hostId])
   @@index([keptUntil])
@@ -166,22 +164,41 @@ model Photo {
   @@index([status, createdAt])
 }
 
-/// Single-use codes that gate roll creation while the product is invite-only. This replaced
-/// the old signup approval queue: anyone may hold an account now, but creating a roll costs
-/// a code, and we keep a record of who spent which one.
-model Coupon {
-  id   String  @id @default(cuid())
-  code String  @unique
-  note String?
+/// Who may create a roll while the product is invite-only, and how many are left to them.
+///
+/// Keyed on the email address rather than on a User row because access is granted before the
+/// person has ever signed in — an admin types an address in, and a User row only appears when
+/// Google hands one over. Always stored lower-cased, so this and `User.email` compare directly.
+model BetaAccess {
+  id    String @id @default(cuid())
+  email String @unique
 
-  /// All four are written together, in one transaction, at redemption.
-  redeemedById String?
-  redeemedBy   User?     @relation(fields: [redeemedById], references: [id], onDelete: SetNull)
-  redeemedAt   DateTime?
-  rollId       String?   @unique
-  roll         Roll?     @relation(fields: [rollId], references: [id], onDelete: SetNull)
+  /// Spent when a roll is created, given back when an unstarted roll is deleted.
+  /// Zero is a live row that has run out, which looks the same to the person as never having
+  /// been added — deliberately, so an admin tops someone up rather than re-adding them.
+  rollsLeft Int @default(1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Somebody asking to be let in.
+///
+/// Stored as well as emailed, because the email is best-effort — `send` swallows its own
+/// failures so a submission never 500s — and a request that existed only inside a dropped
+/// SMTP call is a customer we never knew asked.
+model BetaRequest {
+  id String @id @default(cuid())
+
+  /// The address they are signed in with, which is the one an admin has to allow.
+  email String
+  name  String
+
+  phone     String?
+  eventType String
+  remarks   String?
 
   createdAt DateTime @default(now())
 
-  @@index([redeemedById])
+  @@index([createdAt])
 }

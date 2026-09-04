@@ -32,6 +32,43 @@ async function send(to: string, subject: string, text: string): Promise<void> {
 }
 
 /**
+ * A beta access request, forwarded to whoever owns `ADMIN_EMAIL`.
+ *
+ * The address it carries is the one the person is signed in with, because that is the string
+ * the admin screen needs typed back in — a request naming any other address would grant
+ * access to an account that will never arrive.
+ *
+ * Returns quietly when no admin address is configured: the row is already in `BetaRequest`
+ * and the admin screen lists it, so a missing env var costs a notification, not the request.
+ */
+export function sendBetaRequest(request: {
+  email: string;
+  name: string;
+  phone?: string | null;
+  eventType: string;
+  remarks?: string | null;
+}): Promise<void> {
+  if (!env.adminEmail) {
+    console.info(`[beta request: no ADMIN_EMAIL] ${request.email}`);
+    return Promise.resolve();
+  }
+
+  return send(
+    env.adminEmail,
+    `Beta access requested by ${request.name}`,
+    [
+      `Account: ${request.email}`,
+      `Name: ${request.name}`,
+      `Phone: ${request.phone || "—"}`,
+      `Event: ${request.eventType}`,
+      `Remarks: ${request.remarks || "—"}`,
+      "",
+      `Add the account address above at ${env.appUrl}/admin`,
+    ].join("\n"),
+  );
+}
+
+/**
  * Retention warning, sent once by the nightly sweep a week before a roll reaches its
  * `keptUntil`. The roll's `warnedAt` records the send, so a host hears about it once rather
  * than every night for a week.

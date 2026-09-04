@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 
 import { cn } from "@/lib/cn";
 
+import { BetaGate } from "@/components/roll/BetaGate";
 import { Pill } from "@/components/roll/Chrome";
 import { Counter } from "@/components/roll/Counter";
 import { Dialog } from "@/components/roll/Dialog";
@@ -27,14 +28,16 @@ import {
 import { createRollAction } from "../actions";
 import { draftToInput, useDraft } from "../DraftContext";
 
-type Stage = "form" | "coupon" | "created";
-
 export default function StepGuests() {
-  const { draft, update } = useDraft();
+  const { draft, update, hostName } = useDraft();
   const router = useRouter();
 
-  const [stage, setStage] = useState<Stage>("form");
-  const [code, setCode] = useState("");
+  /*
+    The wall is on the home screen's button, not here — nobody should walk six steps to be
+    told no. This is the second half of the same check: an allowance can be spent from
+    another tab, or run out while somebody sits on this screen, and only the server knows.
+  */
+  const [blocked, setBlocked] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<{ id: string; code: string; name: string } | null>(null);
   const [coverFailed, setCoverFailed] = useState(false);
@@ -42,20 +45,21 @@ export default function StepGuests() {
 
   const price = priceFor(draft.participantIndex, draft.shotIndex);
 
-  const apply = () => {
+  const create = () => {
     setError(null);
     startTransition(async () => {
-      const result = await createRollAction(draftToInput(draft, code));
+      const result = await createRollAction(draftToInput(draft));
       if (!result.ok) {
-        setError(result.error);
+        if (result.noAccess) setBlocked(true);
+        else setError(result.error);
         return;
       }
 
       /*
         The cover goes up after the roll exists, because until this moment there was nothing
-        to attach it to. A failure here is reported but not fatal: the coupon has been spent
-        and the roll is real, so sending the host back to the wizard would cost them a code
-        over a picture they can set again from the roll's own settings in two taps.
+        to attach it to. A failure here is reported but not fatal: the allowance has been
+        spent and the roll is real, so sending the host back to the wizard would cost them a
+        roll over a picture they can set again from the roll's own settings in two taps.
       */
       if (draft.coverBlob) {
         try {
@@ -66,7 +70,6 @@ export default function StepGuests() {
       }
 
       setCreated({ id: result.rollId, code: result.code, name: result.name });
-      setStage("created");
     });
   };
 
@@ -77,8 +80,12 @@ export default function StepGuests() {
         title="How many guests for your roll?"
         subtitle="Make sure all guests have a chance to take the most amazing photo from your event."
         back="/new/card"
-        next={{ label: "Create →", href: "/new/guests", inert: !draft.name.trim() }}
-        onNext={() => setStage("coupon")}
+        next={{
+          label: pending ? "Creating…" : "Create →",
+          href: "/new/guests",
+          inert: !draft.name.trim() || pending,
+        }}
+        onNext={create}
       >
         <div className="flex items-start justify-between gap-4">
           <p className="display-md text-[26px] text-chalk">
@@ -167,40 +174,22 @@ export default function StepGuests() {
         </div>
       </WizardShell>
 
+      <BetaGate open={blocked} onClose={() => setBlocked(false)} hostName={hostName} />
+
       <Dialog
-        open={stage === "coupon"}
-        title="Enter your coupon code"
+        open={error !== null}
+        title="That didn't go through"
         actions={
-          <>
-            <Pill variant="quiet" full disabled={pending} onClick={() => setStage("form")}>
-              Cancel
-            </Pill>
-            <Pill variant="flame" full disabled={!code.trim() || pending} onClick={apply}>
-              {pending ? "Checking…" : "Apply"}
-            </Pill>
-          </>
+          <Pill variant="quiet" full onClick={() => setError(null)}>
+            OK
+          </Pill>
         }
       >
-        <p>
-          MemoVue is invite-only while we&rsquo;re in beta. Enter the code you were given to
-          create this roll.
-        </p>
-        <input
-          value={code}
-          onChange={(event) => {
-            setCode(event.target.value);
-            setError(null);
-          }}
-          autoCapitalize="characters"
-          placeholder="Your code"
-          aria-label="Coupon code"
-          className="mt-4 h-14 w-full rounded-2xl bg-void px-4 text-[16px] tracking-[0.08em] text-chalk uppercase placeholder:normal-case placeholder:tracking-normal placeholder:text-dust focus:outline-none focus-visible:ring-1 focus-visible:ring-flame"
-        />
-        {error ? <p className="mt-2 text-[13px] text-danger">{error}</p> : null}
+        <p>{error}</p>
       </Dialog>
 
       <Dialog
-        open={stage === "created"}
+        open={created !== null}
         title="Roll Created!"
         actions={
           <Pill variant="quiet" full onClick={() => router.push(`/rolls/${created?.id}`)}>

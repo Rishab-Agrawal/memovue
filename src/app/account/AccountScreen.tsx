@@ -16,8 +16,8 @@ import { deleteAccountAction, logoutAction, updateNameAction } from "./actions";
  *
  * "Website" sat next to Instagram under SOCIALS — pointless for us, because the thing it
  * would link to is the page you are already on. And the whole PARTNER section, whose only
- * row was "Have a discount code?", is gone: codes are spent when a roll is created, which is
- * the moment they actually apply.
+ * row was "Have a discount code?", is gone: there are no codes any more — access hangs on
+ * the address you signed in with, so there is nothing here for anyone to type.
  */
 export function AccountScreen({
   name: initialName,
@@ -105,7 +105,7 @@ export function AccountScreen({
             <div className="mt-3">
               <SettingRow
                 icon={<Pencil className="h-5 w-5" />}
-                label="Coupon codes"
+                label="Beta access"
                 href="/admin"
               />
             </div>

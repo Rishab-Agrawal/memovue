@@ -45,8 +45,6 @@ const rollFields = z.object({
 
     everyoneCanSee: z.boolean(),
     coverPreset: z.number().int().min(0).max(8),
-
-    couponCode: z.string().trim().min(1, "Enter your coupon code").max(40),
 });
 
 export const createRollSchema = rollFields.superRefine((data, ctx) => {
@@ -141,9 +139,33 @@ export const updateNameSchema = z.object({
 
 /* ------------------------------------------------------------------ admin */
 
-export const mintCouponSchema = z.object({
-  note: z.string().trim().max(120).optional(),
-  count: z.number().int().min(1).max(50),
+/** The address an admin types into the beta list. Lower-cased on the way to the database. */
+export const grantAccessSchema = z.object({
+  email: z.email("That doesn't look like an email address").max(160),
+});
+
+export const adjustAccessSchema = z.object({
+  id: z.string().min(1),
+  /** One step per tap. A free-form number here would be an admin typo away from 900 rolls. */
+  delta: z.union([z.literal(1), z.literal(-1)]),
+});
+
+export const revokeAccessSchema = adjustAccessSchema.pick({ id: true });
+
+/* ------------------------------------------------------------------ beta requests */
+
+/**
+ * What somebody without access fills in to ask for it.
+ *
+ * No email field: the address that matters is the one they are signed in with, which is the
+ * one an admin has to add, and a form that let them type a different one would collect
+ * addresses that grant access to nothing.
+ */
+export const betaRequestSchema = z.object({
+  name: z.string().trim().min(1, "Please enter your name").max(60),
+  phone: z.string().trim().max(30).optional(),
+  eventType: z.string().trim().min(1, "What kind of event is it?").max(60),
+  remarks: z.string().trim().max(500).optional(),
 });
 
 /** Flattens a ZodError into { field: message } for rendering next to inputs. */

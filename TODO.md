@@ -27,7 +27,7 @@ both.
 Not urgent while the beta is free, but do not launch paid without them:
 
 - Payments (India and international)
-- Decide whether roll creation stays gated behind a coupon, and what the free tier is
+- Decide what replaces the beta allow-list at launch, and what the free tier is
 
 ## Tighten DMARC to quarantine
 

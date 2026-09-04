@@ -52,5 +52,5 @@ export async function requireAdmin(): Promise<CurrentUser> {
  * Access used to be a property of the account: you asked for beta access, an admin approved
  * you, and `accessStatus` gated everything. With Google sign-in anyone can hold an account,
  * so the gate moved to the act that actually costs us something — creating a roll, which
- * spends a single-use coupon. See `redeemCoupon`.
+ * spends one off the allowance on your email address. See `canCreateRoll` and `spendRoll`.
  */

@@ -6,9 +6,12 @@ import { PillLink } from "@/components/roll/Chrome";
 import { Cover } from "@/components/roll/Cover";
 import { Plate } from "@/components/roll/Plate";
 import { Camera, Clock, Person, Qr } from "@/components/roll/Icons";
+import { canCreateRoll } from "@/lib/beta";
 import { formatDuration, formatRange } from "@/lib/format";
 import { type RollCard, coverUrlsFor, listRollsForUser } from "@/lib/rolls";
 import { requireHost } from "@/lib/session";
+
+import { NewRollButton } from "./NewRollButton";
 
 export const metadata = { title: "Your rolls" };
 export const dynamic = "force-dynamic";
@@ -25,7 +28,10 @@ const destination = (roll: RollCard) =>
 
 export default async function RollsHome() {
   const user = await requireHost();
-  const { active, albums } = await listRollsForUser(user.id);
+  const [{ active, albums }, canCreate] = await Promise.all([
+    listRollsForUser(user.id),
+    canCreateRoll(user),
+  ]);
   // Only the active cards stand on a cover now; albums show their own prints below.
   const covers = coverUrlsFor(active);
   const now = new Date();
@@ -43,9 +49,14 @@ export default async function RollsHome() {
               <Qr className="h-4 w-4" />
               Join
             </PillLink>
-            <PillLink href="/new/name" variant="light" className="h-10 px-4 text-[14px] font-semibold">
+            <NewRollButton
+              canCreate={canCreate}
+              hostName={user.name}
+              variant="light"
+              className="h-10 px-4 text-[14px] font-semibold"
+            >
               + New
-            </PillLink>
+            </NewRollButton>
           </div>
         </header>
 
@@ -54,9 +65,9 @@ export default async function RollsHome() {
 
           {active.length === 0 ? (
             <Empty note="No active rolls">
-              <PillLink href="/new/name" variant="flame">
+              <NewRollButton canCreate={canCreate} hostName={user.name} variant="flame">
                 + Create roll
-              </PillLink>
+              </NewRollButton>
             </Empty>
           ) : (
             <div className="mt-4 flex gap-4 overflow-x-auto no-scrollbar">

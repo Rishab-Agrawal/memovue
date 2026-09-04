@@ -26,8 +26,12 @@ export const TEST_GUEST = {
   name: "Playwright Guest",
 };
 
-/** Creating a roll costs a code, so the suite needs one waiting for it. */
-export const TEST_COUPON = "PLAYWRGHT";
+/**
+ * Creating a roll spends one off the host's beta allowance, so the suite seeds itself two:
+ * one for the roll every other test shoots on, and one for the test that spends the last,
+ * gets refused, and deletes an unstarted roll to get it back.
+ */
+export const TEST_ROLL_ALLOWANCE = 2;
 
 export const STORAGE_STATE = path.join("tests", ".auth", "host.json");
 export const GUEST_STORAGE_STATE = path.join("tests", ".auth", "invited.json");
@@ -92,10 +96,13 @@ export default async function globalSetup() {
       );
     }
 
-    // Reset rather than upsert: a coupon is single-use, so a run that already spent it has
-    // to get a fresh one or every subsequent run fails at roll creation.
-    await prisma.coupon.deleteMany({ where: { code: TEST_COUPON } });
-    await prisma.coupon.create({ data: { code: TEST_COUPON, note: "playwright" } });
+    // Reset rather than increment: the previous run spent this down to zero, and a suite
+    // that starts with whatever the last one left behind fails differently every time.
+    await prisma.betaAccess.upsert({
+      where: { email: TEST_HOST.email },
+      create: { email: TEST_HOST.email, rollsLeft: TEST_ROLL_ALLOWANCE },
+      update: { rollsLeft: TEST_ROLL_ALLOWANCE },
+    });
   } finally {
     await prisma.$disconnect();
   }

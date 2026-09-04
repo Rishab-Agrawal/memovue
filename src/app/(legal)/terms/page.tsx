@@ -33,9 +33,9 @@ export default function TermsPage() {
 
       <h2>2. The service is in beta</h2>
       <p>
-        MemoVue is free while in beta, and creating a roll currently requires a coupon code from
-        us. Beta means what it sounds like: features may change, and we cannot promise
-        uninterrupted service. <strong>Please do not make MemoVue the only record of something
+        MemoVue is free while in beta, and creating a roll requires us to have allowed the email
+        address you sign in with. Beta means what it sounds like: features may change, and we
+        cannot promise uninterrupted service. <strong>Please do not make MemoVue the only record of something
         irreplaceable.</strong>
       </p>
 
@@ -56,10 +56,12 @@ export default function TermsPage() {
         obvious to the person it is taken from.
       </p>
 
-      <h2>4. Coupons, pricing and refunds</h2>
+      <h2>4. Beta access, pricing and refunds</h2>
       <p>
-        A coupon is issued to a person, may be spent on exactly one roll, and cannot be
-        transferred, resold or redeemed for cash. We may decline or withdraw one.
+        Beta access is granted to an email address, for a set number of rolls, and cannot be
+        transferred, resold or redeemed for cash. We may decline a request or withdraw access.
+        Deleting a roll before its event has started returns it to your allowance; deleting one
+        after that does not.
       </p>
       <p>
         <strong>We currently take no payment.</strong> If MemoVue introduces paid rolls, the

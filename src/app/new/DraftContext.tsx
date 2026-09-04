@@ -121,7 +121,7 @@ export function useDraft(): DraftContextValue {
 }
 
 /** What the server action receives. Indices become the real numbers here, once. */
-export function draftToInput(draft: Draft, couponCode: string) {
+export function draftToInput(draft: Draft) {
   return {
     name: draft.name.trim(),
     startsAt: draft.startsAt.toISOString(),
@@ -132,6 +132,5 @@ export function draftToInput(draft: Draft, couponCode: string) {
     photosPerGuest: SHOT_TIERS[draft.shotIndex],
     everyoneCanSee: draft.everyoneCanSee,
     coverPreset: draft.coverPreset,
-    couponCode,
   };
 }

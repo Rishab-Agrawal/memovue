@@ -35,7 +35,7 @@ const DAY = 86_400_000;
  * at all — while both documents told people we remove the image files. Every path that
  * destroys a roll goes through here now.
  *
- * Cascades take care of guests, photos and the coupon row once the roll goes.
+ * Cascades take care of guests and photos once the roll goes.
  */
 export async function purgeRoll(rollId: string): Promise<void> {
   if (storageConfigured) {

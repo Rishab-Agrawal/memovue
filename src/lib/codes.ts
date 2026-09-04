@@ -4,16 +4,10 @@ import { customAlphabet } from "nanoid";
 const UNAMBIGUOUS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 
 const generate = customAlphabet(UNAMBIGUOUS, 6);
-const generateInvite = customAlphabet(UNAMBIGUOUS, 8);
 
 /** The code printed on a QR card, which guests scan or type to reach a roll. */
 export function rollCode(): string {
   return generate();
-}
-
-/** Longer, because a coupon is handed over deliberately rather than read off a table. */
-export function inviteCode(): string {
-  return generateInvite();
 }
 
 /** Normalises a typed code so "k7qm-2p" and "K7QM2P" resolve to the same roll. */

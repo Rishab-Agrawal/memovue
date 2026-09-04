@@ -43,7 +43,7 @@ export function formatPrice(rupees: number): string {
 /**
  * Beta holds two things back at once, so it is one flag rather than two.
  *
- * Nothing is charged yet — rolls are created with a coupon, not a payment — so the wizard
+ * Nothing is charged yet — rolls are created on a beta allowance, not a payment — so the wizard
  * strikes the price it would charge rather than hiding it, which is the only way a host
  * learns what this will cost before it starts costing. And the hundred-shot roll is not
  * offered: it is four times the storage against a price nobody is paying, and it is the one
@@ -119,7 +119,7 @@ export function isWithin(day: Date, range: DateRange): boolean {
  * Editing the start after the finish can invalidate it from either end — moving it forward
  * past the finish, or back so far that the finish breaks the two-month ceiling. The wizard
  * runs this whenever the start moves so the pair it carries is always a legal one, rather
- * than letting the host discover it at the coupon dialog after six screens.
+ * than letting the host discover it on the last screen of six.
  */
 export function clampFinish(startsAt: Date, finishesAt: Date): Date {
   const earliest = earliestFinish(startsAt);

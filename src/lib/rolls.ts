@@ -2,8 +2,8 @@ import "server-only";
 
 import type { RevealMode } from "@prisma/client";
 
+import { type Account, refundRoll, spendRoll } from "./beta";
 import { rollCode } from "./codes";
-import { claimCoupon } from "./coupons";
 import { prisma } from "./prisma";
 import { computeKeptUntil, computeRevealAt, isOpen, visiblePhotoWhere } from "./roll-access";
 import { purgeRoll } from "./retention";
@@ -27,26 +27,25 @@ export interface CreateRollInput {
   photosPerGuest: number;
   everyoneCanSee: boolean;
   coverPreset: number;
-  couponCode: string;
 }
 
 /**
- * Creation and coupon redemption are one transaction on purpose. Spending a code and then
- * failing to insert the roll would burn a code the host never got anything for, and there
- * is no self-serve way to give it back.
+ * Creation and spending the beta allowance are one transaction on purpose. Taking a roll off
+ * somebody's allowance and then failing to insert it would charge them for nothing, and there
+ * is no self-serve way to hand it back.
  */
-export async function createRoll(hostId: string, input: CreateRollInput) {
+export async function createRoll(host: Account, input: CreateRollInput) {
   const revealAt = computeRevealAt(input.finishesAt, input.revealMode, input.revealDelayHours);
 
-  // A `CouponError` from `claimCoupon` travels straight out to the server action, which is
-  // what turns it into a message under the coupon field.
+  // A `BetaAccessError` from `spendRoll` travels straight out to the server action, which
+  // turns it into the dialog offering to request access.
   return prisma.$transaction(async (tx) => {
-    const couponId = await claimCoupon(tx, input.couponCode, hostId);
+    await spendRoll(tx, host);
 
     const roll = await tx.roll.create({
       data: {
         code: rollCode(),
-        hostId,
+        hostId: host.id,
         name: input.name,
         coverPreset: input.coverPreset,
         maxGuests: input.maxGuests,
@@ -62,7 +61,6 @@ export async function createRoll(hostId: string, input: CreateRollInput) {
       select: { id: true, code: true, name: true },
     });
 
-    await tx.coupon.update({ where: { id: couponId }, data: { rollId: roll.id } });
     return roll;
   });
 }
@@ -327,11 +325,29 @@ export async function revealRollNow(id: string, hostId: string) {
 export async function deleteRoll(id: string, hostId: string) {
   // Ownership is checked here rather than inside `purgeRoll`, which the retention job also
   // calls and which has no host to check it against.
-  const owned = await prisma.roll.findFirst({ where: { id, hostId }, select: { id: true } });
+  const owned = await prisma.roll.findFirst({
+    where: { id, hostId },
+    select: {
+      id: true,
+      startsAt: true,
+      host: { select: { id: true, email: true, role: true } },
+    },
+  });
   if (!owned) return;
 
   // Through the retention module, so a host deleting a roll by hand and the nightly sweep
   // destroy exactly the same things. This used to take back the cover and orphan every
   // photograph in the roll, while both legal documents said we delete the image files.
   await purgeRoll(id);
+
+  /*
+    The allowance comes back only for a roll whose event never began, and only once the purge
+    has actually succeeded.
+
+    Deleting before the first guest arrives is somebody fixing a mistake — a typo in the name,
+    the wrong Saturday — and it has cost us nothing, so charging them a roll for it is a
+    penalty for tidiness. Past the start there are photographs, and the allowance bought what
+    it was for. Refunding ahead of the purge would hand one back for a roll still standing.
+  */
+  if (owned.startsAt > new Date()) await refundRoll(owned.host);
 }

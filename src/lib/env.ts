@@ -24,6 +24,9 @@ const r2PublicUrl = process.env.R2_PUBLIC_URL;
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
+const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
+const telegramChatId = process.env.TELEGRAM_CHAT_ID;
+
 export const env = {
   appUrl: (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, ""),
 
@@ -76,6 +79,15 @@ export const env = {
 
   resendApiKey: process.env.RESEND_API_KEY || null,
   emailFrom: process.env.EMAIL_FROM || "MemoVue <hello@memovue.com>",
+
+  /**
+   * Where beta requests are pushed. Both or neither: a token with nowhere to send and a chat
+   * id with nothing to send it are each a config that looks present and notifies nobody.
+   */
+  telegram:
+    telegramBotToken && telegramChatId
+      ? { token: telegramBotToken, chatId: telegramChatId }
+      : null,
 
   isProduction: process.env.NODE_ENV === "production",
 } as const;

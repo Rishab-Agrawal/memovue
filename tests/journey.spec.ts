@@ -2,13 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 
 import { MONTHS, toWall } from "@/lib/format";
 
-import {
-  GUEST_STORAGE_STATE,
-  STORAGE_STATE,
-  TEST_COUPON,
-  TEST_GUEST,
-  TEST_HOST,
-} from "./global-setup";
+import { GUEST_STORAGE_STATE, STORAGE_STATE, TEST_GUEST, TEST_HOST } from "./global-setup";
 
 /**
  * Puts the roll's start in the past, on the wizard's start step.
@@ -26,8 +20,11 @@ async function startTodayAtMidnight(page: Page) {
   await expect(page).toHaveURL(/\/new\/start$/);
 
   const today = toWall(new Date());
+  // Exact, because the day is a substring of two others in the same grid: on the 4th of the
+  // month, "4 Sep 2026" also matches "14 Sep 2026" and "24 Sep 2026", and the run fails on
+  // days 1-9 only. Playwright matches accessible names loosely unless told not to.
   await page
-    .getByRole("button", { name: `${today.day} ${MONTHS[today.month]} ${today.year}` })
+    .getByRole("button", { name: `${today.day} ${MONTHS[today.month]} ${today.year}`, exact: true })
     .click();
 
   await page.getByRole("button", { name: /(am|pm)$/ }).click();
@@ -111,7 +108,7 @@ test.describe("a roll from creation to reveal", () => {
   let joinUrl = "";
   let rollUrl = "";
 
-  test("the host creates a roll, spending a coupon", async ({ page }) => {
+  test("the host creates a roll, spending one off the allowance", async ({ page }) => {
     await page.goto("/new/name");
 
     await page.getByLabel("Event name").fill("Playwright Roll");
@@ -126,15 +123,6 @@ test.describe("a roll from creation to reveal", () => {
     }
 
     await page.getByRole("button", { name: /Create/ }).click();
-    await expect(page.getByRole("heading", { name: "Enter your coupon code" })).toBeVisible();
-
-    // A wrong code is refused, and refused without saying which half was wrong.
-    await page.getByLabel("Coupon code", { exact: true }).fill("NOPETHIS");
-    await page.getByRole("button", { name: "Apply" }).click();
-    await expect(page.getByText(/valid or has already been used/)).toBeVisible();
-
-    await page.getByLabel("Coupon code", { exact: true }).fill(TEST_COUPON);
-    await page.getByRole("button", { name: "Apply" }).click();
 
     await expect(page.getByRole("heading", { name: "Roll Created!" })).toBeVisible();
     const shareLine = await page.getByText(/Share Code:/).textContent();
@@ -214,20 +202,58 @@ test.describe("a roll from creation to reveal", () => {
     await expect(page.getByPlaceholder("Enter your name")).toBeVisible();
   });
 
-  test("the same coupon cannot be spent twice", async ({ page }) => {
+  /**
+   * The allowance is the whole beta gate: spent on creation, refused at zero, and handed back
+   * when a roll is deleted before its event ever began.
+   *
+   * That last rule is the one worth a browser. Deleting a roll nobody has shot on has cost us
+   * nothing, so making somebody ask for access again because they fixed a typo by starting
+   * over is a penalty for tidiness — and it is the kind of thing that silently stops working
+   * the next time anything about deletion moves.
+   */
+  test("the allowance is spent, refused at zero, and returned by an unstarted roll", async ({
+    page,
+  }) => {
+    // The second and last roll on the allowance. Left on the wizard's defaults, so it opens
+    // on the coming Saturday and has therefore not started.
     await page.goto("/new/name");
     await page.getByLabel("Event name").fill("Second Roll");
+    // Each step is waited for. Five Next clicks in a row race the router and all land on
+    // the same screen, which is how this loop used to sit on /new/start until it timed out.
     for (const step of ["start", "finish", "reveal", "card", "guests"]) {
-      void step;
       await page.getByRole("link", { name: /Next/ }).click();
+      await expect(page).toHaveURL(new RegExp(`/new/${step}$`));
     }
-
     await page.getByRole("button", { name: /Create/ }).click();
-    await page.getByLabel("Coupon code", { exact: true }).fill(TEST_COUPON);
-    await page.getByRole("button", { name: "Apply" }).click();
 
-    await expect(page.getByText(/valid or has already been used/)).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Roll Created!" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Roll Created!" })).toBeVisible();
+    await page.getByRole("button", { name: "OK" }).click();
+    await expect(page).toHaveURL(/\/rolls\/[a-z0-9]+$/);
+    const secondUrl = page.url();
+
+    /*
+      Nothing left, so the way into the wizard stops being a link at all. The refusal has to
+      land before the six steps, not after them — being told no once you have picked a date,
+      a reveal rule and a cover is the worst possible moment to hear it.
+    */
+    await page.goto("/rolls");
+    await page.getByRole("button", { name: /New/ }).click();
+    await expect(page.getByRole("heading", { name: /don.t have access yet/ })).toBeVisible();
+
+    // And the way out of the refusal is a form, not a dead end.
+    await page.getByRole("button", { name: "Request" }).click();
+    await page.getByLabel("Event type").fill("Playwright wedding");
+    await page.getByRole("button", { name: "Submit" }).click();
+    await expect(page.getByText("Beta access request sent")).toBeVisible();
+
+    // Deleting it before it opens gives the roll back.
+    await page.goto(secondUrl + "/settings");
+    await page.getByRole("button", { name: "Delete", exact: true }).first().click();
+    await page.getByRole("dialog").getByRole("button", { name: "Delete", exact: true }).click();
+    await expect(page).toHaveURL(/\/rolls$/);
+
+    await page.getByRole("link", { name: /New/ }).click();
+    await expect(page).toHaveURL(/\/new\/name$/);
   });
 
   test("a guest joins with a name and shoots", async ({ browser }) => {

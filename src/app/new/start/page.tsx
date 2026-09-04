@@ -26,7 +26,7 @@ export default function StepStart() {
       value={draft.startsAt}
       // Moving the start can strand the finish on either side of it — too close, or beyond
       // the two-month ceiling — so the pair is corrected together rather than leaving a
-      // combination that only fails at the very end, after the coupon dialog.
+      // combination that only fails at the very end, on the last screen of six.
       onChange={(startsAt) =>
         update({ startsAt, finishesAt: clampFinish(startsAt, draft.finishesAt) })
       }

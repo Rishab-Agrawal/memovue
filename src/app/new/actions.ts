@@ -1,13 +1,14 @@
 "use server";
 
-import { CouponError } from "@/lib/coupons";
+import { BetaAccessError } from "@/lib/beta";
 import { createRoll } from "@/lib/rolls";
 import { requireHost } from "@/lib/session";
 import { createRollSchema, fieldErrors } from "@/lib/validation";
 
 export type CreateRollResult =
   | { ok: true; rollId: string; code: string; name: string }
-  | { ok: false; error: string; fields?: Record<string, string> };
+  /** `noAccess` is what the wizard opens the request form on, rather than matching a string. */
+  | { ok: false; error: string; noAccess?: boolean; fields?: Record<string, string> };
 
 /**
  * The wizard's only write.
@@ -34,7 +35,7 @@ export async function createRollAction(
   const data = parsed.data;
 
   try {
-    const roll = await createRoll(user.id, {
+    const roll = await createRoll(user, {
       ...data,
       startsAt: new Date(data.startsAt),
       finishesAt: new Date(data.finishesAt),
@@ -42,8 +43,8 @@ export async function createRollAction(
 
     return { ok: true, rollId: roll.id, code: roll.code, name: roll.name };
   } catch (error) {
-    if (error instanceof CouponError) {
-      return { ok: false, error: error.message, fields: { couponCode: error.message } };
+    if (error instanceof BetaAccessError) {
+      return { ok: false, error: error.message, noAccess: true };
     }
     throw error;
   }

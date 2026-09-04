@@ -32,8 +32,10 @@ export default function PrivacyPage() {
         Google gives them to us when you sign in. <strong>We never see or store a
         password</strong>{" "}
         — sign-in happens on Google&rsquo;s side and we receive only the
-        result. We also store the rolls you create and their settings, the coupon code you used
-        to create them, and any cover image you upload.
+        result. We also store the rolls you create and their settings, and any cover image you
+        upload. If you ask for beta access, we keep what you put in that form — your name, your
+        event type, and the phone number and remarks if you give them — alongside the email
+        address you signed in with, so we can get back to you.
       </p>
       <p>
         <strong>If you join a roll as a guest.</strong> The display name you type, the photos
