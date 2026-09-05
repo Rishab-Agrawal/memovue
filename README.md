@@ -81,6 +81,8 @@ R2 and viewing an album is free however often it is opened. Signed URLs bought n
 they cannot be cached by the edge or the browser, so every tile of every album was a billed
 read on every visit. Saving a photograph goes through the same cached URL — the viewer reads
 it into a blob and names the file itself — so the only object still signed is the album ZIP.
+A cover is the one image whose bytes can change under a fixed key, so its URL carries
+`?v={coverVersion}`: a replaced cover is a URL the edge has never seen, rather than a purge.
 
 **A key is a capability.** Because the domain is public, the key is the only thing standing
 between a stranger and a photograph, so it carries a random segment that is not derivable
@@ -291,11 +293,44 @@ before any of it — separately from the combined total, because Railway reading
 exactly what would let R2 climb unnoticed inside a shared number.
 
 The controls that do work are Cloudflare's own, because they are enforced at the edge whether or
-not anything of ours is running: a **rate limiting rule** on `cdn.memovue.com`, and a **cache
-rule** with a long edge TTL, which attacks the actual driver — a photo key is immutable, so a
-miss should only ever happen once per edge. Covers are excluded from that rule: `coverKey` is a
-fixed key overwritten in place and served through a stable `publicUrl`, so a long TTL would
-serve a replaced cover's predecessor for as long as the TTL lasts.
+not anything of ours is running. Two of them, neither in this repo:
+
+- A **cache rule** overriding both **edge TTL** and **browser TTL** to a year. Edge TTL attacks
+  the driver — a photo key is immutable, so a miss should only ever happen once per region —
+  and browser TTL is what keeps the second look off the network entirely. Both are set here
+  rather than as a `Cache-Control` header on the objects, deliberately: a header only reaches
+  what is uploaded after it ships, so every photograph already in the bucket would keep
+  whatever it was stored with, and one place to set a TTL is how a TTL avoids being two
+  numbers that disagree.
+- **Tiered Cache**, on smart topology. Without it every one of Cloudflare's data centres misses
+  independently on the same photograph, so the first view in each region is its own billed
+  read; with it they fill from one upper tier and R2 sees the object once.
+
+This file used to say covers were excluded from that rule, because `coverKey` is a fixed key
+overwritten in place and a long TTL would serve a replaced cover's predecessor. The rule never
+excluded them — it matches the hostname and nothing else — so what was actually happening is
+that a host who swapped their cover kept seeing the old one, for up to a year in their own
+browser, where no cache purge can reach. Written config beat the written description, which is
+the argument for `npm run setup:r2 -- --rules` reading the rule back rather than this paragraph
+being trusted.
+
+Covers are correctly cacheable now: `coverUrlFor` appends `?v=` from `Roll.coverVersion`, bumped
+on every adoption. The query string is part of Cloudflare's default cache key, so a new cover is
+a URL neither the edge nor the browser has seen, and the old one ages out unreferenced.
+
+None of that is deployable from here, so `npm run setup:r2 -- --rules` **reads the cache rule
+back** — live edge and browser TTL, and whether any rate limiting exists — and exits non-zero if
+the rule is gone or a TTL is under a day. `npm run setup:r2` runs the same check after writing
+the bucket's CORS. It never writes them: they are zone configuration and somebody's considered
+numbers, the same argument the cost watch makes for Railway's spend limits. Not being able to
+read them — no `CLOUDFLARE_API_TOKEN`, or one without `Zone: Read`, `Cache Rules: Read` and
+`Zone WAF: Read` — prints a warning rather than failing, because absence of evidence and
+evidence of absence are not the same finding.
+
+That distinction is not academic here. Every claim in this file about code was true when
+checked; both claims it made about Cloudflare's dashboard were false — a cover exclusion on the
+cache rule that was never there, and the rate limiting below. Config in somebody else's console
+is the one thing prose cannot keep honest, which is the entire argument for reading it back.
 
 **Email cannot cost anything, and that is the problem.** Resend's free plan is 3,000 a month and
 100 a day, and it refuses with a `429` rather than billing — so exhausting it is free, silent,
@@ -337,6 +372,15 @@ Short notes so none of this gets re-investigated.
 
 **Railway's own backups are Pro-only.** `memovue-backup` is the free equivalent — see the
 nightly backup above. Switch to Railway's if you ever end up on Pro for another reason.
+
+**There is no rate limiting on `cdn.memovue.com`.** Cloudflare sells rate limiting rules as a
+paid add-on on this plan, and this file claimed one existed for weeks before anything checked.
+What bounds a flood instead is the key design: a photograph's key is an unguessable capability,
+so a stranger can only ask for URLs somebody handed them, and those are edge hits that never
+reach R2 — free, however many times they are asked for. Forcing *misses* means holding many
+distinct valid keys, which means being in the roll, and Smart Tiered Cache collapses even that
+to one origin fetch per object. The backstop is `R2_ALERT_USD` at $2, four hours at worst.
+Buy the add-on if the app ever serves anything cheap to guess.
 
 **No staging.** `main` deploys straight to production, on purpose — a second environment
 costs another container and another database, and there are no other users yet.
