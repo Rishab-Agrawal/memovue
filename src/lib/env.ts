@@ -25,7 +25,41 @@ const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
 const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
-const telegramChatId = process.env.TELEGRAM_CHAT_ID;
+
+/**
+ * The notification group, or nothing if what is configured is not a group.
+ *
+ * Telegram numbers a group negatively and a person positively, and `getUpdates` hands you your
+ * own id first if you ever opened the bot before making the group. So the documented way to
+ * read this value is also the way to aim every alert, signal and digest at a private chat with
+ * the bot — which delivers, quietly, and looks exactly like working.
+ *
+ * That is not a cosmetic difference. A private chat has no forum topics, so `message_thread_id`
+ * is ignored there and three channels read at three different speeds collapse into one stream
+ * nobody can triage. Every other misconfiguration here degrades toward "delivered, just less
+ * sorted"; this one degrades toward "delivered somewhere nobody asked for", which is the one
+ * direction a notification channel must not fall.
+ *
+ * Dev refuses to start on it, because the only moment this is ever wrong is the moment somebody
+ * pastes it in, and that is the moment worth saying so. Production only switches the channel
+ * off: a notification setting must not be able to take the site down mid-party, and a group
+ * that has gone quiet is a question somebody eventually asks.
+ */
+export function telegramGroupChatId(): string | undefined {
+  const id = process.env.TELEGRAM_CHAT_ID?.trim();
+  if (!id || id.startsWith("-")) return id || undefined;
+
+  const complaint =
+    `TELEGRAM_CHAT_ID is ${id}, which is a private chat with the bot rather than the ` +
+    "notification group. A group's id is negative, and a supergroup with topics starts -100.";
+  if (process.env.NODE_ENV === "production") {
+    console.error(`${complaint} Telegram notifications are off until it names the group.`);
+    return undefined;
+  }
+  throw new Error(complaint);
+}
+
+const telegramChatId = telegramGroupChatId();
 
 const railwayApiToken = process.env.RAILWAY_API_TOKEN;
 const railwayWorkspaceId = process.env.RAILWAY_WORKSPACE_ID;
