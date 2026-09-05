@@ -1,3 +1,4 @@
+import { PillLink } from "@/components/roll/Chrome";
 import { RollHeader } from "@/components/roll/RollHeader";
 import { PhotoGrid, type GridPhoto } from "@/components/roll/PhotoGrid";
 import { RollControls, VisibilityNotice } from "@/components/roll/RollParts";
@@ -39,9 +40,12 @@ export type BackdropPhoto = GridPhoto;
 export function RollBackdrop({
   roll,
   photos,
+  moreHref,
 }: {
   roll: BackdropRoll;
   photos: BackdropPhoto[];
+  /** Where the next page of the wall is, when the roll holds more than this one shows. */
+  moreHref?: string;
 }) {
   const now = new Date();
   const open = isOpen(roll, now);
@@ -79,6 +83,19 @@ export function RollBackdrop({
         {roll.everyoneCanSee ? null : <VisibilityNotice />}
 
         <PhotoGrid rollId={roll.id} photos={photos} sealed={!open} revealsIn={revealsIn} />
+
+        {/*
+          Said out loud rather than left to be noticed. A wall that stops at a number without
+          explaining itself reads as photographs having gone missing, which on this product is
+          the worst thing a screen can imply.
+        */}
+        {moreHref ? (
+          <div className="flex justify-center pt-1">
+            <PillLink href={moreHref} scroll={false}>
+              Show more
+            </PillLink>
+          </div>
+        ) : null}
 
         <p className="text-center text-[12px] text-dust">
           Photos available until {formatDay(roll.keptUntil)}

@@ -158,6 +158,24 @@ test.describe("a roll from creation to reveal", () => {
   });
 
   /**
+   * The wall pages, and the number it pages by comes off the URL.
+   *
+   * The host screen used to load every READY frame in the roll on all four of its routes,
+   * which at five hundred guests is eighteen thousand tiles and a twenty-megabyte payload.
+   * It asks for a page now, and `?photos=` is how the "show more" link asks for the next —
+   * so it is a number a caller writes, on a screen that renders the host's own album, and it
+   * has to survive being written badly.
+   */
+  test("the wall survives whatever is put in its page parameter", async ({ page }) => {
+    for (const value of ["abc", "-5", "999999999", ""]) {
+      const response = await page.goto(`${rollUrl}?photos=${value}`);
+      expect(response?.status(), `?photos=${value}`).toBe(200);
+      // The roll still renders rather than erroring into the boundary.
+      await expect(page.getByRole("link", { name: "Take a photo" })).toBeVisible();
+    }
+  });
+
+  /**
    * A sheet is a modal, and the dimmed part of a modal is its exit.
    *
    * All three sheets here are routes rendering the roll screen behind themselves, and the

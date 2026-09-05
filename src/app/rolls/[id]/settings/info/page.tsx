@@ -5,7 +5,8 @@ export const dynamic = "force-dynamic";
 
 export default async function EditInfoPage({ params }: PageProps<"/rolls/[id]/settings/info">) {
   const { id } = await params;
-  const { roll } = await loadRoll(id);
+  // No backdrop on this route, so no wall to fill: the roll itself is all it renders.
+  const { roll } = await loadRoll(id, 0);
 
   return (
     <EditInfoForm

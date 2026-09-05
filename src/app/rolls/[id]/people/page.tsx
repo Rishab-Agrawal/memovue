@@ -1,7 +1,7 @@
 import { Sheet } from "@/components/roll/Sheet";
 import { listParticipants } from "@/lib/rolls";
 
-import { loadRoll } from "../loadRoll";
+import { BACKDROP_PHOTOS, loadRoll } from "../loadRoll";
 import { RollBackdrop } from "../RollBackdrop";
 import { PeopleList } from "./PeopleList";
 
@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function PeoplePage({ params }: PageProps<"/rolls/[id]/people">) {
   const { id } = await params;
-  const { roll, photos } = await loadRoll(id);
+  const { roll, photos } = await loadRoll(id, BACKDROP_PHOTOS);
   const people = await listParticipants(id);
 
   return (

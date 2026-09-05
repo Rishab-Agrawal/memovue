@@ -4,14 +4,14 @@ import { ShareLink } from "@/components/roll/ShareLink";
 import { Sheet } from "@/components/roll/Sheet";
 import { joinUrl, qrDataUrl } from "@/lib/qr";
 
-import { loadRoll } from "../loadRoll";
+import { BACKDROP_PHOTOS, loadRoll } from "../loadRoll";
 import { RollBackdrop } from "../RollBackdrop";
 
 export const dynamic = "force-dynamic";
 
 export default async function InvitePage({ params }: PageProps<"/rolls/[id]/invite">) {
   const { id } = await params;
-  const { roll, photos } = await loadRoll(id);
+  const { roll, photos } = await loadRoll(id, BACKDROP_PHOTOS);
 
   /*
     Built by `joinUrl` rather than assembled here.
