@@ -16,6 +16,11 @@ import { prisma } from "./prisma";
  * what makes this safe to change: a line added here months from now will be correct about last
  * March too. The four tallies are the exceptions, and they are exceptions only because the
  * thing they count leaves nothing behind — see `metrics.ts`.
+ *
+ * The one thing in here that is an alarm rather than a number comes back separately, in
+ * `missing`. Everything else in this message is worth reading and none of it is urgent, so the
+ * digest has to be safe to skip — and it is not safe to skip if the only warning that a nightly
+ * job stopped running is a word near the bottom of it.
  */
 
 function pct(part: number, whole: number): string {
@@ -27,7 +32,13 @@ function count(n: number, noun: string): string {
   return `${n} ${noun}${n === 1 ? "" : "s"}`;
 }
 
-export async function buildDigest(now: Date = new Date()): Promise<string> {
+export interface Digest {
+  text: string;
+  /** Nightly jobs that wrote no heartbeat today. Empty on a healthy morning. */
+  missing: string[];
+}
+
+export async function buildDigest(now: Date = new Date()): Promise<Digest> {
   const today = wallDate(now);
   const day = wallDate(new Date(now.getTime() - 86_400_000));
   const yesterday = wallDateRange(day);
@@ -92,7 +103,18 @@ export async function buildDigest(now: Date = new Date()): Promise<string> {
   const scans = counts.scan ?? 0;
   const heading = `${WEEKDAYS[toWall(yesterday.from).weekday]} ${formatDayYear(yesterday.from)}`;
 
-  return [
+  /*
+    Read off today's row rather than yesterday's, because both jobs run in the small hours of
+    the morning this is sent. A missing tick means the job did not run at all — the one failure
+    neither a red cron run nor an exception could ever have reported, because a job that is no
+    longer scheduled does not fail. It simply never happens.
+  */
+  const missing = [
+    heartbeats.backup_ok ? null : "backup",
+    heartbeats.sweep_ok ? null : "sweep",
+  ].filter((name) => name !== null);
+
+  const text = [
     `MemoVue — ${heading}`,
     "",
     "Yesterday",
@@ -112,11 +134,8 @@ export async function buildDigest(now: Date = new Date()): Promise<string> {
     "Health",
     `  ${count(counts.server_error ?? 0, "server error")} · ${count(counts.client_error ?? 0, "client error")}`,
     `  ${count(counts.upload_dropped ?? 0, "upload")} given up on`,
-    /*
-      Read off today's row rather than yesterday's, because both jobs run in the small hours of
-      the morning this is sent. A missing tick means the job did not run at all — which is the
-      one failure neither a red cron run nor an exception would ever have told anybody about.
-    */
     `  backup ${heartbeats.backup_ok ? "✓" : "MISSING"} · sweep ${heartbeats.sweep_ok ? "✓" : "MISSING"}`,
   ].join("\n");
+
+  return { text, missing };
 }

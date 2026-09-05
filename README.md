@@ -177,6 +177,12 @@ line each, never urgent, and none of them a record — the rows behind them all 
 sweep. It sends every morning whether or not anything happened, deliberately: a digest that only
 arrives when there is news cannot be told apart from one that has silently stopped arriving.
 
+Exactly one thing in it is not a number, and that one goes to **Alerts** instead: a nightly job
+whose heartbeat is absent. A job that is no longer scheduled raises no exception and fails no
+deployment, so absence is the only evidence there will ever be — and evidence printed near the
+bottom of a message full of pleasant statistics is evidence nobody reads. Everything left in the
+digest is worth reading and none of it is urgent, which is what makes it safe to skip.
+
 **Almost nothing is counted.** Rolls, hosts, guests and photographs are already rows with a
 `createdAt`, so the digest counts *those* — which stays correct through a deploy, survives a
 restore, and can still be asked about last March. What gets a `Metric` row is only what leaves
