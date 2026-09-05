@@ -262,6 +262,12 @@ Four-hourly rather than nightly puts a ceiling of four hours on how long a runaw
 unannounced, and guarantees a tick inside every Kolkata day whatever hour the digest runs at,
 so the digest can notice this job having stopped the way it already notices the other two.
 
+`30 */4 * * *`, and the half hour is not cosmetic. Railway's cron is UTC while the heartbeat is
+filed under a Kolkata date, so the schedule has to be read in that zone to check it: it fires at
+02:00, 06:00, 10:00, 14:00, 18:00 and 22:00 IST, which puts two ticks inside every Kolkata day
+before the digest reads them at 09:30. On the hour it would instead start in the same minute as
+the digest and race it for the row it is about to look for.
+
 **A blind alarm is the failure that matters.** An unreachable meter comes back named rather
 than thrown, so Cloudflare being down never costs the Railway reading — they are not the same
 size, and Railway is where all the money is. A total assembled from one meter prints with a `+`
