@@ -129,12 +129,43 @@ export function legacyZipKey(rollId: string): string {
   return `${prefix}/zips/${rollId}.zip`;
 }
 
-/** Short-lived upload URL, locked to the exact content type the client declared. */
-export function presignUpload(key: string, contentType: string): Promise<string> {
+/**
+ * Short-lived upload URL, locked to the exact content type *and* the exact byte count.
+ *
+ * `signableHeaders` is the whole of it, and it was missing. SigV4 query-presigning signs
+ * `host` and nothing else unless it is told otherwise — so despite `ContentType` being passed
+ * here since the first version, `X-Amz-SignedHeaders` read `host`, and the URL accepted any
+ * body of any type. Two things followed from that, and both cost money:
+ *
+ *   A presigned PUT cannot express a length range, so the size was checked *after* the bytes
+ *   landed, on the confirm. Anything that never confirmed was never checked at all: a guest
+ *   could park five gigabytes against each of their reserved shots and simply walk away, and
+ *   it sat in the bucket until the sweep took it a week later. Worse, the URL stays valid for
+ *   ten minutes after a confirm has passed the size check, so the object that was measured
+ *   could be replaced by one that never would have been.
+ *
+ *   And the content type the caller sent was stored as the object's own, on a bucket served
+ *   through a public Cloudflare domain — which made `img.memovue.com` a file host for
+ *   whatever anyone who had joined a roll cared to upload, HTML included.
+ *
+ * Signing both pushes the check to where the bytes actually arrive: R2 refuses the PUT with a
+ * signature mismatch rather than storing something for us to regret. The client knows the
+ * exact size of the blob before it asks for the URL, so pinning it costs the caller nothing.
+ */
+export function presignUpload(
+  key: string,
+  contentType: string,
+  bytes: number,
+): Promise<string> {
   return getSignedUrl(
     s3(),
-    new PutObjectCommand({ Bucket: bucket(), Key: key, ContentType: contentType }),
-    { expiresIn: 600 },
+    new PutObjectCommand({
+      Bucket: bucket(),
+      Key: key,
+      ContentType: contentType,
+      ContentLength: bytes,
+    }),
+    { expiresIn: 600, signableHeaders: new Set(["content-type", "content-length"]) },
   );
 }
 
@@ -230,8 +261,16 @@ export async function putStream(
   }).done();
 }
 
+/**
+ * Guarded here rather than at each call site, because one of them forgot.
+ *
+ * Every other caller asks `storageConfigured` first; the route that hands a rejected frame's
+ * shot back does not, so on a deploy without a bucket it threw instead of releasing — and the
+ * queue reads a throw as transient, so it retried forever and the guest stayed a shot short.
+ * Deleting nothing from a bucket that does not exist is the right answer everywhere.
+ */
 export async function deleteObjects(keys: string[]): Promise<void> {
-  if (keys.length === 0) return;
+  if (!env.r2 || keys.length === 0) return;
   // DeleteObjects caps out at 1000 keys per call.
   for (let i = 0; i < keys.length; i += 1000) {
     const batch = keys.slice(i, i + 1000);

@@ -51,6 +51,23 @@ test.describe("who a request is attributed to", () => {
     expect(clientIp(withHeaders({}))).toBe("unknown");
     expect(clientIp(withHeaders({ "x-real-ip": "   " }))).toBe("unknown");
   });
+
+  test("prefers Cloudflare's answer, because that is who the visitor is", () => {
+    /*
+      memovue.com is proxied through Cloudflare, so the connection Railway accepts comes from
+      a Cloudflare machine and `x-real-ip` names that machine rather than the phone. Reading
+      it collapsed the whole internet into a handful of buckets — ten wrong roll codes from
+      anywhere on earth spent the guess budget for every guest at every event.
+    */
+    const proxied = withHeaders({ "cf-connecting-ip": "203.0.113.9", "x-real-ip": "172.71.0.1" });
+    expect(clientIp(proxied)).toBe("203.0.113.9");
+
+    // And it stays the fallback for a deployment with nothing in front of Railway.
+    expect(clientIp(withHeaders({ "x-real-ip": "203.0.113.7" }))).toBe("203.0.113.7");
+    expect(clientIp(withHeaders({ "cf-connecting-ip": "  " , "x-real-ip": "203.0.113.7" }))).toBe(
+      "203.0.113.7",
+    );
+  });
 });
 
 test.describe("counting", () => {

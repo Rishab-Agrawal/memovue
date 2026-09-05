@@ -138,7 +138,13 @@ export async function drainQueue(code: string): Promise<void> {
           const response = await fetch(`/api/r/${code}/photos`, {
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ contentType: "image/jpeg" }),
+            // Declared up front: the URL that comes back is signed for exactly these two
+            // lengths, so R2 refuses anything else rather than storing it.
+            body: JSON.stringify({
+              contentType: "image/jpeg",
+              fullBytes: item.full.size,
+              previewBytes: item.preview.size,
+            }),
           });
           const data = await response.json().catch(() => ({}));
           if (!response.ok) throw Object.assign(new Error(data.error ?? "init_failed"), data);
@@ -149,7 +155,14 @@ export async function drainQueue(code: string): Promise<void> {
           // Persist the reservation before uploading a single byte.
           await database.put(STORE, { ...item, photoId });
         } else {
-          const response = await fetch(`/api/r/${code}/photos/${photoId}`, { method: "PUT" });
+          const response = await fetch(`/api/r/${code}/photos/${photoId}`, {
+            method: "PUT",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              fullBytes: item.full.size,
+              previewBytes: item.preview.size,
+            }),
+          });
           const data = await response.json().catch(() => ({}));
           if (!response.ok) throw Object.assign(new Error(data.error ?? "resign_failed"), data);
 

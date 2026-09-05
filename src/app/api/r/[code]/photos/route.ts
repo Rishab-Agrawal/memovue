@@ -71,8 +71,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
   });
 
   const [fullUrl, previewUrl] = await Promise.all([
-    presignUpload(fullKey, "image/jpeg"),
-    presignUpload(previewKey, "image/jpeg"),
+    presignUpload(fullKey, "image/jpeg", parsed.data.fullBytes),
+    presignUpload(previewKey, "image/jpeg", parsed.data.previewBytes),
   ]);
 
   return Response.json({

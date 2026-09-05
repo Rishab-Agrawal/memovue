@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { limited } from "@/lib/ratelimit";
 import { takenAtWithin } from "@/lib/roll-access";
 import { deleteObjects, headObject, presignUpload, storageConfigured, zipKey } from "@/lib/storage";
-import { photoConfirmSchema } from "@/lib/validation";
+import { photoConfirmSchema, photoResignSchema } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +31,7 @@ function overBudget(guestId: string): Response | null {
  * reservation instead of burning a second shot on the same photo.
  */
 export async function PUT(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ code: string; photoId: string }> },
 ) {
   const { code, photoId } = await params;
@@ -41,6 +41,12 @@ export async function PUT(
 
   const over = overBudget(context.guest.id);
   if (over) return over;
+
+  // The lengths again, because a presigned PUT pins one exact size and the retry is for the
+  // same two blobs. The queue still holds them, so it can say.
+  const body = await request.json().catch(() => null);
+  const parsed = photoResignSchema.safeParse(body);
+  if (!parsed.success) return Response.json({ error: "bad_request" }, { status: 400 });
 
   const photo = await prisma.photo.findUnique({
     where: { id: photoId },
@@ -52,8 +58,8 @@ export async function PUT(
   if (photo.status === "READY") return Response.json({ alreadyConfirmed: true });
 
   const [fullUrl, previewUrl] = await Promise.all([
-    presignUpload(photo.fullKey, "image/jpeg"),
-    presignUpload(photo.previewKey, "image/jpeg"),
+    presignUpload(photo.fullKey, "image/jpeg", parsed.data.fullBytes),
+    presignUpload(photo.previewKey, "image/jpeg", parsed.data.previewBytes),
   ]);
 
   return Response.json({ photoId, fullUrl, previewUrl });
@@ -86,13 +92,14 @@ export async function POST(
   if (photo.status === "READY") return Response.json({ ok: true });
 
   /*
-    The ceiling, measured rather than declared.
+    The ceiling, measured after the fact — a backstop now rather than the rule.
 
-    The client encodes every capture down to `fullMaxEdge` at `fullQuality` before it uploads,
-    so a real photograph lands around a megabyte however good the phone's camera is — the cap
-    is not for them. It is for the fact that a presigned PUT pins the content type and cannot
-    pin the body length, so the only trustworthy size is the one R2 reports. `bytes` in the
-    request body is a claim by the same caller that chose what to send.
+    The rule moved to where the bytes arrive: the upload URL is signed for one exact length,
+    so R2 refuses a body of any other size and there is nothing left for this to catch. It
+    stays because it is two HEADs against a bucket, it is the only thing that would notice if
+    the signing ever quietly stopped pinning the length, and this is a path that costs money
+    when it is wrong. `bytes` in the request body is still only a claim, which is why R2's
+    number is preferred below.
 
     Over the cap, the objects go back out: leaving them would bill us for storage on a
     photograph the album will never show. This is also the reason there is no re-encode step

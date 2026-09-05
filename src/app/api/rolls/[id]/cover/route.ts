@@ -4,6 +4,7 @@ import { limited } from "@/lib/ratelimit";
 import { clearRollCover, setRollCover } from "@/lib/rolls";
 import { getCurrentUser } from "@/lib/session";
 import { coverKey, deleteObjects, headObject, presignUpload, storageConfigured } from "@/lib/storage";
+import { coverInitSchema } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
 
@@ -50,7 +51,7 @@ async function authorize(rollId: string): Promise<{ userId: string } | Response>
   return { userId: user.id };
 }
 
-export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
   const auth = await authorize(id);
@@ -60,7 +61,13 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     return Response.json({ error: "storage_unavailable" }, { status: 503 });
   }
 
-  const uploadUrl = await presignUpload(coverKey(id), "image/jpeg");
+  // The URL is signed for exactly this many bytes, so the ceiling is enforced by R2 refusing
+  // the PUT rather than by the confirm below noticing afterwards and deleting what landed.
+  const body = await request.json().catch(() => null);
+  const parsed = coverInitSchema.safeParse(body);
+  if (!parsed.success) return Response.json({ error: "bad_request" }, { status: 400 });
+
+  const uploadUrl = await presignUpload(coverKey(id), "image/jpeg", parsed.data.bytes);
   return Response.json({ uploadUrl });
 }
 

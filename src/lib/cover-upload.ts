@@ -49,7 +49,12 @@ export async function prepareCover(file: File): Promise<{ blob: Blob; previewUrl
 }
 
 export async function uploadCover(rollId: string, blob: Blob): Promise<void> {
-  const init = await fetch(`/api/rolls/${rollId}/cover`, { method: "POST" });
+  const init = await fetch(`/api/rolls/${rollId}/cover`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    // The upload URL is signed for this exact length, so it has to be declared up front.
+    body: JSON.stringify({ bytes: blob.size }),
+  });
   if (!init.ok) fail(init.status);
 
   const { uploadUrl } = (await init.json()) as { uploadUrl: string };

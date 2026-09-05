@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { UPLOAD_LIMITS } from "./constants";
+
 import {
   FINISH_MAX_MONTHS,
   MAX_DELAY_HOURS,
@@ -119,8 +121,31 @@ export const joinRollSchema = z.object({
 
 /* ------------------------------------------------------------------ photos */
 
+/**
+ * The sizes an upload URL is signed for.
+ *
+ * A presigned PUT cannot carry a length *range*, only an exact length, so the client declares
+ * what it is about to send and R2 refuses anything else. The ceiling here is what stops the
+ * declaration itself being the abuse: without it a caller would simply declare five gigabytes
+ * and be handed a URL good for exactly that.
+ */
+const uploadBytes = z.number().int().positive().max(UPLOAD_LIMITS.maxBytes);
+
 export const photoInitSchema = z.object({
   contentType: z.literal("image/jpeg"),
+  fullBytes: uploadBytes,
+  previewBytes: uploadBytes,
+});
+
+/** Re-signing a reservation. Same blobs as the first attempt, so the same two lengths. */
+export const photoResignSchema = photoInitSchema.pick({
+  fullBytes: true,
+  previewBytes: true,
+});
+
+/** A cover has one derivative rather than three, and a tighter ceiling than a photograph. */
+export const coverInitSchema = z.object({
+  bytes: z.number().int().positive().max(UPLOAD_LIMITS.coverMaxBytes),
 });
 
 export const photoConfirmSchema = z.object({

@@ -114,24 +114,36 @@ export const OAUTH_WINDOW_SECONDS = 600;
 /**
  * The caller's address, from the one header that is not the caller's to choose.
  *
- * `x-forwarded-for` used to be read first, and it is now not read at all. Railway's edge
- * documents `x-real-ip` as the client's remote address and does not set XFF — so whatever
- * arrives in XFF came from the other end of the connection, and keying a budget on it handed
- * a fresh bucket to anyone who thought to send the header. Every IP-keyed limit in the app
- * was one line of curl away from being nothing.
+ * `x-forwarded-for` used to be read first, and it is now not read at all. Whatever arrives in
+ * XFF came from the other end of the connection, so keying a budget on it handed a fresh
+ * bucket to anyone who thought to send the header. Reading its *last* entry does not rescue
+ * it either: that entry is trustworthy only because a proxy appended it, and a request that
+ * reached us without passing through one has nobody who could have — indistinguishable, from
+ * inside this function, from the case where one did.
  *
- * Reading XFF's *last* entry instead does not rescue it. That entry is trustworthy only
- * because a proxy appended it, and a request that arrived without passing through one has
- * nobody who could have — which is indistinguishable, from inside this function, from the
- * case where one did. The header can only be believed by a deployment that knows how many
- * proxies it sits behind, and encoding that as a guess is how this went wrong the first time.
+ * `cf-connecting-ip` is read first because **memovue.com is proxied through Cloudflare**, and
+ * that changes who `x-real-ip` names. Railway's edge sets it to the remote address of the
+ * connection it accepted, which is now a Cloudflare machine rather than a guest's phone — so
+ * every visitor in the world collapsed into a handful of buckets. That is not a weak limit so
+ * much as an actively harmful one: ten mistyped roll codes anywhere on earth spent the guess
+ * budget for everybody, and the next real guest to scan a card off a table was told their
+ * roll does not exist. Cloudflare overwrites `cf-connecting-ip` on every request it proxies,
+ * so a client cannot choose it from the front.
  *
- * With no edge in front, every caller shares one bucket. That is the right direction for this
- * to fail: strict and immediately obvious, rather than quietly per-request. Anything put in
- * front of Railway needs a line here saying so.
+ * `x-real-ip` stays behind it for a deployment with nothing in front of Railway, where it is
+ * the right answer, and "unknown" behind that: every caller shares one bucket, which is the
+ * correct direction for this to fail — strict and immediately obvious.
+ *
+ * ponytail: `cf-connecting-ip` is trusted because the only public route in is through
+ * Cloudflare — the service carries the custom domain and no Railway-generated one. Somebody
+ * who found Railway's edge and sent it `Host: memovue.com` directly could forge the header
+ * and mint a bucket per request. If that ever matters the fix is at the network, not here:
+ * put the origin behind a Cloudflare Tunnel, or refuse requests that did not come through it.
  */
 function ipFrom(source: Headers): string {
-  return source.get("x-real-ip")?.trim() || "unknown";
+  return (
+    source.get("cf-connecting-ip")?.trim() || source.get("x-real-ip")?.trim() || "unknown"
+  );
 }
 
 /** For route handlers, which are handed the request. */
