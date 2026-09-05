@@ -16,34 +16,35 @@ apex. If you add another sending service later, merge its `include:` into the ex
 record rather than adding a second one — two SPF records silently break deliverability for
 both.
 
-## Two things only the Railway dashboard can answer
+## Turn on database backups
 
-Neither is code, and both are one click.
+Railway dashboard, five clicks:
 
-**Postgres backups.** The database runs on a Railway volume and nothing in this repo can tell
-whether scheduled backups are switched on for it. Open the Postgres service, Settings, and
-confirm there is a backup schedule. Every roll, every guest and every photo *row* lives there
-— the image bytes are in R2, so a lost database is an orphaned bucket nobody can name.
+1. Open the **memovue** project, click the **Postgres** service
+2. **Settings** tab
+3. Scroll to **Backups**
+4. Turn on a **Daily** schedule
+5. Check the retention it offers is at least 7 days
 
-**Staging.** `main` deploys straight to the thing guests are holding, and there is nowhere to
-find out a change is wrong first. A second Railway environment off the same repo, pointed at
-its own database, is the whole fix. It costs another container and another Postgres, which is
-why it is here and not done.
+Why it matters: the image files are in R2, but every roll, guest and photo *row* is in
+Postgres. Lose that and the bucket is full of objects nothing can name.
 
-## Two things left standing on purpose
+## Known and left alone
 
-**The Postgres TCP proxy is open to the internet.** `DATABASE_PUBLIC_URL` is how local
-development and the Playwright suite reach the live database, and the password is the only
-thing in front of it. Removing the proxy would close that off and take the dev loop with it,
-so it stays until there is a separate database to develop against — see staging, above.
+Short notes so none of this gets re-investigated.
 
-**`npm audit` reports nine high advisories, and all nine are unreachable.** They are in
-`postcss`, `sharp`, `nanoid`, `fast-uri`, `mysql2` and `deepmerge-ts`, reached only through the
-Next build pipeline and the Prisma CLI — none of it ships or runs in production. The sharp
-ones need `next/image`, which this app deliberately does not use; `mysql2` arrives through
-Prisma's dev tooling for a database we do not run. `npm audit fix --force` wants to downgrade
-Prisma across a major version to clear them, which is a real change to fix nothing. Clear them
-by taking the next Next minor when there is a reason to take it anyway.
+- **No staging.** `main` deploys straight to production, on purpose — a second environment
+  costs another container and another database, and there are no other users yet.
+- **The Postgres TCP proxy is open to the internet.** That is how local development and the
+  Playwright suite reach the database; the password is the only thing in front of it.
+- **`npm audit` shows nine highs, none reachable.** All of them are in the Next build
+  pipeline or the Prisma CLI, and none ships. The `sharp` ones need `next/image`, which this
+  app does not use. `npm audit fix --force` wants to downgrade Prisma a whole major version
+  to clear them, so leave it — take the next Next minor when there is another reason to.
+- **Uploads are not checked for being real JPEGs.** The presigned URL pins the content type
+  and the exact byte count, the key is random, and the bucket is a separate domain — so the
+  worst case is an object that renders as a broken image. Reading bytes back out of R2 to
+  verify a magic number would cost a request per photograph to prevent that.
 
 ## Before taking real money
 
