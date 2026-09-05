@@ -124,6 +124,17 @@ function opaque(scope: string, id: string): string {
   return createHmac("sha256", env.authSecret).update(`${scope}:${id}`).digest("base64url").slice(0, 24);
 }
 
+/**
+ * A night's copy of the database, by the date it was taken.
+ *
+ * Under the same prefix as everything else, so a development run cannot overwrite a real
+ * backup. Dated rather than random because rotation deletes by name: the sweep works out
+ * which night to drop rather than listing the bucket to find out.
+ */
+export function backupKey(day: string): string {
+  return `${prefix}/backups/${day}.ndjson.gz`;
+}
+
 /** The pre-capability archive key. Only still referenced so a purge can clean one up. */
 export function legacyZipKey(rollId: string): string {
   return `${prefix}/zips/${rollId}.zip`;

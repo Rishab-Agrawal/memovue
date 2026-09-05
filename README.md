@@ -122,6 +122,38 @@ watching; everyone else finds out by opening it. What we send instead is the one
 person cannot find out by looking: that their roll has filled up, and that photographs are
 about to be deleted.
 
+## The nightly backup
+
+`npm run backup` runs as a second Railway cron service, two hours ahead of the sweep — before
+it, deliberately, so a roll wrongly purged tonight is still in last night's copy.
+
+The photographs are in R2; everything that says *what* a photograph is lives in Postgres, and
+losing that leaves a bucket full of objects nothing can name. Railway takes scheduled backups
+on its Pro plan and not below it, so this is that job: every row, as gzipped NDJSON, into the
+same bucket, keyed by date and rotated after a week. The privacy policy already promised
+backups age out within thirty days, which this sits well inside.
+
+**Rows, not `pg_dump`.** The database is Postgres 18 and the newest client Railpack's apt will
+install is older than that, which `pg_dump` refuses outright. The schema is not in the file
+either, because it is already in git — a restore replays `prisma/migrations` first and then
+the rows.
+
+Dates are transcribed rather than parsed, and that is the whole reason `connect()` exists.
+node-postgres reads a zone-less `timestamp` in the *process's* local time, so a backup taken
+on a laptop in India and restored anywhere else moved every date in the database by five and a
+half hours — every reveal, every closing time, every deletion date, silently and plausibly.
+Handing back the string Postgres printed removes the question.
+
+```bash
+npm run backup                      # take one now
+npm run restore -- 2026-09-05       # read it back, write nothing
+npm run restore -- 2026-09-05 --yes # actually restore
+```
+
+A restore inserts `ON CONFLICT DO NOTHING`, so a row still present in the live database is
+left alone: it is newer than the copy in the file, and skipping it is the only answer that
+cannot lose anything.
+
 ## What a host can change, and what they cannot
 
 The closing time moves while a roll is still sealed, because parties run late and the shutter

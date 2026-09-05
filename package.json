@@ -16,7 +16,9 @@
     "verify:guest-link": "tsx --conditions=react-server scripts/verify-guest-link.ts",
     "cleanup:test": "tsx scripts/cleanup-test-data.ts",
     "images": "tsx scripts/optimize-images.ts",
-    "sweep": "tsx --conditions=react-server scripts/sweep-retention.ts"
+    "sweep": "tsx --conditions=react-server scripts/sweep-retention.ts",
+    "backup": "tsx --conditions=react-server scripts/backup-db.ts",
+    "restore": "tsx --conditions=react-server scripts/restore-db.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1101.0",
