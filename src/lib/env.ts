@@ -40,10 +40,13 @@ const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
  * sorted"; this one degrades toward "delivered somewhere nobody asked for", which is the one
  * direction a notification channel must not fall.
  *
- * Dev refuses to start on it, because the only moment this is ever wrong is the moment somebody
- * pastes it in, and that is the moment worth saying so. Production only switches the channel
- * off: a notification setting must not be able to take the site down mid-party, and a group
- * that has gone quiet is a question somebody eventually asks.
+ * Off a deployment this throws, because the only moment this value is ever wrong is the moment
+ * somebody pastes it in, and that is the moment worth refusing to start. On one it only
+ * switches the channel off and says so: a notification setting must not be able to take the
+ * site down mid-party, and — the reason this is not keyed on NODE_ENV — the four cron services
+ * run plain `tsx` with no NODE_ENV at all, so that test would have let a mistyped chat id stop
+ * the nightly backup. `RAILWAY_ENVIRONMENT` is injected into every deployed service, web and
+ * cron alike, and exists nowhere else.
  */
 export function telegramGroupChatId(): string | undefined {
   const id = process.env.TELEGRAM_CHAT_ID?.trim();
@@ -52,7 +55,7 @@ export function telegramGroupChatId(): string | undefined {
   const complaint =
     `TELEGRAM_CHAT_ID is ${id}, which is a private chat with the bot rather than the ` +
     "notification group. A group's id is negative, and a supergroup with topics starts -100.";
-  if (process.env.NODE_ENV === "production") {
+  if (process.env.RAILWAY_ENVIRONMENT) {
     console.error(`${complaint} Telegram notifications are off until it names the group.`);
     return undefined;
   }

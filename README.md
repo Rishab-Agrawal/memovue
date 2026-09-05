@@ -206,8 +206,8 @@ privately before the group was made, so the natural thing to copy is your own us
 then accepts every message, answers `ok`, logs nothing, and ignores `message_thread_id`, because
 a private chat has no topics: three channels read at three different speeds arrive as one
 undifferentiated stream in a DM. A group's id is negative and a supergroup's starts `-100`, so
-`env.ts` refuses a positive one — a hard error outside production, where the mistake is always
-made, and the channel simply switched off in production, where a notification setting must not
+`env.ts` refuses a positive one — a hard error anywhere but a deployment, where the mistake is
+always made, and the channel simply switched off on one, where a notification setting must not
 be able to take the site down mid-party. `npm run verify:telegram` checks the rest by posting one
 message to each topic and reading back the thread it actually landed in, which is the only thing
 that catches a deleted topic, a demoted bot, or a thread id copied from the wrong place.
