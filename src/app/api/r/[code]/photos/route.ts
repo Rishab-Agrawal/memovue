@@ -87,10 +87,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
  * The photo grid, in pages of 48. Both phases of a roll come through here.
  *
  * **Sealed**, this returns blur placeholders and nothing else: no preview URL, no name, no
- * timestamp. Every guest sees every frame's placeholder, attributed to nobody but themselves
- * — the same thing the sealed feed used to serve, minus the part that resolves to bytes.
- * **Open**, `visiblePhotoWhere` decides whose frames this guest gets, and each item carries a
- * signed URL for the 1080px preview.
+ * timestamp. **Open**, each item additionally carries a URL for the 1080px preview and the
+ * original. `visiblePhotoWhere` decides which frames exist in both cases, so the wall a guest
+ * watches fill up is exactly the album they end up with.
  *
  * The seal is one branch, checked once, here — and since the full-resolution URL travels in
  * this payload, this is now the only place it is checked at all. That is worth saying plainly.
@@ -116,20 +115,24 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
   const take = 48;
 
   /*
-    The ownership filter comes from `visiblePhotoWhere`, not from this route.
+    The ownership filter comes from `visiblePhotoWhere`, not from this route, and it applies
+    sealed as well as open.
 
-    A guest may narrow the list to one photographer with `?guestId=`, but they cannot widen
-    it: the base clause already restricts them to their own frames when visibility is off,
-    and spreading the query param afterwards can only ever intersect with that.
+    Sealed used to mean "every frame in the roll", on the reasoning that a placeholder is not
+    a photograph. It is not, but it is a promise: on a roll where only the host sees
+    everything, a guest watched three hundred tiles fill up all evening and then, at the one
+    moment the whole product exists for, was left with the twelve that were theirs. The wall
+    shrinking at the reveal reads as loss, and the seal lifting is the worst possible time to
+    look like we have lost something.
 
-    Sealed, ownership does not apply — nothing is legible, so there is nothing to filter.
+    A guest may still narrow the list to one photographer with `?guestId=`, but they cannot
+    widen it: the base clause already restricts them to their own frames when visibility is
+    off, and spreading the query param afterwards can only ever intersect with that.
   */
-  const where = context.open
-    ? {
-        ...visiblePhotoWhere(context.roll, { kind: "guest", guestId: context.guest.id }),
-        ...(guestId && context.roll.everyoneCanSee ? { guestId } : {}),
-      }
-    : { rollId: context.roll.id, status: "READY" as const };
+  const where = {
+    ...visiblePhotoWhere(context.roll, { kind: "guest", guestId: context.guest.id }),
+    ...(context.open && guestId && context.roll.everyoneCanSee ? { guestId } : {}),
+  };
 
   const photos = await prisma.photo.findMany({
     where,

@@ -5,13 +5,17 @@ import { redirect } from "next/navigation";
 
 import {
   deleteRoll,
+  deleteRollPhoto,
+  raiseGuestCap,
+  removeGuest,
   revealRollNow,
+  updateRollFinish,
   updateRollInfo,
   updateRollVisibility,
 } from "@/lib/rolls";
 import { rateLimit } from "@/lib/ratelimit";
 import { requireHost } from "@/lib/session";
-import { editRollSchema, fieldErrors } from "@/lib/validation";
+import { editFinishSchema, editRollSchema, fieldErrors } from "@/lib/validation";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -55,6 +59,76 @@ export async function updateInfoAction(
   }
 
   await updateRollInfo(rollId, user.id, parsed.data);
+  revalidatePath(`/rolls/${rollId}`);
+  return { ok: true };
+}
+
+/** A later — or earlier — closing time, for a party that did not run to schedule. */
+export async function updateFinishAction(
+  rollId: string,
+  finishesAt: string,
+): Promise<ActionResult> {
+  const user = await requireHost();
+  const over = overWriteBudget(user.id);
+  if (over) return over;
+
+  const parsed = editFinishSchema.safeParse({ finishesAt });
+  if (!parsed.success) {
+    return { ok: false, error: Object.values(fieldErrors(parsed.error))[0] ?? "Invalid" };
+  }
+
+  const moved = await updateRollFinish(rollId, user.id, new Date(parsed.data.finishesAt));
+  if (!moved) return { ok: false, error: "This roll has already opened." };
+
+  revalidatePath(`/rolls/${rollId}`);
+  return { ok: true };
+}
+
+/** One more tier of guests, for a roll that filled up while people were still arriving. */
+export async function raiseCapAction(rollId: string): Promise<ActionResult> {
+  const user = await requireHost();
+  const over = overWriteBudget(user.id);
+  if (over) return over;
+
+  const raised = await raiseGuestCap(rollId, user.id);
+  if (raised === null) return { ok: false, error: "This roll is already at the largest size." };
+
+  revalidatePath(`/rolls/${rollId}`);
+  return { ok: true };
+}
+
+/**
+ * Removing one photograph, and removing the person who took it.
+ *
+ * Both walk bytes out of the bucket, so they share the delete budget rather than the writing
+ * one — a host clearing up after an event does a handful of these, and nothing legitimate
+ * does hundreds.
+ */
+function overDeleteBudget(userId: string): ActionResult | null {
+  if (rateLimit(`roll-remove:${userId}`, 60, 3_600).ok) return null;
+  return { ok: false, error: "That's a lot of removals at once. Give it a moment." };
+}
+
+export async function deletePhotoAction(rollId: string, photoId: string): Promise<ActionResult> {
+  const user = await requireHost();
+  const over = overDeleteBudget(user.id);
+  if (over) return over;
+
+  const removed = await deleteRollPhoto(rollId, user.id, photoId);
+  if (!removed) return { ok: false, error: "That photograph is no longer there." };
+
+  revalidatePath(`/rolls/${rollId}`);
+  return { ok: true };
+}
+
+export async function removeGuestAction(rollId: string, guestId: string): Promise<ActionResult> {
+  const user = await requireHost();
+  const over = overDeleteBudget(user.id);
+  if (over) return over;
+
+  const removed = await removeGuest(rollId, user.id, guestId);
+  if (!removed) return { ok: false, error: "That guest is no longer in this roll." };
+
   revalidatePath(`/rolls/${rollId}`);
   return { ok: true };
 }

@@ -96,6 +96,21 @@ async function putObject(url: string, blob: Blob): Promise<void> {
   if (!response.ok) throw new Error(`Upload failed (${response.status})`);
 }
 
+/**
+ * Hands a reservation back before dropping the photograph it was for.
+ *
+ * A reserved shot is spent from the moment the row is written, so giving up on a photograph
+ * without this left the guest a shot short with nothing to show for it — the counter said
+ * three left, two frames were gone, and no screen anywhere could explain the difference.
+ *
+ * Best effort by design. The route refuses a photo that has already been confirmed, and a
+ * session that is gone cannot call it at all; in both cases dropping the local copy is still
+ * the right next move.
+ */
+async function releaseShot(code: string, photoId: string): Promise<void> {
+  await fetch(`/api/r/${code}/photos/${photoId}`, { method: "DELETE" }).catch(() => {});
+}
+
 /** Errors that mean this photo will never succeed, so it should leave the queue. */
 const TERMINAL = new Set(["no_shots_left", "not_shooting", "not_joined", "not_found"]);
 
@@ -169,6 +184,9 @@ export async function drainQueue(code: string): Promise<void> {
         const reason = (error as { error?: string; message?: string }).error ?? "";
 
         if (TERMINAL.has(reason)) {
+          // The reservation outlives the local copy unless it is given back here, and a shot
+          // held by a photograph that will never arrive is a shot the guest simply loses.
+          if (item.photoId) await releaseShot(code, item.photoId);
           await database.delete(STORE, item.localId);
           publish({ lastError: reason });
           continue;

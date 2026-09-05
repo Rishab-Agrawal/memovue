@@ -75,10 +75,16 @@ export function SettingsSheet({
             label="Start date"
             value={formatDateTime(startsAt)}
           />
+          {/*
+            The only date a host may move, and only while the roll is sealed. Events run late;
+            the shutter used to close on the schedule regardless, with nothing on this screen
+            to say otherwise. Once the album is open there is nothing here left to change.
+          */}
           <SettingRow
             icon={<CalendarIcon className="h-5 w-5" />}
             label="Ending date"
             value={formatDateTime(finishesAt)}
+            href={open ? undefined : `/rolls/${rollId}/settings/finish`}
           />
           <SettingRow
             icon={<Clock className="h-5 w-5" />}

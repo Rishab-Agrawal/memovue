@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Pill } from "@/components/roll/Chrome";
-import { Download } from "@/components/roll/Icons";
+import { Download, Trash } from "@/components/roll/Icons";
 import { formatStamp } from "@/lib/format";
 import { useOverlay } from "@/lib/useOverlay";
 import { spring, swipeDelta, velocityFrom } from "@/lib/spring";
@@ -36,14 +36,21 @@ export function PhotoViewer({
   photos,
   startIndex,
   onClose,
+  onDelete,
 }: {
   photos: ViewerPhoto[];
   startIndex: number;
   onClose: () => void;
+  /**
+   * Takes this photograph out of the album. Given only to the host, who is the person a
+   * subject actually asks and the only one here without a shot quota to game.
+   */
+  onDelete?: (photo: ViewerPhoto) => Promise<void>;
 }) {
   const [index, setIndex] = useState(startIndex);
   const [offset, setOffset] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const trackRef = useRef<HTMLDivElement>(null);
   const animation = useRef<ReturnType<typeof spring> | null>(null);
@@ -245,11 +252,31 @@ export function PhotoViewer({
         ))}
       </div>
 
-      <div className="flex justify-center px-5 pt-4 pb-[calc(var(--safe-bottom)+2rem)]">
+      <div className="flex justify-center gap-3 px-5 pt-4 pb-[calc(var(--safe-bottom)+2rem)]">
         <Pill variant="quiet" disabled={saving} onClick={() => void save(photo)}>
           <Download className="h-4 w-4" />
           {saving ? "Saving…" : "Save"}
         </Pill>
+
+        {/* The native confirm, as the cover editor uses for discarding changes. A designed
+            dialog over a full-screen photograph is a second overlay to unwind, and this one
+            question does not need one. */}
+        {onDelete ? (
+          <Pill
+            variant="quiet"
+            disabled={deleting}
+            className="text-danger"
+            onClick={() => {
+              if (!window.confirm("Remove this photograph from the album? This cannot be undone."))
+                return;
+              setDeleting(true);
+              void onDelete(photo).finally(() => setDeleting(false));
+            }}
+          >
+            <Trash className="h-4 w-4" />
+            {deleting ? "Removing…" : "Remove"}
+          </Pill>
+        ) : null}
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { setGuestCookie, signGuestToken } from "@/lib/auth";
 import { AUTOMATED_MESSAGE, MIN_RENDER_MS, looksAutomated } from "@/lib/bot-check";
 import { nameKey, normalizeCode } from "@/lib/codes";
+import { sendRollFullNotice } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 import { callerIp, outOfGuesses, rateLimit, wrongGuess } from "@/lib/ratelimit";
 import { rollPhase } from "@/lib/roll-access";
@@ -106,6 +107,22 @@ export async function joinAction(code: string, formData: FormData): Promise<Join
     // Two people typing the same name at the same moment; the unique index decides.
     if ((error as { code?: string }).code === "P2002") return { nameTaken: true };
     throw error;
+  }
+
+  /*
+    The join that filled the roll tells the host, once.
+
+    No column to remember it and none needed: every later attempt is refused above before it
+    reaches here, and raising the limit is exactly what should arm it again. Awaited rather
+    than left floating, because `send` swallows its own failures and the request ends on the
+    next line — this is the one message that is worth a host's evening.
+  */
+  if (guestCount + 1 >= roll.maxGuests) {
+    const host = await prisma.user.findUnique({
+      where: { id: roll.hostId },
+      select: { email: true },
+    });
+    if (host) await sendRollFullNotice(host.email, roll.name, roll.maxGuests);
   }
 
   await setGuestCookie(roll.code, await signGuestToken({ ...guest, eventId: guest.rollId }));

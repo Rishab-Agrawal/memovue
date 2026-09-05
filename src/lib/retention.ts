@@ -2,7 +2,7 @@ import "server-only";
 
 import { sendDeletionNotice } from "./email";
 import { prisma } from "./prisma";
-import { retentionAction, WARN_BEFORE_DAYS } from "./roll-access";
+import { ABANDONED_UPLOAD_DAYS, retentionAction, WARN_BEFORE_DAYS } from "./roll-access";
 import { coverKey, deleteObjects, legacyZipKey, storageConfigured, zipKey } from "./storage";
 
 /**
@@ -71,9 +71,41 @@ export async function purgeRollsOfHost(hostId: string): Promise<void> {
   for (const roll of rolls) await purgeRoll(roll.id);
 }
 
+/**
+ * Reservations nobody is ever coming back for.
+ *
+ * A `PENDING` row spends its guest's shot the moment it is written, and nothing has ever
+ * taken one back — the schema said so out loud, and the index it needed was already there.
+ * The queue releases its own the instant it decides a photograph will never land; this is for
+ * the client that simply never runs again, whose guest is otherwise short a shot for the life
+ * of the roll and whose half-uploaded bytes sit in the bucket unnamed by any row.
+ *
+ * Bytes first, as everywhere else here: a throw leaves the rows behind and tomorrow retries,
+ * rather than stranding objects nothing knows the keys of.
+ */
+async function purgeAbandonedUploads(now: Date): Promise<number> {
+  const stale = await prisma.photo.findMany({
+    where: {
+      status: "PENDING",
+      createdAt: { lt: new Date(now.getTime() - ABANDONED_UPLOAD_DAYS * DAY) },
+    },
+    select: { id: true, fullKey: true, previewKey: true },
+  });
+  if (stale.length === 0) return 0;
+
+  if (storageConfigured) {
+    await deleteObjects(stale.flatMap((photo) => [photo.fullKey, photo.previewKey]));
+  }
+  await prisma.photo.deleteMany({ where: { id: { in: stale.map((photo) => photo.id) } } });
+
+  return stale.length;
+}
+
 export interface RetentionReport {
   purged: string[];
   warned: string[];
+  /** Abandoned reservations released, which is a count of shots handed back. */
+  released: number;
   failed: { id: string; error: string }[];
 }
 
@@ -96,7 +128,18 @@ export async function runRetention(now: Date = new Date()): Promise<RetentionRep
     orderBy: { keptUntil: "asc" },
   });
 
-  const report: RetentionReport = { purged: [], warned: [], failed: [] };
+  const report: RetentionReport = { purged: [], warned: [], released: 0, failed: [] };
+
+  // Before the rolls, so a reservation inside one that is about to be purged is not counted
+  // twice. Its own try/catch for the same reason every roll below has one.
+  try {
+    report.released = await purgeAbandonedUploads(now);
+  } catch (error) {
+    report.failed.push({
+      id: "abandoned-uploads",
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 
   for (const roll of rolls) {
     try {

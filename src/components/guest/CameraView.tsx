@@ -19,6 +19,11 @@ const FLIGHT_MS = 420;
 
 interface CameraViewProps {
   shotsLeft: number;
+  /**
+   * The roll has ended. Separate from being out of film, because it is a different fact about
+   * a different thing and the two want different words on the screen.
+   */
+  closed?: boolean;
   onCaptured: (photo: ProcessedPhoto) => void;
   /** Leaves the camera for the roll. Absent for a guest who has no roll screen of their own. */
   onLeave?: () => void;
@@ -36,7 +41,13 @@ interface CameraViewProps {
  * into the gallery thumbnail. That throw is the only confirmation, which is what makes the
  * number on the dial feel like it cost something.
  */
-export function CameraView({ shotsLeft, onCaptured, onLeave, latestThumb }: CameraViewProps) {
+export function CameraView({
+  shotsLeft,
+  closed = false,
+  onCaptured,
+  onLeave,
+  latestThumb,
+}: CameraViewProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const thumbRef = useRef<HTMLButtonElement>(null);
@@ -154,7 +165,7 @@ export function CameraView({ shotsLeft, onCaptured, onLeave, latestThumb }: Came
   async function capture() {
     const video = videoRef.current;
     const frame = frameRef.current;
-    if (!video || !frame || phase !== "idle" || shotsLeft <= 0) return;
+    if (!video || !frame || phase !== "idle" || shotsLeft <= 0 || closed) return;
 
     setPhase("flash");
     navigator.vibrate?.(12);
@@ -299,7 +310,7 @@ export function CameraView({ shotsLeft, onCaptured, onLeave, latestThumb }: Came
           type="button"
           aria-label="Take photo"
           onClick={capture}
-          disabled={out || phase !== "idle" || permission !== "live"}
+          disabled={out || closed || phase !== "idle" || permission !== "live"}
           className="h-[88px] w-[88px] rounded-full border-4 border-chalk bg-surface transition-transform active:scale-95 disabled:opacity-40"
         />
 
@@ -329,9 +340,13 @@ export function CameraView({ shotsLeft, onCaptured, onLeave, latestThumb }: Came
         </button>
       </div>
 
-      {out ? (
+      {/* The roll ending outranks running out of film: it is true of everybody, and a guest
+          holding four unused shots is exactly the person owed the reason why. */}
+      {closed || out ? (
         <p className="px-8 pb-6 text-center text-[14px] leading-relaxed text-flame">
-          That&rsquo;s all your shots. Everything opens for everyone at reveal time.
+          {closed
+            ? "The roll has closed. Everything opens for everyone at reveal time."
+            : "That’s all your shots. Everything opens for everyone at reveal time."}
         </p>
       ) : null}
     </div>

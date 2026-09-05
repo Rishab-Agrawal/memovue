@@ -1,9 +1,12 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { cn } from "@/lib/cn";
 import { PhotoViewer, type ViewerPhoto } from "@/components/roll/PhotoViewer";
+
+import { deletePhotoAction } from "@/app/rolls/[id]/actions";
 
 export interface GridPhoto {
   id: string;
@@ -24,15 +27,36 @@ export interface GridPhoto {
  * viewer existed but only the guest album could reach it.
  */
 export function PhotoGrid({
+  rollId,
   photos,
   sealed,
   revealsIn,
 }: {
+  rollId: string;
   photos: GridPhoto[];
   sealed: boolean;
   revealsIn: string;
 }) {
+  const router = useRouter();
   const [viewing, setViewing] = useState<number | null>(null);
+
+  /**
+   * Taking a photograph out of the album.
+   *
+   * The host is the only person who can, and this is the only screen they can do it from —
+   * so the wiring lives here rather than in a prop the server component would have to thread
+   * through. On success the viewer closes and the page reloads: the list is the server's, and
+   * refreshing it is cheaper than keeping a second copy in sync with it.
+   */
+  const remove = async (photo: ViewerPhoto) => {
+    const result = await deletePhotoAction(rollId, photo.id);
+    if (!result.ok) {
+      window.alert(result.error);
+      return;
+    }
+    setViewing(null);
+    router.refresh();
+  };
 
   const openable: ViewerPhoto[] = sealed
     ? []
@@ -88,6 +112,7 @@ export function PhotoGrid({
           photos={openable}
           startIndex={viewing}
           onClose={() => setViewing(null)}
+          onDelete={remove}
         />
       ) : null}
     </>

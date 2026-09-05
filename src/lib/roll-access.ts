@@ -172,3 +172,16 @@ export function retentionAction(
   if (roll.keptUntil.getTime() - now.getTime() <= WARN_BEFORE_DAYS * 86_400_000) return "warn";
   return "leave";
 }
+
+/**
+ * How long a reservation may sit unconfirmed before the sweep takes it back.
+ *
+ * A `PENDING` row costs its guest a shot from the moment it is written, and until now nothing
+ * ever removed one — a phone that reserved and then went in a river held that shot for the
+ * life of the roll. The queue gives its own reservations back the moment it decides a
+ * photograph will never land; this is only for the client that never runs again.
+ *
+ * Well past the day-long upload grace, because a confirm is still accepted after it: a phone
+ * switched off for a weekend drains on the Monday and must find its reservation still there.
+ */
+export const ABANDONED_UPLOAD_DAYS = 7;

@@ -6,8 +6,20 @@ import { type Account, refundRoll, spendRoll } from "./beta";
 import { rollCode } from "./codes";
 import { prisma } from "./prisma";
 import { computeKeptUntil, computeRevealAt, isOpen, visiblePhotoWhere } from "./roll-access";
+import { PARTICIPANT_TIERS, clampFinish, earliestFinish } from "./roll-config";
 import { purgeRoll } from "./retention";
-import { coverKey, deleteObjects, publicUrl, storageConfigured } from "./storage";
+import { coverKey, deleteObjects, publicUrl, storageConfigured, zipKey } from "./storage";
+
+/**
+ * A photograph only counts once it has actually landed.
+ *
+ * A reservation is a `PENDING` row, and counting those made every number a host reads
+ * disagree with the album under it — the People sheet said someone had spent nine shots on a
+ * roll showing seven of their photographs. Quota is the one question that still counts
+ * reservations, and it is asked in `guest-context`, deliberately, where holding the shutter
+ * down must not mint upload URLs.
+ */
+const photoCount = { where: { status: "READY" } } as const;
 
 /**
  * Everything that reads or writes a roll.
@@ -117,7 +129,7 @@ const STACK = 4;
 export async function listRollsForUser(userId: string) {
   const select = {
     ...rollSummary,
-    _count: { select: { guests: true, photos: true } },
+    _count: { select: { guests: true, photos: photoCount } },
   } as const;
 
   const [hosted, joined] = await Promise.all([
@@ -244,7 +256,7 @@ export async function getRollForHost(id: string, hostId: string) {
     where: { id, hostId },
     select: {
       ...rollSummary,
-      _count: { select: { guests: true, photos: true } },
+      _count: { select: { guests: true, photos: photoCount } },
     },
   });
 }
@@ -257,7 +269,7 @@ export async function listParticipants(rollId: string) {
     select: {
       id: true,
       name: true,
-      _count: { select: { photos: true } },
+      _count: { select: { photos: photoCount } },
     },
   });
 
@@ -266,6 +278,166 @@ export async function listParticipants(rollId: string) {
     name: guest.name,
     shotsUsed: guest._count.photos,
   }));
+}
+
+/* ------------------------------------------------------------------ moving the close */
+
+/**
+ * A new closing time for a roll that has not opened yet.
+ *
+ * The one control a host could not touch after creation, on a screen that printed it as a
+ * fact. Events run late; the shutter closed anyway, and the only lever left was revealing
+ * early — which is the opposite of what somebody whose party is still going wants.
+ *
+ * Everything derived from the close moves with it. `revealAt` is what the seal is read
+ * against and `keptUntil` is the date printed on every guest's album, so leaving either
+ * behind would open a roll that is still shooting or delete one a month early. `warnedAt`
+ * goes back to null because it recorded a warning about a date that no longer exists.
+ *
+ * Clamped rather than refused: `clampFinish` is the same function the wizard runs on every
+ * keystroke, so the only caller this can bite is a replayed post.
+ */
+export async function updateRollFinish(
+  id: string,
+  hostId: string,
+  finishesAt: Date,
+): Promise<boolean> {
+  const roll = await prisma.roll.findFirst({
+    where: { id, hostId },
+    select: {
+      startsAt: true,
+      finishesAt: true,
+      revealAt: true,
+      revealMode: true,
+      revealDelayHours: true,
+      revealedEarly: true,
+    },
+  });
+  if (!roll) return false;
+  // Nothing left to move. The photographs are out, and a close in the future would not put
+  // them back.
+  if (isOpen(roll)) return false;
+
+  /*
+    Never into the past. On an `AFTER` roll the close is the reveal, so a finish backdated to
+    this morning would unseal a whole afternoon of photographs on one mistyped date — the
+    thing the settings sheet puts behind a confirm dialog and calls irreversible. Pulling the
+    close in is still allowed, as far as the present and no further.
+  */
+  const floor = Math.max(earliestFinish(roll.startsAt).getTime(), Date.now());
+  const closes = clampFinish(roll.startsAt, new Date(Math.max(finishesAt.getTime(), floor)));
+
+  await prisma.roll.update({
+    where: { id },
+    data: {
+      finishesAt: closes,
+      revealAt: computeRevealAt(closes, roll.revealMode, roll.revealDelayHours),
+      keptUntil: computeKeptUntil(closes),
+      warnedAt: null,
+    },
+  });
+  return true;
+}
+
+/**
+ * The next participant tier up, for a roll that has filled.
+ *
+ * A cap reached mid-event turns people away at the door with no way for the host to fix it,
+ * which is the worst failure this product has at the worst possible moment. One step per tap
+ * rather than a picker: the tiers are the price list, and stepping is the whole interaction.
+ *
+ * ponytail: free while `BETA`, because nothing is charged for a roll either. Whatever takes
+ * payments has to come through here.
+ */
+export async function raiseGuestCap(id: string, hostId: string): Promise<number | null> {
+  const roll = await prisma.roll.findFirst({
+    where: { id, hostId },
+    select: { maxGuests: true },
+  });
+  if (!roll) return null;
+
+  const next = PARTICIPANT_TIERS.find((tier) => tier > roll.maxGuests);
+  if (next === undefined) return null;
+
+  await prisma.roll.update({ where: { id }, data: { maxGuests: next } });
+  return next;
+}
+
+/* ------------------------------------------------------------------ taking things out */
+
+/**
+ * Bytes for photographs that are leaving, and the archive that still contains them.
+ *
+ * The cached ZIP is a copy of an album that has just changed, so it goes with them — the
+ * download route rebuilds it on the next request. Without this a host could remove a
+ * photograph from every screen in the app and still hand it out in the album download.
+ */
+async function dropPhotoObjects(
+  rollId: string,
+  photos: { fullKey: string; previewKey: string }[],
+): Promise<void> {
+  if (!storageConfigured || photos.length === 0) return;
+  await deleteObjects([
+    ...photos.flatMap((photo) => [photo.fullKey, photo.previewKey]),
+    zipKey(rollId),
+  ]);
+}
+
+/**
+ * One photograph out of the album, for good.
+ *
+ * The host's, not the guest's. A guest un-taking a shot would get their quota back and could
+ * shoot the roll indefinitely; the host has no quota, is the person a subject actually asks,
+ * and is accountable for what the album contains. Before this the only answer to one bad
+ * frame in a two-hundred-guest wedding was deleting the entire roll.
+ */
+export async function deleteRollPhoto(
+  rollId: string,
+  hostId: string,
+  photoId: string,
+): Promise<boolean> {
+  const owned = await prisma.roll.findFirst({ where: { id: rollId, hostId }, select: { id: true } });
+  if (!owned) return false;
+
+  const photo = await prisma.photo.findFirst({
+    where: { id: photoId, rollId },
+    select: { id: true, fullKey: true, previewKey: true },
+  });
+  if (!photo) return false;
+
+  // Bytes first, as everywhere else: a failure here leaves a row that can be tried again,
+  // rather than objects nothing knows the keys of.
+  await dropPhotoObjects(rollId, [photo]);
+  await prisma.photo.delete({ where: { id: photo.id } });
+  return true;
+}
+
+/**
+ * A guest out of the roll, with everything they shot.
+ *
+ * The join link is a bearer token with no expiry — anyone who photographs the QR on a table
+ * is in — and until now nothing could undo that. Their name goes back into circulation with
+ * them, which is right: the row is gone, so there is nothing left to collide with.
+ *
+ * The photo rows would cascade on their own; the objects would not, which is how a removal
+ * would have quietly left a guest's whole evening in the bucket.
+ */
+export async function removeGuest(
+  rollId: string,
+  hostId: string,
+  guestId: string,
+): Promise<boolean> {
+  const owned = await prisma.roll.findFirst({ where: { id: rollId, hostId }, select: { id: true } });
+  if (!owned) return false;
+
+  const photos = await prisma.photo.findMany({
+    where: { guestId, rollId },
+    select: { fullKey: true, previewKey: true },
+  });
+  await dropPhotoObjects(rollId, photos);
+
+  const removed = await prisma.guest.deleteMany({ where: { id: guestId, rollId } });
+  return removed.count > 0;
 }
 
 export async function updateRollInfo(id: string, hostId: string, data: {

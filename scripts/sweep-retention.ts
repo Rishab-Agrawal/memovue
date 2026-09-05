@@ -7,6 +7,11 @@ loadEnv({ quiet: true });
  * The nightly pass. Deployed as a Railway cron service off this same repo, so it runs with
  * the app's own environment and needs no credentials of its own.
  *
+ * Deletion, and nothing a guest would ever notice: rolls past their date, and reservations
+ * nobody is coming back for. It stays on this side of the product deliberately — a scheduled
+ * job is the wrong instrument for telling someone their album has opened, because a message
+ * about a moment on a clock is worth very little a night later.
+ *
  * Deliberately thin: the rules live in `src/lib/retention.ts` where they can be unit-tested,
  * and this only decides what an operator sees and what the exit code says. Safe to run twice
  * in one night and safe to miss a night — nothing here depends on having run yesterday.
@@ -18,7 +23,8 @@ async function main() {
   // Imported after dotenv, because `env.ts` reads process.env at module scope and throws on
   // anything missing.
   const { runRetention } = await import("../src/lib/retention");
-  const { retentionAction, WARN_BEFORE_DAYS } = await import("../src/lib/roll-access");
+  const { ABANDONED_UPLOAD_DAYS, retentionAction, WARN_BEFORE_DAYS } =
+    await import("../src/lib/roll-access");
   const { prisma } = await import("../src/lib/prisma");
 
   const dry = process.argv.includes("--dry");
@@ -40,11 +46,22 @@ async function main() {
       );
     }
     console.log(`\n${rolls.length} roll(s) within the horizon. Nothing was changed.`);
+
+    const abandoned = await prisma.photo.count({
+      where: {
+        status: "PENDING",
+        createdAt: { lt: new Date(now.getTime() - ABANDONED_UPLOAD_DAYS * 86_400_000) },
+      },
+    });
+    console.log(`${abandoned} abandoned reservation(s) would be released.`);
     return;
   }
 
   const report = await runRetention(now);
-  console.log(`purged ${report.purged.length}, warned ${report.warned.length}`);
+  console.log(
+    `purged ${report.purged.length}, warned ${report.warned.length}, ` +
+      `released ${report.released}`,
+  );
 
   if (report.failed.length > 0) {
     for (const failure of report.failed) console.error(`FAILED ${failure.id}: ${failure.error}`);

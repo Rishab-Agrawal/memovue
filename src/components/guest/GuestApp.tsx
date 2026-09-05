@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { ProcessedPhoto } from "@/lib/image";
 import { enqueuePhoto } from "@/lib/upload-queue";
@@ -14,6 +14,8 @@ interface GuestAppProps {
   code: string;
   rollName: string;
   shotsLeft: number;
+  /** When the shutter closes, in epoch milliseconds. */
+  finishesAt: number;
   /**
    * The roll's own screen — the host's `/rolls/[id]`, or the album for everybody else. Both
    * the arrow and the thumbnail lead here, because they are the same door.
@@ -32,11 +34,41 @@ interface GuestAppProps {
  * now; the camera comes back up when they return, which is what every native camera app does
  * anyway.
  */
-export function GuestApp({ code, rollName, shotsLeft: initialShots, home, latestBlur }: GuestAppProps) {
+export function GuestApp({
+  code,
+  rollName,
+  shotsLeft: initialShots,
+  finishesAt,
+  home,
+  latestBlur,
+}: GuestAppProps) {
   const router = useRouter();
 
   const [shotsLeft, setShotsLeft] = useState(initialShots);
   const [latestThumb, setLatestThumb] = useState(latestBlur);
+  const [closed, setClosed] = useState(false);
+
+  /*
+    The camera has its own clock now, because the page only ever had one on the way in.
+
+    `/e/[code]` checks the shutter on load and never again, so a guest who left the viewfinder
+    open went on shooting long after the roll ended — and the reserve route lets those photos
+    through on purpose, because it cannot tell a frame captured at the party and drained from
+    a taxi from one taken the next morning. The grace window is for bytes that were captured
+    in time. This is what makes sure only those exist.
+
+    A timer rather than a countdown tick: the closing instant is known exactly, and a shutter
+    that keeps working for another twenty seconds is the same bug in miniature. It fires late
+    rather than never on a phone that was asleep, which is the correct direction to be wrong.
+  */
+  useEffect(() => {
+    const close = () => {
+      setClosed(true);
+      router.replace(home);
+    };
+    const timer = setTimeout(close, Math.max(0, finishesAt - Date.now()));
+    return () => clearTimeout(timer);
+  }, [finishesAt, home, router]);
 
   /**
    * No keep/retake step. The shot is spent the moment the shutter fires, the frame flies
@@ -65,6 +97,7 @@ export function GuestApp({ code, rollName, shotsLeft: initialShots, home, latest
       <div className="h-full pt-[var(--safe-top)] pb-[var(--safe-bottom)]">
         <CameraView
           shotsLeft={shotsLeft}
+          closed={closed}
           onCaptured={handleCaptured}
           latestThumb={latestThumb}
           onLeave={() => router.push(home)}

@@ -40,6 +40,9 @@ export default async function GuestRollPage({ params }: PageProps<"/e/[code]">) 
       code={context.roll.code}
       rollName={context.roll.name}
       shotsLeft={context.shotsLeft}
+      // The camera closes itself on this, rather than only being refused entry next time the
+      // page is loaded.
+      finishesAt={context.roll.finishesAt.getTime()}
       home={await rollHome(context.roll)}
       latestBlur={latest?.blurData ?? null}
     />

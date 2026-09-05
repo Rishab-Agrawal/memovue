@@ -3,13 +3,15 @@ import { listParticipants } from "@/lib/rolls";
 
 import { loadRoll } from "../loadRoll";
 import { RollBackdrop } from "../RollBackdrop";
+import { PeopleList } from "./PeopleList";
 
 export const dynamic = "force-dynamic";
 
 /**
  * The reference opens an "Add Participants" upsell here — three price tiers for raising the
- * cap. We don't sell that, so the same tap answers the question it was really asking: who
- * has actually turned up, and how much film have they spent.
+ * cap. We don't sell that, so the same tap answers the question it was really asking: who has
+ * actually turned up, how much film have they spent, and — since a full roll turns people
+ * away at the door — room for one more tier when it runs out.
  */
 export default async function PeoplePage({ params }: PageProps<"/rolls/[id]/people">) {
   const { id } = await params;
@@ -25,22 +27,7 @@ export default async function PeoplePage({ params }: PageProps<"/rolls/[id]/peop
         title="People"
         subtitle={`${people.length} of ${roll.maxGuests} joined so far.`}
       >
-        {people.length === 0 ? (
-          <p className="mt-6 text-[15px] text-dust">
-            Nobody has joined yet. Share the QR code and they&rsquo;ll appear here.
-          </p>
-        ) : (
-          <ul className="mt-5 divide-y divide-hair border-t border-hair">
-            {people.map((person) => (
-              <li key={person.id} className="flex items-center justify-between py-4">
-                <span className="text-[15px] text-chalk">{person.name}</span>
-                <span className="tabular text-[13px] text-dust">
-                  {person.shotsUsed} shots used
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
+        <PeopleList rollId={roll.id} people={people} maxGuests={roll.maxGuests} />
       </Sheet>
     </div>
   );

@@ -82,3 +82,21 @@ export function sendDeletionNotice(to: string, eventName: string, deleteOn: Date
       `Download everything before then:\n${env.appUrl}/rolls\n\n— MemoVue`,
   );
 }
+
+/**
+ * The roll has taken its last guest, sent to the host by the join that filled it.
+ *
+ * That join is what makes this fire exactly once per limit without a column to remember it:
+ * every later attempt is refused before it gets here, and raising the limit is what arms it
+ * again. Worth interrupting a host for, because the alternative is people at the door being
+ * turned away while the person who could fix it is holding a drink.
+ */
+export function sendRollFullNotice(to: string, eventName: string, maxGuests: number): Promise<void> {
+  return send(
+    to,
+    `"${eventName}" is full`,
+    `All ${maxGuests} spots on "${eventName}" have been taken, so anyone else who scans the ` +
+      `code will be turned away.\n\nRaise the limit from the People screen:\n` +
+      `${env.appUrl}/rolls\n\n— MemoVue`,
+  );
+}

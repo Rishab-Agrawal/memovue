@@ -91,10 +91,19 @@ export const createRollSchema = rollFields.superRefine((data, ctx) => {
     }
   });
 
-/** Editing after creation. Deliberately narrower: shots and cap are fixed once sold. */
+/** Editing after creation. Deliberately narrower: shots per person are fixed once sold. */
 export const editRollSchema = z.object({
   name: z.string().trim().min(1, "Give your roll a name").max(80),
   coverPreset: z.number().int().min(0).max(8),
+});
+
+/**
+ * A new closing time. Only the shape is checked here; whether it fits around the start is a
+ * question about a roll this schema has never seen, and `clampFinish` answers it server-side
+ * against the row itself rather than against anything the post carried.
+ */
+export const editFinishSchema = z.object({
+  finishesAt: z.iso.datetime({ offset: true }),
 });
 
 /* ------------------------------------------------------------------ guests */

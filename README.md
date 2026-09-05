@@ -48,14 +48,22 @@ inlined ~32px blur placeholder, and the photo API returns 403.
 
 ## Design decisions worth knowing
 
-**One time control, not three.** The host sets a start time and picks how long until photos
-unlock. Shooting runs from start until reveal, so there's no separate "event ends" field to
-get wrong. `revealAt` is the single moving part.
+**Capture and reveal are separate moments.** Shooting runs `startsAt`..`finishesAt`; the
+album opens at `revealAt`, which is the close, or the close plus a delay, or never sealed at
+all. `revealAt` is derived on every write and never accepted from input, so the two can't
+drift apart.
 
-**Shots are reserved before bytes are uploaded.** Tapping "Keep it" writes the photo to
+**The camera carries its own clock.** The close is a moment, not a page-load check: a
+viewfinder left open closes itself the instant the roll ends. Without that, a guest with film
+left went on shooting long after the party, and those frames landed in the album dated as if
+they were taken during it — because the reserve route deliberately cannot tell them from a
+photo captured in time and drained from a taxi.
+
+**Shots are reserved before bytes are uploaded.** Tapping the shutter writes the photo to
 IndexedDB first, then reserves a `PENDING` row, then uploads. A phone that dies mid-upload
 loses nothing — the queue retries on next open or when it comes back online — and one photo
-can never consume two shots.
+can never consume two shots. A reservation the queue gives up on is handed back rather than
+quietly costing the guest a shot, and one nobody ever comes back for is swept a week later.
 
 **Guests have one session per name.** Recovering a name on a new device bumps a token
 version, which signs the old device out. Someone hijacking a name is therefore immediately
@@ -85,16 +93,46 @@ which rows exist, and a sealed roll returns no URL of any kind. A URL does not e
 valid until the roll is purged. That is not a weakening of the seal, because the seal was
 never the expiry.
 
-## Retention
+## The nightly sweep
 
-A roll carries a `keptUntil`, set on creation to 30 days past its close, and both the host
-screen and every guest album print that date. `npm run sweep` is what makes it true: hosts are
-emailed seven days out, recorded by `warnedAt` so it happens once rather than nightly, and a
-roll past its date is purged bytes-first — R2 objects before the database row, so a failure
-halfway leaves the roll listed and retryable rather than the storage stranded with nothing left
-that knows its keys. It runs nightly as a Railway cron service, is safe to run twice and safe to
-miss, and `--dry` reports what it would do without touching anything.
+`npm run sweep` runs as a Railway cron service. Safe to run twice, safe to miss, and `--dry`
+reports what it would do without touching anything. It only ever deletes — nothing a guest
+would notice happens on this schedule, deliberately.
+
+**Retention.** A roll carries a `keptUntil`, set on creation to 30 days past its close, and
+both the host screen and every guest album print that date. Hosts are emailed seven days out,
+recorded by `warnedAt` so it happens once rather than every night, and a roll past its date is
+purged bytes-first — R2 objects before the database row, so a failure halfway leaves the roll
+listed and retryable rather than the storage stranded with nothing left that knows its keys.
+
+**Abandoned reservations.** A `PENDING` photo row spends its guest's shot from the moment it
+is written. The upload queue hands its own back the instant it decides a photograph will never
+land; a week on, this takes the rest — the phone that reserved and then never ran again.
 
 Every path that destroys a roll goes through the same `purgeRoll`. That is also the fix for a
 leak it would otherwise have inherited: deleting a roll by hand used to take back only its
 cover, and deleting an account touched storage not at all.
+
+**There is no reveal email**, and that is a decision rather than an omission. A reveal is a
+clock reading, not an event — `revealAt` is a column, and a date passing executes nothing — so
+sending mail at that moment needs a worker holding a timer. That is real infrastructure for a
+message reaching only the minority of guests who have accounts, who are also the only ones
+with the roll already on their home screen. The album polls and unseals itself for anyone
+watching; everyone else finds out by opening it. What we send instead is the one thing a
+person cannot find out by looking: that their roll has filled up, and that photographs are
+about to be deleted.
+
+## What a host can change, and what they cannot
+
+The closing time moves while a roll is still sealed, because parties run late and the shutter
+used to close on schedule regardless. Everything derived from it moves too — `revealAt`, and
+the deletion date printed on every guest's album. Once the album is open there is nothing left
+to move, and the row disappears.
+
+The guest limit only goes up, one tier at a time, from the People screen — and the host is
+emailed by the join that fills it, because a cap reached mid-event turns people away at the
+door while the only person who can fix it is holding a drink.
+
+A host can take one photograph out of the album, or one guest out with everything they shot.
+Guests can do neither: un-taking a shot would hand the quota back and make the roll endless,
+and the host is the person a subject actually asks.
