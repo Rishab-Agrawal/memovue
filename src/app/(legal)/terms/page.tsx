@@ -1,20 +1,24 @@
 export const metadata = { title: "Terms of Service" };
 
 /**
- * Structured after once.film's terms, section for section, with three deliberate departures.
+ * Written for what MemoVue actually is: a free beta, run from India, that holds other
+ * people's photographs for a month.
  *
- * There are no app-store clauses, because MemoVue is a website and no store is party to
- * anything here. Arbitration is not imposed: the reference app is a Delaware company sending
- * disputes to JAMS, and a JAMS clause against Indian consumers is both unenforceable and
- * hostile, so this keeps the courts named in section 16. And the content licence is narrower
- * than theirs — no "back up", no blanket processing right — because the whole product promise
- * is that we cannot look.
+ * Three shapes this document deliberately does not take. There are no app-store clauses,
+ * because MemoVue is a website and no store is party to anything here. Arbitration is not
+ * imposed — a US arbitration clause against Indian consumers is both unenforceable and
+ * hostile, so disputes go to the courts named in section 19. And the content licence is as
+ * narrow as the service can run on — no "back up", no blanket processing right — because the
+ * whole product promise is that we cannot look.
+ *
+ * The beta warning leads, before anything else, because it is the first thing somebody
+ * handing us a wedding needs to know.
  */
 export default function TermsPage() {
   return (
     <>
       <h1>Terms of Service</h1>
-      <p className="marking !mt-6">Last updated 23 August 2026</p>
+      <p className="marking !mt-6">Last updated 6 September 2026</p>
 
       <p>
         MemoVue lets a host set up a shared photo roll for an event. Guests take photos on their
@@ -23,20 +27,18 @@ export default function TermsPage() {
         one, you agree to them.
       </p>
 
-      <h2>1. Who may use MemoVue</h2>
-      <p>
-        You must be at least <strong>13</strong>. If you are under the age of majority where you
-        live, you may use MemoVue only with a parent or guardian&rsquo;s consent, and they agree
-        to these terms on your behalf. If you are using MemoVue for a company or another
-        organisation, you confirm you are authorised to bind it.
-      </p>
-
-      <h2>2. The service is in beta</h2>
+      <h2>1. The service is in beta</h2>
       <p>
         MemoVue is free while in beta, and creating a roll requires us to have allowed the email
         address you sign in with. Beta means what it sounds like: features may change, and we
         cannot promise uninterrupted service. <strong>Please do not make MemoVue the only record of something
         irreplaceable.</strong>
+      </p>
+
+      <h2>2. Who may use MemoVue</h2>
+      <p>
+        You must be at least <strong>18</strong>. If you are using MemoVue for a company or
+        another organisation, you confirm you are authorised to bind it.
       </p>
 
       <h2>3. Your account</h2>
@@ -49,11 +51,6 @@ export default function TermsPage() {
         Guests do not need an account: they are identified by the name they enter and a signed
         token stored in their own browser. A guest may create an account later so the rolls they
         joined stay attached to them.
-      </p>
-      <p>
-        A name in a roll belongs to whoever claimed it first. Reclaiming a name from another
-        device signs that device out, which is by design — it makes an attempted takeover
-        obvious to the person it is taken from.
       </p>
 
       <h2>4. Beta access, pricing and refunds</h2>
@@ -87,7 +84,8 @@ export default function TermsPage() {
       </p>
       <p>
         A host receives, from every guest in their roll, a non-exclusive licence to view,
-        download and share that roll&rsquo;s photos for personal, event or internal purposes.{" "}
+        download and share that roll&rsquo;s photos for their own personal use, for the event
+        itself, or within their organisation.{" "}
         <strong>Commercial use needs the photographer&rsquo;s permission.</strong>{" "}
         Downloading a
         roll gives you a copy; it does not transfer anyone&rsquo;s copyright.
@@ -192,6 +190,13 @@ export default function TermsPage() {
         given is accurate. We remove infringing material and close the accounts of repeat
         infringers.
       </p>
+      <p>
+        Complaints about content or conduct on MemoVue go to the same address. We acknowledge
+        within <strong>24 hours</strong> and resolve within <strong>15 days</strong>. Content
+        showing someone in a state of nudity or a sexual act, or impersonating them, is removed
+        within <strong>24 hours</strong> of a complaint. The name of the officer handling
+        grievances is available on request.
+      </p>
 
       <h2>13. How long we keep photos</h2>
       <p>
@@ -215,16 +220,16 @@ export default function TermsPage() {
         Guests can ask us to remove photos they took by emailing{" "}
         <a href="mailto:hello@memovue.com">hello@memovue.com</a> from a contactable address with
         the roll name and the name they joined under. We will remove them, and they will
-        disappear for everyone in that roll.
+        disappear for everyone in that roll. We confirm the request with the host before
+        removing anything, so that nobody can delete another guest&rsquo;s photos.
       </p>
 
       <h2>15. Disclaimers</h2>
       <p>
-        MemoVue is provided <strong>as is</strong> and <strong>as available</strong>. To the
-        fullest extent the law allows, we disclaim all warranties, express or implied, including
-        merchantability, fitness for a particular purpose and non-infringement. We do not
-        warrant that the service will be uninterrupted, error-free, or that no photograph will
-        ever be lost.
+        MemoVue is offered on an as-is, as-available basis, with no promise that it will always
+        be up. To the fullest extent the law allows, we disclaim all warranties, express or
+        implied, including merchantability, fitness for a particular purpose and
+        non-infringement. Nor do we warrant that no photograph will ever be lost.
       </p>
 
       <h2>16. Liability</h2>
@@ -270,8 +275,11 @@ export default function TermsPage() {
 
       <h2>21. Contact</h2>
       <p>
-        <a href="mailto:hello@memovue.com">hello@memovue.com</a>. We aim to reply within 48
-        hours.
+        <a href="mailto:hello@memovue.com">hello@memovue.com</a>. Most replies go out the same
+        day.
+      </p>
+      <p>
+        MemoVue is operated from Bengaluru, India. Postal address available on request.
       </p>
     </>
   );

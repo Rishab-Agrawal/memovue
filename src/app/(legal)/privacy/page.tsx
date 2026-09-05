@@ -1,19 +1,19 @@
 export const metadata = { title: "Privacy Policy" };
 
 /**
- * Structured after once.film's policy — the same eleven sections in the same order — because
- * that document is the closest thing to a specification for what a shared-photo-roll app has
- * to disclose, and matching it makes gaps obvious.
+ * Every fact in here is checked against the code, not against the roadmap, and the code wins
+ * whenever the two disagree. Section 5 promises a warning email seven days before a roll ages
+ * out because `retention.ts` now sends one; while it did not, this page promised nothing.
  *
- * Every fact in here is checked against the code, not against the roadmap. Where the two
- * disagreed the code won: there is no job that emails a host before a roll's photos age out,
- * so this no longer promises one.
+ * Section 1's paragraph on automatic collection is the one people expect to be a lie, so it
+ * names exactly what the `Metric` table holds — a few daily counters with no identifier
+ * anywhere in the row — rather than hiding behind "we collect usage data".
  */
 export default function PrivacyPage() {
   return (
     <>
       <h1>Privacy Policy</h1>
-      <p className="marking !mt-6">Last updated 5 September 2026</p>
+      <p className="marking !mt-6">Last updated 6 September 2026</p>
 
       <p>
         This explains what MemoVue collects, why, and what you can do about it. It covers{" "}
@@ -177,7 +177,7 @@ export default function PrivacyPage() {
         and no image is reachable without a short-lived signed link.
       </p>
       <p>
-        No method of security is perfect and we cannot guarantee absolute safety. If a breach
+        Security is never total, and we would rather say so than imply otherwise. If a breach
         affects your personal data we will tell you, and the relevant authority, where the law
         requires it.
       </p>
@@ -190,11 +190,14 @@ export default function PrivacyPage() {
         </li>
         <li>
           <strong>Guests</strong> can have their photos removed by emailing us with the roll
-          name and the name they joined under.
+          name and the name they joined under. We confirm the request with the host before
+          removing anything, so that nobody can delete another guest&rsquo;s photos.
         </li>
         <li>
           Anyone can ask for a copy of the data we hold about them, ask us to correct it, or ask
-          us to erase it. Email us and we will act within 30 days.
+          us to erase it. Email us and we will act within 30 days. You can also withdraw your
+          consent at any time by emailing us, which ends your use of MemoVue and deletes your
+          rolls.
         </li>
       </ul>
       <p>
@@ -216,7 +219,7 @@ export default function PrivacyPage() {
 
       <h2>8. Children</h2>
       <p>
-        MemoVue is not intended for children under 13 and we do not knowingly collect their
+        MemoVue is not intended for anyone under 18 and we do not knowingly collect their
         personal data. Children may of course appear in photos taken at an event — those photos
         belong to the roll and are governed by the same rules and the same deletion rights as
         everything else. If you are a parent or guardian and want a photo removed, email us and
@@ -241,8 +244,11 @@ export default function PrivacyPage() {
       <p>
         Questions, requests, and grievances all go to the same place:{" "}
         <a href="mailto:hello@memovue.com">hello@memovue.com</a>. We aim to reply within{" "}
-        <strong>48 hours</strong>. For anything time-critical, put{" "}
-        <strong>URGENT &ndash; Privacy Request</strong> in the subject line.
+        <strong>48 hours</strong>. For anything time-critical, put <strong>PRIORITY</strong> at
+        the start of the subject line.
+      </p>
+      <p>
+        MemoVue is operated from Bengaluru, India. Postal address available on request.
       </p>
     </>
   );
