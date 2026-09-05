@@ -19,6 +19,7 @@
     "sweep": "tsx --conditions=react-server scripts/sweep-retention.ts",
     "backup": "tsx --conditions=react-server scripts/backup-db.ts",
     "digest": "tsx --conditions=react-server scripts/digest.ts",
+    "cost": "tsx --conditions=react-server scripts/cost.ts",
     "restore": "tsx --conditions=react-server scripts/restore-db.ts"
   },
   "dependencies": {

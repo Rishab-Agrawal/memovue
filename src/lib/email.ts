@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 
 import { env } from "./env";
+import { alert } from "./telegram";
 
 /**
  * Email is optional infrastructure. Without RESEND_API_KEY the app still works end to end
@@ -24,10 +25,40 @@ async function send(to: string, subject: string, text: string): Promise<void> {
   }
 
   try {
-    await service.emails.send({ from: env.emailFrom, to, subject, text });
+    const { error } = await service.emails.send({ from: env.emailFrom, to, subject, text });
+    // Resend reports a refusal in the body rather than by throwing, so a quota that has run
+    // out returns an ordinary resolved promise. Without reading this, the only failure mode
+    // that costs a host their photographs is also the only one that looks like success.
+    if (error) throw new Error(`${error.name}: ${error.message}`);
   } catch (error) {
-    // A failed notification must never break the action that triggered it.
+    /*
+      A failed notification must never break the action that triggered it — but it must not
+      pass in silence either, which is what this used to do.
+
+      Every message this app sends is one a person cannot find out by looking: a roll about to
+      be deleted, a roll that has filled up at the door. Console-logging that is the same as
+      losing it. The free Resend plan is 3,000 a month and 100 a day and refuses with a 429
+      rather than billing, so running out costs nothing and breaks quietly — the worst pair of
+      properties a failure can have, and the same pair `env.ts` refuses to allow R2 to have.
+
+      Deduplicated by `shouldAlert`, so a sweep night that cannot reach Resend at all reports
+      one fault rather than one per host.
+    */
     console.error("Failed to send email", error);
+    await alert(
+      "email",
+      [
+        "An email could not be sent",
+        "",
+        `  to       ${to}`,
+        `  subject  ${subject}`,
+        `  error    ${error instanceof Error ? error.message : String(error)}`,
+        "",
+        "Nobody was told. If this says the quota is exhausted, the free plan is 3,000 a month",
+        "and 100 a day — it refuses rather than charging, so this costs nothing and silently",
+        "stops hosts hearing that their photographs are about to be deleted.",
+      ].join("\n"),
+    );
   }
 }
 

@@ -48,6 +48,11 @@ async function main() {
           ? "Nothing was purged or released. Photographs past their deletion date are still"
             + " stored, and abandoned reservations are still spending guests' shots."
           : null,
+        missing.includes("cost watch")
+          ? "Nothing is reading the bill or checking that Railway's hard limit is still set."
+            + " The limit itself is enforced by Railway and still stands, so the spend is"
+            + " still capped — but nothing will now say so before it stops everything."
+          : null,
         "",
         "Check the Railway cron service is still scheduled — a job that is no longer scheduled",
         "fails nothing and reports nothing.",

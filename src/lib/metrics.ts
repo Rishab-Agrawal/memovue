@@ -4,7 +4,7 @@ import { wallDate } from "./format";
 import { prisma } from "./prisma";
 
 /**
- * The four things worth counting that leave no row behind, plus two heartbeats.
+ * The four things worth counting that leave no row behind, plus three heartbeats.
  *
  * Almost nothing belongs here. Rolls, hosts, guests and photographs are already rows with a
  * `createdAt`, so the digest counts *those* — a derived number survives a deploy, a restore
@@ -34,7 +34,9 @@ export type MetricName =
   /** The nightly database copy ran. Absence is the alarm. */
   | "backup_ok"
   /** The nightly retention pass ran. Absence is the alarm. */
-  | "sweep_ok";
+  | "sweep_ok"
+  /** The four-hourly cost watch ran. Absence is the alarm; `cost.ts` says what it watches. */
+  | "cost_ok";
 
 /**
  * Adds one to today's tally, and never fails loudly.

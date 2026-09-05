@@ -1,5 +1,7 @@
 import "server-only";
 
+import { costLines, costs } from "./cost";
+import { env } from "./env";
 import { WEEKDAYS, formatDayYear, toWall, wallDate, wallDateRange } from "./format";
 import { tallies } from "./metrics";
 import { prisma } from "./prisma";
@@ -7,10 +9,15 @@ import { prisma } from "./prisma";
 /**
  * Yesterday, in one message you can read at a traffic light.
  *
- * The shape answers four questions in the order they matter in: did anybody use it, is
- * anything happening today, is it working at all, and is it broken. Anything serving none of
- * those is left out — a digest nobody finishes reading measures nothing, and a number with no
- * denominator beside it is decoration.
+ * The shape answers five questions in the order they matter in: did anybody use it, is
+ * anything happening today, what is it costing, is it working at all, and is it broken.
+ * Anything serving none of those is left out — a digest nobody finishes reading measures
+ * nothing, and a number with no denominator beside it is decoration.
+ *
+ * Cost is the one line that is not a database query. It is here because it is the only
+ * number in the message that can go wrong while every other one stays pleasant, and because
+ * the alarm for it lives elsewhere on purpose — `scripts/cost.ts` watches the thresholds
+ * every four hours, so what belongs in a morning message is the reading, not the alarm.
  *
  * Almost every figure is a query over rows that already existed rather than a counter. That is
  * what makes this safe to change: a line added here months from now will be correct about last
@@ -63,6 +70,7 @@ export async function buildDigest(now: Date = new Date()): Promise<Digest> {
     revealed,
     everOpened,
     closedRollGuests,
+    cost,
   ] = await Promise.all([
     prisma.roll.count({ where: createdYesterday }),
     prisma.user.count({ where: createdYesterday }),
@@ -94,6 +102,8 @@ export async function buildDigest(now: Date = new Date()): Promise<Digest> {
       where: { roll: { finishesAt: { lt: now } } },
       select: { roll: { select: { photosPerGuest: true } }, _count: { select: { photos: true } } },
     }),
+    // Never throws — an unreachable meter comes back as "unreadable" in the line it prints.
+    costs(env.cost, now),
   ]);
 
   const usedItAll = closedRollGuests.filter(
@@ -112,6 +122,7 @@ export async function buildDigest(now: Date = new Date()): Promise<Digest> {
   const missing = [
     heartbeats.backup_ok ? null : "backup",
     heartbeats.sweep_ok ? null : "sweep",
+    heartbeats.cost_ok ? null : "cost watch",
   ].filter((name) => name !== null);
 
   const text = [
@@ -131,10 +142,15 @@ export async function buildDigest(now: Date = new Date()): Promise<Digest> {
     `  ${usedItAll} of ${count(closedRollGuests.length, "guest")} used their whole film (${pct(usedItAll, closedRollGuests.length)})`,
     `  ${everOpened} of ${count(revealed, "revealed album")} have been opened (${pct(everOpened, revealed)})`,
     "",
+    "Cost",
+    ...costLines(cost),
+    "",
     "Health",
     `  ${count(counts.server_error ?? 0, "server error")} · ${count(counts.client_error ?? 0, "client error")}`,
     `  ${count(counts.upload_dropped ?? 0, "upload")} given up on`,
-    `  backup ${heartbeats.backup_ok ? "✓" : "MISSING"} · sweep ${heartbeats.sweep_ok ? "✓" : "MISSING"}`,
+    `  backup ${heartbeats.backup_ok ? "✓" : "MISSING"}`
+      + ` · sweep ${heartbeats.sweep_ok ? "✓" : "MISSING"}`
+      + ` · cost ${heartbeats.cost_ok ? "✓" : "MISSING"}`,
   ].join("\n");
 
   return { text, missing };

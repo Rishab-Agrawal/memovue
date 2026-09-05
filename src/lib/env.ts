@@ -27,6 +27,10 @@ const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
 const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
 const telegramChatId = process.env.TELEGRAM_CHAT_ID;
 
+const railwayApiToken = process.env.RAILWAY_API_TOKEN;
+const railwayWorkspaceId = process.env.RAILWAY_WORKSPACE_ID;
+const cloudflareApiToken = process.env.CLOUDFLARE_API_TOKEN;
+
 /**
  * A forum topic in the notification group, or undefined for the group's General thread.
  *
@@ -110,6 +114,30 @@ export const env = {
           },
         }
       : null,
+
+  /**
+   * Read-only credentials for the two meters that bill us. See `cost.ts`.
+   *
+   * Independent of each other rather than one group, because they are two separate bills and
+   * losing sight of the small one must not cost us sight of the large one. Cloudflare reuses
+   * the R2 account id already configured above — it is the same account, and a second copy of
+   * it is a second thing to get wrong.
+   *
+   * Both are optional and neither is a secret this app spends: a missing one degrades to the
+   * cost watch saying so, out loud, every four hours. It is deliberately not possible for
+   * this to fail quietly, because a cost alarm that has gone blind looks exactly like a cheap
+   * month.
+   */
+  cost: {
+    railway:
+      railwayApiToken && railwayWorkspaceId
+        ? { token: railwayApiToken, workspaceId: railwayWorkspaceId }
+        : null,
+    cloudflare:
+      cloudflareApiToken && r2AccountId
+        ? { token: cloudflareApiToken, accountId: r2AccountId }
+        : null,
+  },
 
   isProduction: process.env.NODE_ENV === "production",
 } as const;

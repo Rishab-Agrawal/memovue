@@ -156,7 +156,7 @@ export function legacyZipKey(rollId: string): string {
  *   could be replaced by one that never would have been.
  *
  *   And the content type the caller sent was stored as the object's own, on a bucket served
- *   through a public Cloudflare domain — which made `img.memovue.com` a file host for
+ *   through a public Cloudflare domain — which made `cdn.memovue.com` a file host for
  *   whatever anyone who had joined a roll cared to upload, HTML included.
  *
  * Signing both pushes the check to where the bytes actually arrive: R2 refuses the PUT with a

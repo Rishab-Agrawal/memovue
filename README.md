@@ -168,7 +168,8 @@ the camera runs on a stranger's phone at a party nobody from here is at, and a `
 refusal or a canvas encode that only fails on one model of handset never reaches a server log at
 all. Both are deduplicated by `shouldAlert`, one message per fault per ten minutes and twenty an
 hour across everything, because an alarm channel that floods during an outage is the outage.
-The two cron jobs alert here too, when they fail.
+The cron jobs alert here too, when they fail, and the cost watch when the bill is over the line
+or the limit that stops it has gone missing.
 
 **Signals** is the pulse: a host signed up, a roll was created, somebody asked to be let in. One
 line each, never urgent, and none of them a record — the rows behind them all outlive the message.
@@ -177,7 +178,7 @@ line each, never urgent, and none of them a record — the rows behind them all 
 sweep. It sends every morning whether or not anything happened, deliberately: a digest that only
 arrives when there is news cannot be told apart from one that has silently stopped arriving.
 
-Exactly one thing in it is not a number, and that one goes to **Alerts** instead: a nightly job
+Exactly one thing in it is not a number, and that one goes to **Alerts** instead: a scheduled job
 whose heartbeat is absent. A job that is no longer scheduled raises no exception and fails no
 deployment, so absence is the only evidence there will ever be — and evidence printed near the
 bottom of a message full of pleasant statistics is evidence nobody reads. Everything left in the
@@ -187,7 +188,7 @@ digest is worth reading and none of it is urgent, which is what makes it safe to
 `createdAt`, so the digest counts *those* — which stays correct through a deploy, survives a
 restore, and can still be asked about last March. What gets a `Metric` row is only what leaves
 nothing behind: an invitation shown to somebody who never joined, an upload the queue gave up
-on, a crash, and a nightly tick from each cron job so that the digest can notice one having
+on, a crash, and a tick from each scheduled job so that the digest can notice one having
 quietly stopped being scheduled. That table has three columns, no identifier of any kind, and
 nothing joins to it, so no row in it can be turned back into one person's evening. It is the
 strongest instrument that keeps the promise the privacy page makes.
@@ -201,6 +202,113 @@ in the morning, so one evening's scans would land under two dates and every rati
 would be wrong by however much of the party ran late. `format.ts` already owned that clock. The
 day is stored as `YYYY-MM-DD` text for the same reason the backup transcribes its dates rather
 than parsing them: a zone-less `date` column is moved by whichever machine writes to it.
+
+## What this costs, and what stops it
+
+Two meters run. **Railway** bills the container, the database and its egress by usage;
+**Cloudflare** bills R2 for the bytes stored and the requests made against them. Nothing else
+is metered: Telegram, Google sign-in, DNS and Email Routing are free, Resend is free below
+three thousand messages a month against the single figures a week this sends, and the domain is
+one fixed line a year that no daily job could usefully watch.
+
+**The hard stop is Railway's, not this repo's, and that is the whole design.** Railway takes
+every workload in the workspace offline by itself once the billing cycle's usage reaches the
+hard limit set on the account. It does that at its own meter: it does not need this repo to
+have deployed, a cron to still be scheduled, a token to still be valid, or any of this code to
+be free of bugs. A kill switch written as "a job notices and calls an API" shares a failure
+mode with the thing it guards — the runaway that stops the job running is the runaway that
+nothing then stops.
+
+**The numbers are not in this repo, and there is no command that writes one.** Both live on the
+[Workspace Usage page](https://railway.com/workspace/usage) — an email alert and a hard limit —
+and are read back live on every run. Change either one there, whenever, for any reason, and
+nothing here needs touching or redeploying.
+
+```bash
+npm run cost           # read both meters, alert if anything is wrong
+npm run cost -- --dry  # the same reading, sending nothing
+```
+
+That direction is the whole point. The account is the only place either number acts, so a
+constant here that disagreed with it would not be a stricter policy, only a false one — and the
+`--set-limits` this briefly had would, the first time the two drifted, have quietly *raised* a
+limit somebody had tightened on purpose. A copy in the repo also turns "let it run higher for a
+busy month" into a code change, and an alarm that nags every four hours until a file is edited
+to agree with a dashboard is an alarm that gets muted.
+
+So Railway's email alert is also the level this alerts to Telegram at, and Railway's hard limit
+is the ceiling every message prints. The one thing asserted is that both still *exist*, never
+what they say: whatever they read is somebody's considered choice, but *neither* never is —
+that leaves nothing anywhere that stops the bill, and it is the state nothing else would report.
+Railway's minimum is $10.
+
+**The stop is workspace-wide.** It takes down every project in the same Railway account, not
+only MemoVue, and the figure it compares against is that whole workspace's usage. That is also
+the honest number to report, so the digest reports it rather than trying to attribute dollars
+to one project — Railway's per-project figures are resource units, not money, and pricing them
+here would be a second, worse copy of Railway's billing.
+
+**What is left for code is the two things the platform does badly.** Railway announces all of
+this by email, which is the one channel this project has already decided nobody watches. And a
+limit set once in somebody else's dashboard can be lowered, raised or removed without anything
+anywhere throwing an exception — the same shape of failure as a cron that quietly stopped being
+scheduled, and it gets the same treatment. So `npm run cost` runs as a fourth Railway cron
+service every four hours and says three things, in the order they matter: whether the limits
+still read what this repo says they should, whether either meter could be read at all, and
+whether the money is over the line. It repeats while the money is over, on purpose — six
+messages a day is the right amount of nagging about a bill that is still climbing.
+
+Four-hourly rather than nightly puts a ceiling of four hours on how long a runaway goes
+unannounced, and guarantees a tick inside every Kolkata day whatever hour the digest runs at,
+so the digest can notice this job having stopped the way it already notices the other two.
+
+**A blind alarm is the failure that matters.** An unreachable meter comes back named rather
+than thrown, so Cloudflare being down never costs the Railway reading — they are not the same
+size, and Railway is where all the money is. A total assembled from one meter prints with a `+`
+after it, because it is a floor and not the bill. Both APIs answer `200` with an `errors` array
+when a token is revoked, so the status line is never read on its own: that would turn a dead
+credential into a healthy zero.
+
+**Railway's stop does not reach Cloudflare, and nothing can make it.** `cdn.memovue.com` is
+served from Cloudflare's edge with no part of Railway in the path, so it keeps answering after
+every workload is offline — and the sweep is offline too, so storage stops shrinking as well as
+stops growing. Cloudflare sells no spend cap for R2 and publishes no usage notification for it,
+so there is no platform switch to reach for the way there is on Railway, and a switch written
+here would be useless in the one case that motivates it: this watch is stopped by the same hard
+limit as everything else.
+
+What bounds it instead is arithmetic. Egress is free, uploads need the app that has just been
+stopped, and the two remaining meters are shallow: storage passes $10 a month at about 680 GB
+stored, and reads pass $10 at roughly 38 million cache-*missing* requests in a month. So the
+exposure after a Railway stop is single digits, and `R2_ALERT_USD` is set at $2 to fire long
+before any of it — separately from the combined total, because Railway reading nearly zero is
+exactly what would let R2 climb unnoticed inside a shared number.
+
+The controls that do work are Cloudflare's own, because they are enforced at the edge whether or
+not anything of ours is running: a **rate limiting rule** on `cdn.memovue.com`, and a **cache
+rule** with a long edge TTL, which attacks the actual driver — a photo key is immutable, so a
+miss should only ever happen once per edge. Covers are excluded from that rule: `coverKey` is a
+fixed key overwritten in place and served through a stable `publicUrl`, so a long TTL would
+serve a replaced cover's predecessor for as long as the TTL lasts.
+
+**Email cannot cost anything, and that is the problem.** Resend's free plan is 3,000 a month and
+100 a day, and it refuses with a `429` rather than billing — so exhausting it is free, silent,
+and stops hosts hearing that their photographs are about to be deleted. `send()` therefore reads
+the error out of the response body as well as catching throws, because Resend reports a refusal
+in the body and an unread refusal is indistinguishable from a send. Every failure alerts. It is
+not counted: at a handful of messages a month against three thousand, a number that far from its
+limit is decoration, and this file's rule is that a figure with nothing to compare it to is left
+out.
+
+**R2 is priced, not billed.** Cloudflare has no figure to ask for, so `r2Bill` applies the
+published prices to the storage and request counts out of the GraphQL analytics API — account
+wide, because the free ten gigabytes and the first million writes are granted per account and a
+second bucket eating them makes MemoVue's next gigabyte cost money. Storage is priced as a
+whole month at today's size rather than accrued day by day, and an operation the classifier has
+never heard of is charged at the dearer of the two request rates. Both round the estimate up:
+too high sets the alarm off early, too low is the alarm not going off at all. The month is
+UTC — Cloudflare's, not Kolkata's — because this figure has to line up with an invoice rather
+than with an evening.
 
 ## What a host can change, and what they cannot
 
