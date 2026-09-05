@@ -3,12 +3,6 @@
 Things that need you, not code. Only open items live here — anything finished gets deleted
 rather than archived.
 
-## Turn on HSTS
-
-Enable it in Cloudflare under SSL/TLS → Edge Certificates. It was worth waiting for a couple
-of weeks of stable HTTPS first, and that has passed. It is deliberately hard to undo, because
-browsers cache the policy, so be sure before switching it on.
-
 ## Housekeeping
 
 - Run `npm run cleanup:test` occasionally if you point the Playwright suite at production,
@@ -29,13 +23,12 @@ Not urgent while the beta is free, but do not launch paid without them:
 - Payments (India and international)
 - Decide what replaces the beta allow-list at launch, and what the free tier is
 
-## Tighten DMARC to quarantine
+## Tighten DMARC to reject
 
-The record is published and reporting: `v=DMARC1; p=none; rua=mailto:hello@memovue.com`.
-`p=none` asks receivers to tell us about failures and do nothing about them, which is the
-right way to start and the wrong place to stop — it protects nobody from someone spoofing
-the domain.
+The record is now `v=DMARC1; p=quarantine; rua=mailto:hello@memovue.com`, so anything that
+fails alignment lands in spam rather than the inbox. `p=reject` is the end state: receivers
+throw the message away instead of filing it.
 
-Read the aggregate reports arriving at hello@ for a few weeks. Once they show only Resend
-and Cloudflare Email Routing passing, move to `p=quarantine`, and later `p=reject`. Do not
-skip ahead: if anything legitimate is still failing alignment, quarantine sends it to spam.
+Keep reading the aggregate reports arriving at hello@. Once a few weeks of them show only
+Resend and Cloudflare Email Routing, and nothing legitimate failing, move to `p=reject`.
+Under quarantine a mistake is recoverable from a spam folder; under reject it is not.
