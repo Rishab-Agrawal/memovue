@@ -83,6 +83,7 @@ const rollSummary = {
   name: true,
   coverPreset: true,
   coverKey: true,
+  coverVersion: true,
   startsAt: true,
   finishesAt: true,
   revealAt: true,
@@ -102,6 +103,7 @@ export interface RollCard {
   name: string;
   coverPreset: number;
   coverKey: string | null;
+  coverVersion: number;
   startsAt: Date;
   finishesAt: Date;
   photoCount: number;
@@ -158,6 +160,7 @@ export async function listRollsForUser(userId: string) {
       name: roll.name,
       coverPreset: roll.coverPreset,
       coverKey: roll.coverKey,
+      coverVersion: roll.coverVersion,
       startsAt: roll.startsAt,
       finishesAt: roll.finishesAt,
       photoCount: roll._count.photos,
@@ -170,6 +173,7 @@ export async function listRollsForUser(userId: string) {
       name: roll.name,
       coverPreset: roll.coverPreset,
       coverKey: roll.coverKey,
+      coverVersion: roll.coverVersion,
       startsAt: roll.startsAt,
       finishesAt: roll.finishesAt,
       photoCount: roll._count.photos,
@@ -458,21 +462,39 @@ export async function updateRollInfo(id: string, hostId: string, data: {
  * re-downloaded an image that had not moved. A stable URL is cached by the edge and then by
  * the browser, and costs nothing to produce.
  */
-export function coverUrlFor(roll: { coverKey: string | null }): string | null {
+export function coverUrlFor(roll: {
+  coverKey: string | null;
+  coverVersion: number;
+}): string | null {
   if (!roll.coverKey || !storageConfigured) return null;
-  return publicUrl(roll.coverKey);
+  /*
+    `?v=` rather than a fresh key, for the reason `Roll.coverVersion` gives: the key has to
+    stay a pure function of the roll id so a purge can find it, and the query string is part
+    of the cache key at the edge and in the browser regardless. So a replaced cover is a URL
+    neither of them has ever seen, and the old bytes age out on their own.
+  */
+  return `${publicUrl(roll.coverKey)}?v=${roll.coverVersion}`;
 }
 
 /** The same for screens that list rolls. No longer async: there is nothing to await. */
-export function coverUrlsFor<T extends { id: string; coverKey: string | null }>(
+export function coverUrlsFor<T extends { id: string; coverKey: string | null; coverVersion: number }>(
   rolls: T[],
 ): Map<string, string | null> {
   return new Map(rolls.map((roll) => [roll.id, coverUrlFor(roll)]));
 }
 
-/** Adopts an already-uploaded cover. The key is recomputed here, never taken from input. */
+/**
+ * Adopts an already-uploaded cover. The key is recomputed here, never taken from input.
+ *
+ * The version is bumped on every adoption rather than only when the key changes, because the
+ * key never changes — replacing a cover writes the same string back, and the only evidence
+ * that the picture is a different one is this call happening at all.
+ */
 export async function setRollCover(id: string, hostId: string): Promise<void> {
-  await prisma.roll.updateMany({ where: { id, hostId }, data: { coverKey: coverKey(id) } });
+  await prisma.roll.updateMany({
+    where: { id, hostId },
+    data: { coverKey: coverKey(id), coverVersion: { increment: 1 } },
+  });
 }
 
 /** Drops back to the preset gradient and removes the uploaded bytes. */

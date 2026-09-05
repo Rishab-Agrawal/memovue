@@ -71,6 +71,16 @@ model Roll {
   coverKey    String?
   coverPreset Int     @default(0)
 
+  /// Bumped each time a cover is adopted, and appended to the cover's URL as `?v=`.
+  ///
+  /// `coverKey` is a fixed key overwritten in place — deliberately, so a replaced cover
+  /// leaves behind no orphan object that nothing will ever delete. What that costs is a new
+  /// cover having the identical URL to the one it replaced, and covers are served through
+  /// the cached public domain like everything else, so the edge and the browser both went
+  /// on handing back the previous picture until their TTL ran out. A version in the query
+  /// string is a different cache key, so the swap is visible at once and purges nothing.
+  coverVersion Int @default(0)
+
   maxGuests      Int
   photosPerGuest Int
 

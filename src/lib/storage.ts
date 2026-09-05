@@ -84,8 +84,15 @@ export function photoKey(
  *
  * Deliberately not `covers/{rollId}/{nanoid}.jpg`: a unique key per upload means every
  * replaced cover leaves an object nobody will ever delete, and the only way to find those
- * again is a sweeper that does not exist. Signed read URLs carry a fresh signature on every
- * request, so a browser never serves the previous image from cache despite the stable key.
+ * again is a sweeper that does not exist.
+ *
+ * What a stable key costs is that a replaced cover has the URL of the one it replaced, and
+ * covers are read through the cached domain like everything else — so the edge went on
+ * serving the old picture. `Roll.coverVersion` pays that back in the query string instead of
+ * in the key: a different cache key, the same object to delete. This used to be answered by
+ * the read URL being freshly signed per request, which stopped being true the day images
+ * moved to `publicUrl`, and the staleness that followed was invisible until a host swapped a
+ * cover and got their previous one back.
  *
  * The client never supplies this — both the upload and the confirm recompute it from the
  * roll id, so there is no key for a request to point somewhere it shouldn't.
