@@ -5,6 +5,19 @@
  * if they're missing, which is correct on the server and fatal in a browser bundle.
  */
 
+/**
+ * How many times one host may download one roll's ZIP, ever.
+ *
+ * Here rather than in the route because the Save button has to know it too: the download is a
+ * plain anchor, so a browser that follows it past the ceiling renders the refusal as a page.
+ * The button answering first is what keeps the host on their album.
+ */
+export const ZIP_DOWNLOAD_LIMIT = 10;
+
+/** What the host is told once they have spent them. */
+export const ZIP_DOWNLOAD_SPENT =
+  "You have already downloaded this roll multiple times. In case of any issues, please contact hello@memovue.com";
+
 export const UPLOAD_LIMITS = {
   /** Long edge of the archived original. */
   fullMaxEdge: 2048,

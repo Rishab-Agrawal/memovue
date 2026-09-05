@@ -93,6 +93,7 @@ const rollSummary = {
   maxGuests: true,
   photosPerGuest: true,
   keptUntil: true,
+  downloads: true,
 } as const;
 
 export type RollSummary = Awaited<ReturnType<typeof getRollForHost>>;

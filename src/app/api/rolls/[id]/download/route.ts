@@ -2,8 +2,8 @@ import { ZipArchive } from "archiver";
 import type { Readable } from "node:stream";
 import { PassThrough, Readable as NodeReadable } from "node:stream";
 
+import { ZIP_DOWNLOAD_LIMIT, ZIP_DOWNLOAD_SPENT } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
-import { rateLimit } from "@/lib/ratelimit";
 import { UPLOAD_GRACE_HOURS, isOpen } from "@/lib/roll-access";
 import { getCurrentUser } from "@/lib/session";
 import { getObjectStream, headObject, presignDownload, putStream, zipKey } from "@/lib/storage";
@@ -53,27 +53,6 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const user = await getCurrentUser();
   if (!user) return refuse(401, "Sign in to download this album.");
 
-  /*
-    The most expensive request in the app, and until now the only unmetered one.
-
-    Once a roll has settled this redirects to a prebuilt archive and costs almost nothing.
-    Before that it cannot: the album can still change, so there is nothing safe to cache and
-    the ZIP is assembled live, streaming every original through this server with a one-hour
-    `maxDuration`. Ten an hour is far more than a host retrying a failed download needs, and
-    it bounds what a single account can hold open.
-
-    ponytail: a rate, not a concurrency limit — ten sequential builds are fine, ten at once
-    are not. Add a per-host in-flight guard if this ever actually bites.
-  */
-  const limit = rateLimit(`zip:${user.id}`, 10, 3600);
-  if (!limit.ok) {
-    return refuse(
-      429,
-      `That is a lot of downloads at once. Try again in ${Math.ceil(limit.retryAfterSeconds / 60)} minutes.`,
-      { "retry-after": String(limit.retryAfterSeconds) },
-    );
-  }
-
   const roll = await prisma.roll.findFirst({
     where: { id, hostId: user.id },
     select: {
@@ -103,6 +82,27 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   if (photos.length === 0) {
     return refuse(404, "Nobody took a photograph on this roll.");
   }
+
+  /*
+    The most expensive request in the app, and the only one with a hard ceiling on it.
+
+    Ten per roll, for the life of the roll — not ten an hour. A settled album is a fixed set
+    of bytes, so an eleventh copy is not a host being slow, it is a host whose downloads are
+    not arriving, and the answer to that is a person rather than another gigabyte.
+
+    Claimed with a conditional update rather than a read and a write, so two tabs racing at
+    the boundary cannot both find nine and both proceed. Last of the checks on purpose: a
+    sealed roll, a deleted one and an empty one all refuse above without spending anything.
+
+    ponytail: a build that dies halfway still spent its slot — the response has already
+    started streaming by the time we could know. Ten is generous enough to absorb that; if a
+    host ever burns through them on failures, give the count back when `buildArchive` errors.
+  */
+  const claimed = await prisma.roll.updateMany({
+    where: { id: roll.id, downloads: { lt: ZIP_DOWNLOAD_LIMIT } },
+    data: { downloads: { increment: 1 } },
+  });
+  if (claimed.count === 0) return refuse(403, ZIP_DOWNLOAD_SPENT);
 
   const filename = `${safeSegment(roll.name)}-memovue.zip`;
   const settled =

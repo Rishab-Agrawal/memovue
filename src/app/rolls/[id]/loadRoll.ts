@@ -2,6 +2,7 @@ import "server-only";
 
 import { notFound } from "next/navigation";
 
+import { ZIP_DOWNLOAD_LIMIT } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { isOpen } from "@/lib/roll-access";
 import { coverUrlFor, getRollForHost } from "@/lib/rolls";
@@ -127,6 +128,7 @@ export async function loadRoll(
       guestCount: found._count.guests,
       maxGuests: found.maxGuests,
       shotsLeft,
+      downloadsLeft: Math.max(0, ZIP_DOWNLOAD_LIMIT - found.downloads),
     },
     /*
       Sealed rolls render the wall from `blurData` — the same ~32px inlined JPEG the guest

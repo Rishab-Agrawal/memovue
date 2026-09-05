@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { Camera, Download, Lock, Qr, Send } from "@/components/roll/Icons";
+import { ZIP_DOWNLOAD_SPENT } from "@/lib/constants";
 
 /**
  * The pieces below the cover, shared by the host's roll home and the guest's album.
@@ -15,6 +16,7 @@ export function RollControls({
   inviteHref,
   sendHref,
   saveHref,
+  downloadsLeft,
   onCamera,
   outOfFilm,
 }: {
@@ -32,6 +34,8 @@ export function RollControls({
   sendHref?: string;
   /** Where "Save" goes. Omitted by anyone who cannot download the album. */
   saveHref?: string;
+  /** ZIP downloads this roll has left of its lifetime ten. Ignored without `saveHref`. */
+  downloadsLeft?: number;
   /** When given, the camera closes a sheet instead of navigating — the guest app keeps its
       viewfinder alive underneath rather than tearing the stream down and back up. */
   onCamera?: () => void;
@@ -48,11 +52,24 @@ export function RollControls({
   */
   const [notice, setNotice] = useState<string | null>(null);
 
+  // Long enough to read what it says. The refusal past the download ceiling carries an email
+  // address, and a fixed 2.6 seconds took it away before anyone could write it down.
   useEffect(() => {
     if (!notice) return;
-    const timer = setTimeout(() => setNotice(null), 2600);
+    const timer = setTimeout(() => setNotice(null), Math.max(2600, notice.length * 70));
     return () => clearTimeout(timer);
   }, [notice]);
+
+  /*
+    Spent downloads, counted here as well as on the server.
+
+    The server holds the real ceiling — this is a number rendered once, and nothing reloads
+    the page between two taps of Save. Without the local count the tenth and eleventh clicks
+    in one sitting look identical from here, and the eleventh navigates the browser onto a
+    plain-text refusal instead of showing it as a message on the album.
+  */
+  const [spent, setSpent] = useState(0);
+  const left = downloadsLeft === undefined ? Infinity : downloadsLeft - spent;
 
   // A guest has neither, and two dead buttons are worse than none.
   if (revealed && !sendHref && !saveHref) return null;
@@ -70,9 +87,15 @@ export function RollControls({
                 href={saveHref}
                 label="Save"
                 icon={<Download className="h-5 w-5" />}
-                onClick={() =>
-                  setNotice("Building your album — the download starts on its own. Big rolls take a minute.")
-                }
+                onClick={(event) => {
+                  if (left <= 0) {
+                    event.preventDefault();
+                    setNotice(ZIP_DOWNLOAD_SPENT);
+                    return;
+                  }
+                  setSpent((count) => count + 1);
+                  setNotice("Building your album — the download starts on its own. Big rolls take a minute.");
+                }}
               />
             ) : null}
           </>
@@ -158,7 +181,8 @@ function Control({
   href: string;
   label: string;
   icon: React.ReactNode;
-  onClick?: () => void;
+  /** Takes the event so a control can refuse the navigation it would otherwise start. */
+  onClick?: (event: React.MouseEvent) => void;
 }) {
   const className =
     "flex h-14 flex-1 items-center justify-center gap-2.5 rounded-2xl bg-surface text-[15px] text-chalk transition-colors hover:text-flame";

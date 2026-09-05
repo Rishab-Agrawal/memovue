@@ -100,6 +100,14 @@ model Roll {
   revealAt      DateTime
   revealedEarly Boolean  @default(false)
 
+  /// How many times the host has downloaded this roll as a ZIP.
+  ///
+  /// A lifetime tally, not a rate. The archive of a settled roll never changes again, so a
+  /// host reaching for an eleventh copy is not being slow — something is wrong that another
+  /// download will not fix. Persisted because the ceiling it feeds only means anything if it
+  /// survives a deploy; the rate limiter it replaced lived in a Map that did not.
+  downloads Int @default(0)
+
   /// First time anybody loaded this roll's album after it opened.
   ///
   /// A column rather than a tally because the question it answers is per-roll and permanent —

@@ -25,6 +25,8 @@ export interface BackdropRoll {
   maxGuests: number;
   /** What the host has left of their own film, for the camera control below. */
   shotsLeft: number;
+  /** ZIP downloads this roll has left. Zero makes Save answer instead of navigating. */
+  downloadsLeft: number;
 }
 
 /** The grid owns this shape; re-declaring it here is how the two drift apart. */
@@ -78,6 +80,7 @@ export function RollBackdrop({
           // Once open, the same two things a host wants: hand the album round, or take it away.
           sendHref={`/rolls/${roll.id}/invite`}
           saveHref={`/api/rolls/${roll.id}/download`}
+          downloadsLeft={roll.downloadsLeft}
         />
 
         {roll.everyoneCanSee ? null : <VisibilityNotice />}

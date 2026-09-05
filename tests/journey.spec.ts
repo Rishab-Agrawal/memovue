@@ -459,6 +459,28 @@ test.describe("a roll from creation to reveal", () => {
     const zip = await page.request.get(`/api/rolls/${rollId()}/download`);
     expect(zip.status()).toBe(200);
     expect(zip.headers()["content-type"]).toContain("zip");
+
+    /*
+      Ten of those, for the life of the roll, and then a sentence rather than an archive.
+
+      The refusals above cost nothing — a sealed roll is turned away before the count is
+      touched — so this one download is the first spent and nine remain. The eleventh is the
+      one that has to say something a host can act on, which means the address in it is part
+      of the contract and not decoration.
+    */
+    for (let i = 1; i < 10; i += 1) {
+      expect((await page.request.get(`/api/rolls/${rollId()}/download`)).status()).toBe(200);
+    }
+
+    const refused = await page.request.get(`/api/rolls/${rollId()}/download`);
+    expect(refused.status()).toBe(403);
+    expect(await refused.text()).toContain("hello@memovue.com");
+
+    // And the button says so on the page itself, rather than navigating the host onto it.
+    await page.reload();
+    await page.getByRole("link", { name: "Save" }).click();
+    await expect(page.getByRole("status")).toContainText("already downloaded this roll");
+    await expect(page).toHaveURL(rollUrl);
   });
 
   function rollId() {
