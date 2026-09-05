@@ -29,11 +29,20 @@ export interface Stock {
 
 /**
  * Order is load-bearing at index 0: `coverPreset` defaults to it in the schema, so it is the
- * cover every roll starts with and the one most hosts will never change. Weddings lead
- * because that is what the product is mostly booked for; the last three are the other
- * occasions it suits.
+ * cover every roll starts with and the one most hosts will never change. The painted lake
+ * leads because it belongs to no particular occasion — a wedding cover on a birthday roll
+ * reads as a mistake, this one never does. Weddings follow, being what the product is mostly
+ * booked for; the last three are the other occasions it suits.
+ *
+ * Inserting here renumbers everything after it, so a change to this order needs a migration
+ * shifting `Roll.coverPreset` to match — see `20260905193000_default_cover_nature`.
  */
 export const COVERS: Stock[] = [
+  {
+    src: "/covers/nature-ghibli.jpg",
+    wash: "radial-gradient(120% 100% at 50% 20%, #2f9ade, #cbb98a 78%)",
+    label: "A painted lake",
+  },
   {
     src: "/covers/wedding-mandap.jpg",
     wash: "radial-gradient(120% 100% at 30% 25%, #6b3d12, #1a1108 70%)",
