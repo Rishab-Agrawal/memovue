@@ -111,6 +111,15 @@ test.describe("a roll from creation to reveal", () => {
   /** What a camera reads before its first shot, filled in by the first guest to take one. */
   let fullQuota = 0;
 
+  /**
+   * A browser that has never been anybody here — which is what a scanned QR is.
+   *
+   * Spelled out, because a context built with `browser.newContext()` inherits this describe's
+   * `storageState`: without this, a "guest" arrives holding the host's cookie, is recognised
+   * by account, and every test below it quietly checks the host walking into their own roll.
+   */
+  const ANONYMOUS = { storageState: { cookies: [], origins: [] } };
+
   test("the host creates a roll, spending one off the allowance", async ({ page }) => {
     await page.goto("/new/name");
 
@@ -289,8 +298,7 @@ test.describe("a roll from creation to reveal", () => {
   });
 
   test("a guest joins with a name and shoots", async ({ browser }) => {
-    // A fresh context: the guest has no host cookie, which is the whole point of the QR.
-    const context = await browser.newContext({ permissions: ["camera"] });
+    const context = await browser.newContext({ ...ANONYMOUS, permissions: ["camera"] });
     const page = await context.newPage();
 
     await page.goto(joinUrl);
@@ -364,13 +372,7 @@ test.describe("a roll from creation to reveal", () => {
   test("a second guest with a name already in the roll still gets a camera", async ({
     browser,
   }) => {
-    // Empty state spelled out: a context made here inherits this describe's `storageState`,
-    // so without it this arrives holding the host's cookie and is recognised by account
-    // before it is ever asked for a name.
-    const context = await browser.newContext({
-      storageState: { cookies: [], origins: [] },
-      permissions: ["camera"],
-    });
+    const context = await browser.newContext({ ...ANONYMOUS, permissions: ["camera"] });
     const page = await context.newPage();
 
     await page.goto(joinUrl);
