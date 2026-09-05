@@ -108,7 +108,11 @@ async function putObject(url: string, blob: Blob): Promise<void> {
  * the right next move.
  */
 async function releaseShot(code: string, photoId: string): Promise<void> {
-  await fetch(`/api/r/${code}/photos/${photoId}`, { method: "DELETE" }).catch(() => {});
+  // `dropped`, so the route can tell this apart from a guest deleting a frame they simply did
+  // not like. Only one of the two is a failure, and only one of them is worth counting.
+  await fetch(`/api/r/${code}/photos/${photoId}?reason=dropped`, { method: "DELETE" }).catch(
+    () => {},
+  );
 }
 
 /** Errors that mean this photo will never succeed, so it should leave the queue. */

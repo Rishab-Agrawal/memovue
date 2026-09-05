@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 
 import { AlbumView } from "@/components/guest/AlbumView";
 import { QueueStatusLine } from "@/components/guest/QueueStatusLine";
 import { getGuestContext, guestHome } from "@/lib/guest-context";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +32,29 @@ export default async function GuestAlbumPage({ params }: PageProps<"/e/[code]/al
   const context = await getGuestContext(code);
   // No session for this roll — the join screen is where a name gets attached to a camera.
   if (!context) redirect(`/join/${code}`);
+
+  /*
+    The moment the whole product is for, recorded once.
+
+    Everything else about a roll can be counted from rows that already exist; whether anybody
+    ever came back to look is the one thing that leaves no trace at all — and it is the answer
+    to the only question that matters about a sealed album, which is whether sealing it was
+    worth doing. A guarded update rather than a tally, because the question is per-roll and
+    permanent: a hundred albums opened is a different fact from a hundred visits to one.
+
+    Guarded in the `where` as well as the `if`, so two guests opening it in the same second
+    still leave the earlier timestamp standing.
+  */
+  if (context.open && !context.roll.albumOpenedAt) {
+    after(() =>
+      prisma.roll
+        .updateMany({
+          where: { id: context.roll.id, albumOpenedAt: null },
+          data: { albumOpenedAt: new Date() },
+        })
+        .catch((error: unknown) => console.error("Could not mark album opened", error)),
+    );
+  }
 
   return (
     <div className="min-h-dvh bg-page">

@@ -1,7 +1,7 @@
 # PM fixes
 
 Product issues found by reading the code (2026-09-04), ranked by what they cost the user.
-Nine were fixed on 2026-09-05 and are struck through with a one-line note on what was done.
+Ten were fixed on 2026-09-05 and are struck through with a one-line note on what was done.
 Each open item names where it lives so it can be picked up cold.
 
 ## P0 — breaks the promise the product is sold on
@@ -55,9 +55,14 @@ Each open item names where it lives so it can be picked up cold.
 
 ## P2 — growth, lifecycle, and knowing whether any of this works
 
-11. **Zero instrumentation.** No analytics anywhere, stated as a feature on the privacy page.
-    We cannot answer: what share of QR scans become joins, how many guests finish their film,
-    how many albums are ever opened after reveal. Every ranking above is judgement, not data.
+11. ~~**Zero instrumentation.**~~ **Fixed.** All three questions are now answered every
+    morning in one Telegram message: invitations shown against joins, guests who used their
+    whole film against guests on rolls that closed, and revealed albums that have ever been
+    opened against revealed albums. Almost none of it is a counter — rolls, hosts, guests and
+    photographs were already rows with a `createdAt`, so those are queried and stay correct
+    about last March. Four tallies and one column cover what leaves no row at all. Errors go to
+    the same group the instant they happen, from both halves of the app. The privacy page was
+    rewritten in the same change rather than after it, because it had promised no analytics.
 
 12. **An anonymous guest has one fragile way back.** The roll link plus the exact name they
     typed. Clear the browser and recovery still needs the link. No "email me my album".

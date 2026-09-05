@@ -27,6 +27,19 @@ const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
 const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
 const telegramChatId = process.env.TELEGRAM_CHAT_ID;
 
+/**
+ * A forum topic in the notification group, or undefined for the group's General thread.
+ *
+ * Individually optional, unlike the token and the chat id: a group works perfectly well
+ * without topics turned on, and a message with no thread id lands in General rather than
+ * failing. So an unset one degrades to "still delivered, just less sorted", which is the only
+ * safe direction for an alarm channel to fall.
+ */
+function topicId(name: string): number | undefined {
+  const id = Number(process.env[name]);
+  return Number.isSafeInteger(id) && id > 0 ? id : undefined;
+}
+
 export const env = {
   appUrl: (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, ""),
 
@@ -81,12 +94,21 @@ export const env = {
   emailFrom: process.env.EMAIL_FROM || "MemoVue <hello@memovue.com>",
 
   /**
-   * Where beta requests are pushed. Both or neither: a token with nowhere to send and a chat
-   * id with nothing to send it are each a config that looks present and notifies nobody.
+   * Where everything the owner needs to know is pushed. Both or neither: a token with nowhere
+   * to send and a chat id with nothing to send it are each a config that looks present and
+   * notifies nobody.
    */
   telegram:
     telegramBotToken && telegramChatId
-      ? { token: telegramBotToken, chatId: telegramChatId }
+      ? {
+          token: telegramBotToken,
+          chatId: telegramChatId,
+          topics: {
+            alerts: topicId("TELEGRAM_TOPIC_ALERTS"),
+            signals: topicId("TELEGRAM_TOPIC_SIGNALS"),
+            daily: topicId("TELEGRAM_TOPIC_DAILY"),
+          },
+        }
       : null,
 
   isProduction: process.env.NODE_ENV === "production",

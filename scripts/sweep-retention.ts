@@ -26,6 +26,8 @@ async function main() {
   const { ABANDONED_UPLOAD_DAYS, retentionAction, WARN_BEFORE_DAYS } =
     await import("../src/lib/roll-access");
   const { prisma } = await import("../src/lib/prisma");
+  const { record } = await import("../src/lib/metrics");
+  const { alert } = await import("../src/lib/telegram");
 
   const dry = process.argv.includes("--dry");
   const now = new Date();
@@ -63,15 +65,34 @@ async function main() {
       `released ${report.released}`,
   );
 
+  /*
+    A heartbeat, so that the digest can notice this job having quietly stopped.
+
+    A cron service that fails is loud — Railway marks the run red and the catch below sends a
+    message. A cron service that is *not scheduled any more*, or whose container never starts,
+    is completely silent, and that is the failure that goes unnoticed for a month. So absence
+    is what the digest reads, and the only way to write this row is to have got to here.
+  */
+  await record("sweep_ok");
+
   if (report.failed.length > 0) {
     for (const failure of report.failed) console.error(`FAILED ${failure.id}: ${failure.error}`);
+    await alert(
+      "sweep-partial",
+      `Sweep could not finish ${report.failed.length} roll(s)\n\n` +
+        report.failed.map((failure) => `${failure.id}: ${failure.error}`).join("\n"),
+    );
     // A non-zero exit is how Railway surfaces this as a failed cron run rather than a silent
     // one. The rolls it could not finish are simply still there tomorrow.
     process.exitCode = 1;
   }
 }
 
-main().catch((error) => {
+main().catch(async (error) => {
   console.error(error);
+  // Imported here too, because this runs outside `main` and therefore outside its imports —
+  // and because the thing most likely to have thrown is one of them.
+  const { alert } = await import("../src/lib/telegram");
+  await alert("sweep", `Sweep failed\n\n${error instanceof Error ? error.message : String(error)}`);
   process.exit(1);
 });

@@ -109,6 +109,26 @@ export function wrongGuess(ip: string): void {
 export const OAUTH_LIMIT = 30;
 export const OAUTH_WINDOW_SECONDS = 600;
 
+/* ------------------------------------------------------------------ alerts */
+
+/**
+ * What stops the alarm channel from becoming the outage.
+ *
+ * A crash in a page every guest loads is not one message: it is one per guest per reload, and
+ * a hundred of those get the bot rate-limited by Telegram at the exact moment the alerts
+ * matter most. So the same fault is announced once and then goes quiet for ten minutes, with
+ * a hard ceiling across all faults on top — an hour in which twenty distinct things broke is
+ * fully described by the first twenty of them.
+ *
+ * Two buckets rather than a mechanism of its own, because this is the same question the rest
+ * of this file answers: how often may one key do a thing. The per-fault budget is spent first
+ * and spent even when the ceiling refuses, which is the right way round — past twenty faults
+ * in an hour, nothing is learned by hearing the twenty-first sooner.
+ */
+export function shouldAlert(key: string): boolean {
+  return rateLimit(`alert:${key}`, 1, 600).ok && rateLimit("alert:all", 20, 3_600).ok;
+}
+
 /* ------------------------------------------------------------------ who is calling */
 
 /**

@@ -154,6 +154,48 @@ A restore inserts `ON CONFLICT DO NOTHING`, so a row still present in the live d
 left alone: it is newer than the copy in the file, and skipping it is the only answer that
 cannot lose anything.
 
+## Knowing whether any of this works
+
+Everything the owner needs to know goes to one Telegram group, split into three topics because
+they are read at three different speeds.
+
+**Alerts** is the only one allowed to interrupt anybody. `src/instrumentation.ts` exports
+`onRequestError`, so every exception thrown out of a render, a route handler or a server action
+arrives there with no call site having to remember anything — and it carries the same `digest`
+string `error.tsx` prints on the screen the guest is looking at, so a photograph of a phone and
+a line on a lock screen name the same failure. `instrumentation-client.ts` is the other half:
+the camera runs on a stranger's phone at a party nobody from here is at, and a `getUserMedia`
+refusal or a canvas encode that only fails on one model of handset never reaches a server log at
+all. Both are deduplicated by `shouldAlert`, one message per fault per ten minutes and twenty an
+hour across everything, because an alarm channel that floods during an outage is the outage.
+The two cron jobs alert here too, when they fail.
+
+**Signals** is the pulse: a host signed up, a roll was created, somebody asked to be let in. One
+line each, never urgent, and none of them a record — the rows behind them all outlive the message.
+
+**Daily** is `npm run digest`, a third Railway cron service scheduled after the backup and the
+sweep. It sends every morning whether or not anything happened, deliberately: a digest that only
+arrives when there is news cannot be told apart from one that has silently stopped arriving.
+
+**Almost nothing is counted.** Rolls, hosts, guests and photographs are already rows with a
+`createdAt`, so the digest counts *those* — which stays correct through a deploy, survives a
+restore, and can still be asked about last March. What gets a `Metric` row is only what leaves
+nothing behind: an invitation shown to somebody who never joined, an upload the queue gave up
+on, a crash, and a nightly tick from each cron job so that the digest can notice one having
+quietly stopped being scheduled. That table has three columns, no identifier of any kind, and
+nothing joins to it, so no row in it can be turned back into one person's evening. It is the
+strongest instrument that keeps the promise the privacy page makes.
+
+The one exception is `Roll.albumOpenedAt`, which is a column rather than a tally because the
+question is per-roll and permanent: how many albums are ever opened at all — which is to say,
+whether sealing them was worth doing.
+
+**The day is Kolkata's, not UTC.** A UTC bucket cuts an Indian wedding in half at half past five
+in the morning, so one evening's scans would land under two dates and every ratio in the digest
+would be wrong by however much of the party ran late. `format.ts` already owned that clock. The
+day is stored as `YYYY-MM-DD` text for the same reason the backup transcribes its dates rather
+than parsing them: a zone-less `date` column is moved by whichever machine writes to it.
+
 ## What a host can change, and what they cannot
 
 The closing time moves while a roll is still sealed, because parties run late and the shutter

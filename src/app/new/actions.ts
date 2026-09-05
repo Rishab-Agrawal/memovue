@@ -1,9 +1,12 @@
 "use server";
 
+import { after } from "next/server";
+
 import { BetaAccessError } from "@/lib/beta";
 import { rateLimit } from "@/lib/ratelimit";
 import { createRoll } from "@/lib/rolls";
 import { requireHost } from "@/lib/session";
+import { notify } from "@/lib/telegram";
 import { createRollSchema, fieldErrors } from "@/lib/validation";
 
 export type CreateRollResult =
@@ -53,6 +56,18 @@ export async function createRollAction(
       startsAt: new Date(data.startsAt),
       finishesAt: new Date(data.finishesAt),
     });
+
+    /*
+      Announced, not counted: `Roll` rows carry a `createdAt`, so the digest can count these
+      to the day forever. What a message adds is the one thing a query never will — knowing on
+      the evening it happens that somebody is setting up a party.
+    */
+    after(() =>
+      notify(
+        "signals",
+        `New roll — “${roll.name}” · ${user.name} · ${data.maxGuests} guests × ${data.photosPerGuest} shots`,
+      ),
+    );
 
     return { ok: true, rollId: roll.id, code: roll.code, name: roll.name };
   } catch (error) {

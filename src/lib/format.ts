@@ -85,6 +85,27 @@ export function startOfWallDay(date: Date): Date {
   return fromWall(wall.year, wall.month, wall.day);
 }
 
+/**
+ * The wall-clock date an instant falls on, as `YYYY-MM-DD`.
+ *
+ * A string, and that is the point. It is what `Metric` is keyed on, and a string cannot be
+ * moved by a timezone on the way into Postgres or on the way back out — which a `date` column
+ * demonstrably can: node-postgres renders a JS `Date` in the *process's* zone, so a tally
+ * written from a laptop west of Greenwich would land on the day before. That is the same trap
+ * the nightly backup transcribes dates to avoid, and the same answer works here.
+ */
+export function wallDate(date: Date): string {
+  const { year, month, day } = toWall(date);
+  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+/** The half-open instant range `[from, to)` that a `YYYY-MM-DD` covers in Kolkata. */
+export function wallDateRange(date: string): { from: Date; to: Date } {
+  const [year, month, day] = date.split("-").map(Number);
+  const from = fromWall(year, month - 1, day);
+  return { from, to: new Date(from.getTime() + 86_400_000) };
+}
+
 export function sameWallDay(a: Date, b: Date): boolean {
   const x = toWall(a);
   const y = toWall(b);

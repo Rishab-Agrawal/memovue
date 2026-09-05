@@ -13,7 +13,7 @@ export default function PrivacyPage() {
   return (
     <>
       <h1>Privacy Policy</h1>
-      <p className="marking !mt-6">Last updated 23 August 2026</p>
+      <p className="marking !mt-6">Last updated 5 September 2026</p>
 
       <p>
         This explains what MemoVue collects, why, and what you can do about it. It covers{" "}
@@ -45,9 +45,16 @@ export default function PrivacyPage() {
       </p>
       <p>
         <strong>Automatically.</strong> Your IP address, held briefly in memory to rate-limit
-        abuse, and ordinary server logs. <strong>We use no analytics, no advertising trackers,
-        no third-party cookies and no session recording.</strong> The only cookies we set are
-        the ones that keep you signed in as a host or attached to a roll as a guest.
+        abuse, and ordinary server logs. We also keep a <strong>daily count</strong> of a
+        handful of totals — how many invitation screens were shown, how many uploads failed,
+        how many errors happened — and when something goes wrong we record the error message
+        and which page it happened on, so that we can fix it. Those counts are numbers in a
+        table with nothing attached to them: no identifier, no profile, no record of who did
+        what, and nothing that can be traced back to you.{" "}
+        <strong>We use no advertising trackers, no third-party analytics, no third-party
+        cookies and no session recording.</strong>{" "}
+        The only cookies we set are the ones that keep you signed in as a host or attached to
+        a roll as a guest.
       </p>
       <p>
         <strong>Camera and photo access.</strong> Your browser asks before MemoVue may use your
@@ -103,6 +110,11 @@ export default function PrivacyPage() {
         </li>
         <li>
           <strong>Resend</strong> — the emails we send you.
+        </li>
+        <li>
+          <strong>Telegram</strong> — the private channel our own operational messages go to:
+          crash reports, the daily totals above, and a note when somebody signs up or asks for
+          beta access. Nobody outside MemoVue can read it, and no photograph is ever sent there.
         </li>
       </ul>
       <p>

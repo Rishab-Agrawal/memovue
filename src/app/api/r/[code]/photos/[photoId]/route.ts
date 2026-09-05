@@ -1,5 +1,8 @@
+import { after } from "next/server";
+
 import { UPLOAD_LIMITS } from "@/lib/constants";
 import { getGuestContext } from "@/lib/guest-context";
+import { record } from "@/lib/metrics";
 import { prisma } from "@/lib/prisma";
 import { limited } from "@/lib/ratelimit";
 import { takenAtWithin } from "@/lib/roll-access";
@@ -160,9 +163,15 @@ export async function POST(
  * Releases a reserved shot. Called when a guest rejects a frame they'd already started
  * uploading, or when the client gives up on a failed upload — without this the shot would
  * stay spent on a photo that never existed.
+ *
+ * The second case is counted and the first is not. A guest deciding against a photograph is
+ * the product working; the queue giving up on one is the product's most fragile path failing,
+ * and it is the only failure in the app that destroys something a person meant to keep. The
+ * row is gone by the end of this handler, so if it is not counted here it is not knowable at
+ * all — which is exactly the test for whether something belongs in `Metric`.
  */
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ code: string; photoId: string }> },
 ) {
   const { code, photoId } = await params;
@@ -187,6 +196,10 @@ export async function DELETE(
 
   await deleteObjects([photo.fullKey, photo.previewKey]);
   await prisma.photo.delete({ where: { id: photoId } });
+
+  if (new URL(request.url).searchParams.get("reason") === "dropped") {
+    after(() => record("upload_dropped"));
+  }
 
   return Response.json({ ok: true });
 }

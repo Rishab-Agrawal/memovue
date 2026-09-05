@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { after } from "next/server";
 
 import { GUEST_COOKIE_PREFIX, consumeOAuthState, createHostSession } from "@/lib/auth";
 import { env } from "@/lib/env";
@@ -6,6 +7,7 @@ import { exchangeCode, verifyIdToken } from "@/lib/google";
 import { linkGuestSessions } from "@/lib/guest-link";
 import { prisma } from "@/lib/prisma";
 import { OAUTH_LIMIT, OAUTH_WINDOW_SECONDS, clientIp, rateLimit } from "@/lib/ratelimit";
+import { notify } from "@/lib/telegram";
 
 export const dynamic = "force-dynamic";
 
@@ -78,6 +80,16 @@ export async function GET(request: Request) {
       });
 
   await createHostSession(user);
+
+  /*
+    The pulse. A host signing up for the first time is the rarest event this app has and the
+    only one that means the product grew, so it is worth a line on a phone — and it is a fact
+    no query can reconstruct later with the same weight as knowing it on the day.
+    `after`, because nobody signing in should wait on Telegram to see their rolls.
+  */
+  if (!existing) {
+    after(() => notify("signals", `New host — ${identity.name} · ${identity.email}`));
+  }
 
   /*
     Any rolls this browser joined anonymously now belong to the account.

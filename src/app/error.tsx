@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 
 import { Pill, PillLink } from "@/components/roll/Chrome";
+import { reportClientError } from "@/lib/report";
 
 /**
  * What a crash looks like, instead of what it looked like.
@@ -20,6 +21,12 @@ import { Pill, PillLink } from "@/components/roll/Chrome";
  * The digest is printed on purpose. It is the only string that ties what somebody is looking
  * at to a line in the server log, and asking a guest to describe a blank screen instead is
  * how a bug survives a whole event.
+ *
+ * It is also reported, because this boundary is the one place a crash is *not* seen by the
+ * global handlers in `instrumentation-client`: React catches a failed render before it ever
+ * reaches `window`. A server error arrives here already stripped to its digest and is
+ * announced from `onRequestError` with its message intact, so what this adds is the
+ * client-side half — the render that only breaks on somebody else's phone.
  */
 export default function ErrorScreen({
   error,
@@ -29,9 +36,8 @@ export default function ErrorScreen({
   unstable_retry: () => void;
 }) {
   useEffect(() => {
-    // Server errors reach the browser stripped to a digest, so this is the client half of
-    // the pair. Railway keeps stdout, which is where the other half already is.
     console.error(error);
+    reportClientError(error.digest ?? error, "boundary");
   }, [error]);
 
   return (

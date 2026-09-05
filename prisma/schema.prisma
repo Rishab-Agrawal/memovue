@@ -90,6 +90,13 @@ model Roll {
   revealAt      DateTime
   revealedEarly Boolean  @default(false)
 
+  /// First time anybody loaded this roll's album after it opened.
+  ///
+  /// A column rather than a tally because the question it answers is per-roll and permanent —
+  /// how many albums are ever opened at all, which is whether the product's one payoff moment
+  /// actually happens. Written once and never again.
+  albumOpenedAt DateTime?
+
   status RollStatus @default(ACTIVE)
 
   /// finishesAt + 30 days. What the deletion job reads.
@@ -205,4 +212,24 @@ model BetaRequest {
   createdAt DateTime @default(now())
 
   @@index([createdAt])
+}
+
+/// A day's tally of the handful of things that leave no row of their own.
+///
+/// Everything else worth counting is already in this schema with a `createdAt` on it — rolls,
+/// hosts, guests, photographs — so the digest derives those, and they stay correct across a
+/// deploy, a backfill and a restore. What is left is what happens and then vanishes: an
+/// invitation shown and not accepted, an upload the queue gave up on, a crash.
+///
+/// A tally, deliberately, and not an event log. There is no identifier of any kind in this
+/// table and nothing joins to it, so it cannot be turned back into one person's evening —
+/// which is the only shape of analytics this product can honestly ship.
+model Metric {
+  /// The wall-clock day in Kolkata, as `YYYY-MM-DD`. Text rather than a `date`, so that
+  /// nothing between here and Postgres can shift it by a timezone. See `format.ts`.
+  day   String
+  name  String
+  count Int      @default(0)
+
+  @@id([day, name])
 }

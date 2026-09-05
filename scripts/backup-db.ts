@@ -18,6 +18,7 @@ async function main() {
   // After dotenv, because `env.ts` reads process.env at module scope and throws on anything
   // missing.
   const { runBackup } = await import("../src/lib/backup");
+  const { record } = await import("../src/lib/metrics");
 
   const report = await runBackup();
   const tables = Object.entries(report.rows)
@@ -25,9 +26,26 @@ async function main() {
     .join(", ");
 
   console.log(`${report.key} — ${report.total} rows (${tables})`);
+
+  /*
+    A heartbeat, so the digest can notice this having quietly stopped.
+
+    A backup that fails is loud. A backup that is no longer scheduled is silent, and silence is
+    how a month goes by with nothing being copied anywhere — which is only discovered on the
+    one day it matters. The digest reads the absence of this row, so there is nothing to
+    remember and nothing to check by hand.
+  */
+  await record("backup_ok");
 }
 
-main().catch((error) => {
+main().catch(async (error) => {
   console.error(error);
+  // Imported here rather than at the top, like everything else in this file: `env.ts` reads
+  // its configuration at module scope, so nothing may be imported before dotenv has run.
+  const { alert } = await import("../src/lib/telegram");
+  await alert(
+    "backup",
+    `Backup failed\n\n${error instanceof Error ? error.message : String(error)}`,
+  );
   process.exit(1);
 });

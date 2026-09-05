@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 
 import { formatCountdown } from "@/lib/format";
 import { getGuestContext, getRollByJoinCode } from "@/lib/guest-context";
+import { record } from "@/lib/metrics";
 import { callerIp, outOfGuesses, wrongGuess } from "@/lib/ratelimit";
 import { rollPhase } from "@/lib/roll-access";
 import { coverUrlFor } from "@/lib/rolls";
@@ -56,6 +58,20 @@ export default async function JoinRollPage({ params }: PageProps<"/join/[code]">
   // device. Either way there is no name to ask for.
   const existing = await getGuestContext(roll.code);
   if (existing) redirect(`/e/${roll.code}`);
+
+  /*
+    The top of the only funnel this product has, counted here and nowhere else.
+
+    Below the redirect on purpose, so a "scan" means an invitation shown to somebody who is
+    not yet in the roll — a person whose one available next step is to join. Counting above it
+    would fold in every guest reopening the card they already accepted, and the ratio the
+    number exists for would drift upwards all evening while nothing changed.
+
+    Nothing else needs a counter: the joins it is compared against are `Guest` rows with a
+    `createdAt`, which is a better record than a tally in every way except that a scan does
+    not leave one. `after`, so a guest waits for their invitation and not for our arithmetic.
+  */
+  after(() => record("scan"));
 
   const user = await getCurrentUser();
   const now = new Date();
