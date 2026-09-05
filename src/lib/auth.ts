@@ -8,8 +8,10 @@ const secret = new TextEncoder().encode(env.authSecret);
 const HOST_COOKIE = "mv_host";
 const OAUTH_STATE_COOKIE = "mv_oauth_state";
 const HOST_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
-// Guests are asked for their name exactly once, so their session has to outlive the event
-// by a wide margin — they come back weeks later to see the revealed album.
+// This cookie is not a convenience, it *is* the guest — there is nothing else in the product
+// that knows which camera is theirs. So it outlives the event by a wide margin: they come
+// back weeks later for the revealed album, and an expiry in between would read as a roll that
+// had lost their photographs. A year and a bit, the ceiling browsers will store.
 const GUEST_MAX_AGE = 60 * 60 * 24 * 400;
 
 const cookieBase = {
@@ -92,7 +94,6 @@ export async function readHostClaims(): Promise<HostClaims | null> {
 export interface GuestClaims {
   guestId: string;
   eventId: string;
-  tokenVersion: number;
 }
 
 /**
@@ -105,12 +106,8 @@ export function guestCookieName(eventCode: string): string {
   return `${GUEST_COOKIE_PREFIX}${eventCode.toUpperCase()}`;
 }
 
-export async function signGuestToken(guest: {
-  id: string;
-  eventId: string;
-  tokenVersion: number;
-}): Promise<string> {
-  return new SignJWT({ ev: guest.eventId, tv: guest.tokenVersion })
+export async function signGuestToken(guest: { id: string; eventId: string }): Promise<string> {
+  return new SignJWT({ ev: guest.eventId })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(guest.id)
     .setIssuedAt()
@@ -122,11 +119,7 @@ export async function verifyGuestToken(token: string): Promise<GuestClaims | nul
   try {
     const { payload } = await jwtVerify(token, secret);
     if (!payload.sub || typeof payload.ev !== "string") return null;
-    return {
-      guestId: payload.sub,
-      eventId: payload.ev,
-      tokenVersion: Number(payload.tv ?? 0),
-    };
+    return { guestId: payload.sub, eventId: payload.ev };
   } catch {
     return null;
   }

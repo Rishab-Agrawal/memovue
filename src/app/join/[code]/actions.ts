@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 
 import { setGuestCookie, signGuestToken } from "@/lib/auth";
 import { AUTOMATED_MESSAGE, MIN_RENDER_MS, looksAutomated } from "@/lib/bot-check";
-import { nameKey, normalizeCode } from "@/lib/codes";
+import { normalizeCode } from "@/lib/codes";
 import { sendRollFullNotice } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 import { callerIp, outOfGuesses, rateLimit, wrongGuess } from "@/lib/ratelimit";
@@ -18,12 +18,15 @@ const NO_SUCH_ROLL = "We couldn't find that roll.";
 export interface JoinState {
   error?: string;
   fields?: Record<string, string>;
-  /** Set when the name is taken, so the UI can offer the "this is me" recovery path. */
-  nameTaken?: boolean;
 }
 
 /**
  * A name, and — if there is one — the account behind it.
+ *
+ * The name is a caption and never a key. It is what the other guests see beside your
+ * photographs, two people at the same wedding are routinely called the same thing, and
+ * nothing here compares it to anybody else's. What identifies a camera is the cookie this
+ * sets at the end: one browser, one guest, one shot quota.
  *
  * A signed-in guest gets the same screen and the same camera as everyone else; the account
  * only changes what happens afterwards. The `Guest` row records who they were, so the roll
@@ -66,7 +69,6 @@ export async function joinAction(code: string, formData: FormData): Promise<Join
   }
 
   const { name } = parsed.data;
-  const key = nameKey(name);
   const user = await getCurrentUser();
 
   /*
@@ -79,19 +81,13 @@ export async function joinAction(code: string, formData: FormData): Promise<Join
   if (user) {
     const mine = await prisma.guest.findFirst({
       where: { rollId: roll.id, userId: user.id },
-      select: { id: true, rollId: true, tokenVersion: true },
+      select: { id: true, rollId: true },
     });
     if (mine) {
-      await setGuestCookie(roll.code, await signGuestToken({ ...mine, eventId: mine.rollId }));
+      await setGuestCookie(roll.code, await signGuestToken({ id: mine.id, eventId: mine.rollId }));
       redirect(`/e/${roll.code}`);
     }
   }
-
-  const existing = await prisma.guest.findUnique({
-    where: { rollId_nameKey: { rollId: roll.id, nameKey: key } },
-    select: { id: true },
-  });
-  if (existing) return { nameTaken: true };
 
   const guestCount = await prisma.guest.count({ where: { rollId: roll.id } });
   if (guestCount >= roll.maxGuests) {
@@ -101,12 +97,16 @@ export async function joinAction(code: string, formData: FormData): Promise<Join
   let guest;
   try {
     guest = await prisma.guest.create({
-      data: { rollId: roll.id, name, nameKey: key, userId: user?.id ?? null },
+      data: { rollId: roll.id, name, userId: user?.id ?? null },
     });
   } catch (error) {
-    // Two people typing the same name at the same moment; the unique index decides.
-    if ((error as { code?: string }).code === "P2002") return { nameTaken: true };
-    throw error;
+    /*
+      The one collision left in this table is a single account submitting from two tabs at
+      once, which `[rollId, userId]` refuses. The row that won is the one to hand back — a
+      second row would be a second shot quota under the same person.
+    */
+    if ((error as { code?: string }).code !== "P2002" || !user) throw error;
+    guest = await prisma.guest.findFirstOrThrow({ where: { rollId: roll.id, userId: user.id } });
   }
 
   /*
@@ -125,65 +125,6 @@ export async function joinAction(code: string, formData: FormData): Promise<Join
     if (host) await sendRollFullNotice(host.email, roll.name, roll.maxGuests);
   }
 
-  await setGuestCookie(roll.code, await signGuestToken({ ...guest, eventId: guest.rollId }));
-  redirect(`/e/${roll.code}`);
-}
-
-/**
- * Recovery for a guest who lost their session (cleared browser, new phone).
- *
- * Bumping `tokenVersion` invalidates whatever session was live before, so a name can only
- * ever be held by one device. If someone reclaims a name that isn't theirs, the real owner is
- * signed out immediately and notices — a far better failure mode than a silent second
- * session quietly sharing the same shot quota.
- *
- * A name already held by an account is the exception, and is refused outright. That guest has
- * a credential better than a typed name and does not need this path, so the only person it
- * could serve is someone taking a name that is not theirs.
- */
-export async function reclaimAction(code: string, name: string): Promise<JoinState> {
-  /*
-    The tightest limit in the app, because this is the only route that takes a session away
-    from somebody.
-
-    A name is not a secret — an open roll prints them beside the photographs — so what stands
-    between a stranger and a guest's camera is that they have to type one. Typing many is
-    what this stops. Every attempt is counted, not only the wrong ones: unlike a roll code,
-    a correct answer here is exactly what the attack looks like, and one person recovering a
-    lost session does it once.
-  */
-  const ip = await callerIp();
-  if (outOfGuesses(ip) || !rateLimit(`reclaim:${ip}`, 5, 600).ok) {
-    return { error: "Too many attempts. Try again in a few minutes." };
-  }
-
-  const roll = await prisma.roll.findUnique({ where: { code: normalizeCode(code) } });
-  if (!roll) {
-    wrongGuess(ip);
-    return { error: NO_SUCH_ROLL };
-  }
-
-  const guest = await prisma.guest.findUnique({
-    where: { rollId_nameKey: { rollId: roll.id, nameKey: nameKey(name) } },
-  });
-  if (!guest) {
-    wrongGuess(ip);
-    return { error: "We couldn't find that name in this roll." };
-  }
-
-  const user = await getCurrentUser();
-
-  if (guest.userId && guest.userId !== user?.id) {
-    return { error: "That name belongs to someone else's account." };
-  }
-
-  // An account holder claiming an anonymous name takes it into their account, so the roll
-  // reaches their home screen and the next device recognises them without this dance.
-  const updated = await prisma.guest.update({
-    where: { id: guest.id },
-    data: { tokenVersion: { increment: 1 }, ...(user ? { userId: user.id } : {}) },
-  });
-
-  await setGuestCookie(roll.code, await signGuestToken({ ...updated, eventId: updated.rollId }));
+  await setGuestCookie(roll.code, await signGuestToken({ id: guest.id, eventId: guest.rollId }));
   redirect(`/e/${roll.code}`);
 }

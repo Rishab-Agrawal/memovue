@@ -108,6 +108,8 @@ test.describe("a roll from creation to reveal", () => {
 
   let joinUrl = "";
   let rollUrl = "";
+  /** What a camera reads before its first shot, filled in by the first guest to take one. */
+  let fullQuota = 0;
 
   test("the host creates a roll, spending one off the allowance", async ({ page }) => {
     await page.goto("/new/name");
@@ -299,6 +301,7 @@ test.describe("a roll from creation to reveal", () => {
     await expect(page.getByTestId("shots-left")).toBeVisible();
 
     const before = Number(await page.getByTestId("shots-left").textContent());
+    fullQuota = before;
     await page.getByRole("button", { name: "Take photo" }).click();
 
     // No keep/retake: the shot is spent the moment the shutter fires.
@@ -351,6 +354,37 @@ test.describe("a roll from creation to reveal", () => {
   });
 
   /**
+   * Two people called the same thing, which at a wedding is most of them.
+   *
+   * A name used to be unique inside a roll, so the second Meera was refused at the door and
+   * offered somebody else's camera to take over. A guest is the browser now: this context has
+   * never seen the roll, so it joins, and both Meeras keep their own frames and their own
+   * shot quota.
+   */
+  test("a second guest with a name already in the roll still gets a camera", async ({
+    browser,
+  }) => {
+    // Empty state spelled out: a context made here inherits this describe's `storageState`,
+    // so without it this arrives holding the host's cookie and is recognised by account
+    // before it is ever asked for a name.
+    const context = await browser.newContext({
+      storageState: { cookies: [], origins: [] },
+      permissions: ["camera"],
+    });
+    const page = await context.newPage();
+
+    await page.goto(joinUrl);
+    await page.getByPlaceholder("Enter your name").fill("Meera");
+    await page.getByRole("button", { name: /Take your camera/ }).click();
+
+    await expect(page).toHaveURL(/\/e\/[A-Z0-9]{6}$/);
+    // Their own film, not what the first Meera has left after shooting one.
+    await expect(page.getByTestId("shots-left")).toHaveText(String(fullQuota));
+
+    await context.close();
+  });
+
+  /**
    * Joining somebody else's roll while signed in.
    *
    * The `Guest` row carries the account, which is what makes the roll reachable from the
@@ -386,9 +420,10 @@ test.describe("a roll from creation to reveal", () => {
   /**
    * The same account, on a phone that has never seen this roll.
    *
-   * A guest cookie is per browser, so without the account fallback this lands on the name
-   * screen — and the only name they would think to type is the one they already used, which
-   * the roll would refuse as taken. An account exists precisely so that does not happen.
+   * A guest cookie is per browser and is the whole of an anonymous guest's identity, so
+   * without the account fallback this lands on the name screen and joining again would spend
+   * a second spot on the roll and hand out a second shot quota. An account is the one way to
+   * be the same person on two phones, which is what makes this fallback the feature.
    */
   test("an invited account is recognised on a second device", async ({ browser }) => {
     const context = await browser.newContext({ storageState: GUEST_STORAGE_STATE });

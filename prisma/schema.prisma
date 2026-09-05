@@ -1,8 +1,9 @@
 // MemoVue data model.
 //
 // A ROLL is one shared, time-boxed photo collection — the thing guests shoot on. The EVENT
-// is the occasion it happens at, and exists only in prose. Guests are identified by a signed
-// cookie tied to a Guest row; they may optionally attach that to an account later.
+// is the occasion it happens at, and exists only in prose. A guest is a browser: the signed
+// cookie tied to a Guest row is the whole identity, and the name on it is only a caption.
+// They may optionally attach that row to an account later.
 //
 // Hosts sign in with Google. There are no passwords anywhere in this schema, deliberately:
 // a password column kept "for tests" is a backdoor with a friendly name.
@@ -136,21 +137,20 @@ model Guest {
   rollId String
   roll   Roll   @relation(fields: [rollId], references: [id], onDelete: Cascade)
 
+  /// A label, not an identifier. Two people called Riya join the same wedding and both keep
+  /// their own name and their own camera — which is what the browser holding the cookie is
+  /// for. Nothing in this schema compares one guest's name to another's.
   name String
-  /// Case/whitespace-normalised, so "Riya  Sharma" collides with "riya sharma".
-  nameKey String
 
   /// Set if the guest later creates an account. How a roll they attended reaches their
   /// own home screen. Null for the overwhelming majority, who never sign up.
   userId String?
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  tokenVersion Int      @default(0)
-  createdAt    DateTime @default(now())
+  createdAt DateTime @default(now())
 
   photos Photo[]
 
-  @@unique([rollId, nameKey])
   /// One identity per account per roll. Nullable columns do not collide in Postgres, so
   /// anonymous guests are unconstrained while an account holder cannot end up with two
   /// rows in the same roll and two separate shot quotas.

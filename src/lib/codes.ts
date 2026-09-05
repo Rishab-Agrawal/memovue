@@ -62,11 +62,3 @@ export function extractJoinCode(input: string): string | null {
 
   return code;
 }
-
-/**
- * Collapses a display name to a comparison key, so "Riya  Sharma" and "riya sharma"
- * are treated as the same person joining twice.
- */
-export function nameKey(name: string): string {
-  return name.trim().toLowerCase().replace(/\s+/g, " ");
-}

@@ -54,28 +54,20 @@ export async function guestHome(roll: Located): Promise<string> {
   return user.id === roll.hostId ? `/rolls/${roll.id}` : "/rolls";
 }
 
-const guestFields = {
-  id: true,
-  name: true,
-  rollId: true,
-  userId: true,
-  tokenVersion: true,
-} as const;
+const guestFields = { id: true, name: true, rollId: true, userId: true } as const;
 
 /**
  * Resolves whoever is holding this roll's camera, by cookie or by account.
  *
- * The cookie is the original credential and still the common case — most guests never sign
- * in, and a cookie is all they have. But a guest who *does* have an account is identified by
- * something better than a cookie, and falling back to it is what makes an account worth
- * having: the same person on a second phone, or after clearing their browser, walks back into
- * the roll they already joined instead of being asked to prove it by re-typing a name that
- * the roll will tell them is already taken.
+ * The cookie is the credential, and for almost everybody it is the only one: a guest is a
+ * browser that joined, and the name they typed is a caption on their photographs rather than
+ * anything this looks up. Nothing here asks whether that name is taken, because two people
+ * at the same wedding are routinely called the same thing.
  *
- * `tokenVersion` is checked on the cookie path so reclaiming a name signs the old device out
- * — one active session per anonymous guest, which makes a hijack immediately obvious to
- * whoever actually owns the name. The account path has no token to check because the account
- * session *is* the credential, and a stronger one.
+ * What that costs is a browser cleared mid-event: those photographs stay in the album under
+ * the name that took them, but the phone comes back as a stranger and joins again. The fix
+ * for anyone who cares is the account below — sign in on the first device, sign in on the
+ * second, and the roll follows the person rather than the browser.
  */
 export async function getGuestContext(code: string): Promise<GuestContext | null> {
   const roll = await findRoll(code);
@@ -89,9 +81,7 @@ export async function getGuestContext(code: string): Promise<GuestContext | null
       where: { id: claims.guestId },
       select: guestFields,
     });
-    if (found && found.rollId === roll.id && found.tokenVersion === claims.tokenVersion) {
-      guest = found;
-    }
+    if (found && found.rollId === roll.id) guest = found;
   }
 
   if (!guest) {

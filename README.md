@@ -65,9 +65,23 @@ loses nothing — the queue retries on next open or when it comes back online �
 can never consume two shots. A reservation the queue gives up on is handed back rather than
 quietly costing the guest a shot, and one nobody ever comes back for is swept a week later.
 
-**Guests have one session per name.** Recovering a name on a new device bumps a token
-version, which signs the old device out. Someone hijacking a name is therefore immediately
-obvious to whoever actually owns it, rather than silently sharing their quota.
+**A guest is a browser, not a name.** The signed cookie is the whole identity: one browser,
+one `Guest` row, one shot quota. The name typed at the door is a caption on the photographs
+and nothing ever compares it to anybody else's — a wedding has two Riyas and a Meera on each
+side of the family, and the door has to let all of them in.
+
+It used to be the opposite. A name was unique inside a roll, the second person to type one
+was refused, and they were offered a "that's me, I'm on a new phone" button that bumped a
+token version and signed the real owner's phone out. That flow existed to serve one rare
+case — the same person on a second device — by breaking a common one, and the rare case
+already has a better answer: sign in on the first phone and sign in on the second, and
+`getGuestContext` finds the row by account rather than by cookie.
+
+What the cookie costs is a browser cleared mid-event: those photographs stay in the album
+under the name that took them, but the phone comes back as a stranger, spends another spot
+off `maxGuests` and gets a fresh quota. Nobody can un-take a shot either way, so the roll
+still cannot be made endless. Two people sharing one phone are one guest, for the same
+reason.
 
 **The host waits too.** There is no route that serves full images before `revealAt`, for
 anyone, including the event owner. It's the whole product promise.

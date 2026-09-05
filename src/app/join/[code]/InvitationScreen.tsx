@@ -9,7 +9,7 @@ import { Honeypot, useFormAge } from "@/components/ui/Honeypot";
 import { formatDateTime } from "@/lib/format";
 import type { RollPhase } from "@/lib/roll-access";
 
-import { joinAction, reclaimAction, type JoinState } from "./actions";
+import { joinAction, type JoinState } from "./actions";
 
 /**
  * What a guest gets after scanning the QR. No account, no install — a name and a camera.
@@ -61,10 +61,6 @@ export function InvitationScreen({
     startTransition(async () => setState(await joinAction(code, data)));
   };
 
-  const reclaim = () => {
-    startTransition(async () => setState(await reclaimAction(code, name)));
-  };
-
   return (
     <div className="h-dvh">
       <InvitationCover
@@ -97,32 +93,14 @@ export function InvitationScreen({
           <p className="text-[13px] text-danger">{state.fields.name}</p>
         ) : null}
 
-        {state.nameTaken ? (
-          /*
-            Someone is already shooting under this name. It is usually the same person on a
-            new phone, so the recovery is offered rather than the name simply refused — but
-            taking it over signs the other device out, which is stated plainly because the
-            alternative is two people quietly sharing one shot quota.
-          */
-          <div className="rounded-2xl bg-surface/85 p-4 backdrop-blur-sm">
-            <p className="text-[14px] leading-relaxed text-ash">
-              Someone already joined as <span className="text-chalk">{name}</span>. If that
-              was you on another phone, take it back — the other device gets signed out.
-            </p>
-            <Pill variant="flame" full className="mt-3" disabled={pending} onClick={reclaim}>
-              That&rsquo;s me, I&rsquo;m on a new phone
-            </Pill>
-          </div>
-        ) : (
-          <Pill
-            variant="light"
-            full
-            disabled={!name.trim() || pending || scheduled}
-            onClick={submit}
-          >
-            {pending ? "One moment…" : "Take your camera →"}
-          </Pill>
-        )}
+        <Pill
+          variant="light"
+          full
+          disabled={!name.trim() || pending || scheduled}
+          onClick={submit}
+        >
+          {pending ? "One moment…" : "Take your camera →"}
+        </Pill>
       </InvitationCover>
     </div>
   );

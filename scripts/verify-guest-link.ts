@@ -76,12 +76,10 @@ async function main() {
   ]);
 
   const guest = (rollId: string, name: string, userId?: string) =>
-    prisma.guest.create({
-      data: { rollId, name, nameKey: name.toLowerCase(), userId: userId ?? null },
-    });
+    prisma.guest.create({ data: { rollId, name, userId: userId ?? null } });
 
-  const token = (g: { id: string; rollId: string; tokenVersion: number }) =>
-    signGuestToken({ id: g.id, eventId: g.rollId, tokenVersion: g.tokenVersion });
+  const token = (g: { id: string; rollId: string }) =>
+    signGuestToken({ id: g.id, eventId: g.rollId });
 
   console.log("\nthe plain case");
   const plain = await guest(rollA.id, "Anon A");
@@ -101,17 +99,13 @@ async function main() {
     other.id,
   );
 
-  console.log("\na cookie from before the name changed hands is worthless");
-  const reclaimed = await guest(rollC.id, "Anon C");
-  const stale = await token(reclaimed);
-  await prisma.guest.update({
-    where: { id: reclaimed.id },
-    data: { tokenVersion: { increment: 1 } },
-  });
-  check("a stale tokenVersion is ignored", await linkGuestSessions(owner.id, [stale]), 0);
+  console.log("\na cookie has to name the roll its row is in");
+  const elsewhere = await guest(rollC.id, "Anon C");
+  const crossed = await signGuestToken({ id: elsewhere.id, eventId: rollB.id });
+  check("a token naming another roll is ignored", await linkGuestSessions(owner.id, [crossed]), 0);
   check(
-    "the reclaimed row stays anonymous",
-    (await prisma.guest.findUnique({ where: { id: reclaimed.id } }))?.userId,
+    "the row stays anonymous",
+    (await prisma.guest.findUnique({ where: { id: elsewhere.id } }))?.userId,
     null,
   );
 

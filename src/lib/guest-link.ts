@@ -14,11 +14,8 @@ import { prisma } from "./prisma";
  * Takes the tokens rather than reading the cookie jar itself, so the rules below can be
  * exercised against a real database without a browser and a Google round trip.
  *
- * Two guards, both of which matter. A row already attached to an account is never taken —
- * that would be one person's sign-in silently claiming another's identity in a roll. And a
- * cookie whose `tokenVersion` is stale is ignored: that name has since been reclaimed by
- * somebody else, and a cookie left over from before it changed hands is not evidence of
- * anything.
+ * One guard, and it matters: a row already attached to an account is never taken — that would
+ * be one person's sign-in silently claiming another's identity in a roll.
  *
  * Returns how many were linked.
  */
@@ -31,16 +28,13 @@ export async function linkGuestSessions(userId: string, tokens: string[]): Promi
 
   const rows = await prisma.guest.findMany({
     where: { id: { in: claims.map((claim) => claim.guestId) }, userId: null },
-    select: { id: true, rollId: true, tokenVersion: true },
+    select: { id: true, rollId: true },
   });
 
+  // The token has to name the roll its row is actually in, so a cookie minted for one event
+  // cannot hand over a guest in another.
   const live = rows.filter((row) =>
-    claims.some(
-      (claim) =>
-        claim.guestId === row.id &&
-        claim.eventId === row.rollId &&
-        claim.tokenVersion === row.tokenVersion,
-    ),
+    claims.some((claim) => claim.guestId === row.id && claim.eventId === row.rollId),
   );
 
   if (live.length === 0) return 0;
