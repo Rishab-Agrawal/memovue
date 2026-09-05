@@ -22,6 +22,11 @@ function pct(part: number, whole: number): string {
   return whole > 0 ? `${Math.round((part / whole) * 100)}%` : "—";
 }
 
+/** "1 roll", "2 rolls". Two lines, read three hundred and sixty-five times a year. */
+function count(n: number, noun: string): string {
+  return `${n} ${noun}${n === 1 ? "" : "s"}`;
+}
+
 export async function buildDigest(now: Date = new Date()): Promise<string> {
   const today = wallDate(now);
   const day = wallDate(new Date(now.getTime() - 86_400_000));
@@ -91,22 +96,22 @@ export async function buildDigest(now: Date = new Date()): Promise<string> {
     `MemoVue — ${heading}`,
     "",
     "Yesterday",
-    `  ${rollsCreated} rolls created · ${newHosts} new hosts`,
-    `  ${scans} invitations shown → ${joins} joined (${pct(joins, scans)})`,
-    `  ${photos} photos from ${photographers.length} guests`,
-    `  ${firstOpens} albums opened for the first time`,
+    `  ${count(rollsCreated, "roll")} created · ${count(newHosts, "new host")}`,
+    `  ${count(scans, "invitation")} shown → ${joins} joined (${pct(joins, scans)})`,
+    `  ${count(photos, "photo")} from ${count(photographers.length, "guest")}`,
+    `  ${count(firstOpens, "album")} opened for the first time`,
     "",
     "Today",
-    `  ${shooting} rolls shooting · ${revealingToday} revealing`,
+    `  ${count(shooting, "roll")} shooting · ${revealingToday} revealing`,
     "",
     "Overall",
-    `  ${hosts} hosts · ${rolls} rolls · ${guests} guests · ${allPhotos} photos`,
-    `  ${usedItAll} of ${closedRollGuests.length} guests used their whole film (${pct(usedItAll, closedRollGuests.length)})`,
-    `  ${everOpened} of ${revealed} revealed albums have been opened (${pct(everOpened, revealed)})`,
+    `  ${count(hosts, "host")} · ${count(rolls, "roll")} · ${count(guests, "guest")} · ${count(allPhotos, "photo")}`,
+    `  ${usedItAll} of ${count(closedRollGuests.length, "guest")} used their whole film (${pct(usedItAll, closedRollGuests.length)})`,
+    `  ${everOpened} of ${count(revealed, "revealed album")} have been opened (${pct(everOpened, revealed)})`,
     "",
     "Health",
-    `  ${counts.server_error ?? 0} server errors · ${counts.client_error ?? 0} client errors`,
-    `  ${counts.upload_dropped ?? 0} uploads given up on`,
+    `  ${count(counts.server_error ?? 0, "server error")} · ${count(counts.client_error ?? 0, "client error")}`,
+    `  ${count(counts.upload_dropped ?? 0, "upload")} given up on`,
     /*
       Read off today's row rather than yesterday's, because both jobs run in the small hours of
       the morning this is sent. A missing tick means the job did not run at all — which is the
