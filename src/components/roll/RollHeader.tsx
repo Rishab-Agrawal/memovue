@@ -1,84 +1,123 @@
 import Link from "next/link";
 
 import { BackButton } from "@/components/roll/Chrome";
-import { Cover } from "@/components/roll/Cover";
+import { formatDay, formatDuration } from "@/lib/format";
 
 /**
- * The cover, the title and the three figures, shared by the host's roll home and the guest's
- * album — they are the same screen with different permissions, and were the same component
- * in the reference too.
+ * The top of a roll: what it is, what happens to it next, and the two figures worth glancing
+ * at. Shared by the host's roll home and the guest's album, which are the same screen with
+ * different permissions.
+ *
+ * **No cover.** This screen's content is the photographs on it, and a 215px picture of
+ * something else pushed the first row of them below the fold on every phone. The cover has
+ * three other homes — the home card, the invitation, the settings screen — and the host has
+ * already seen it in all of them.
+ *
+ * **The name is the masthead.** Below it, one line of status; below that, a quiet bar holding
+ * the two figures — where the one that leads somewhere sits at the end of the row with a
+ * chevron, rather than buried mid-sentence between two that do not. The version this replaces
+ * stood `Moments`, `Left` and `People` in equal columns, which is a lie about how much each
+ * one matters: the count creeps up over an evening, the guest list barely moves, and the
+ * clock is the reason the screen was opened at all.
+ *
+ * **What the clock counts changes with the roll.** Still shooting: how long is left. Closed
+ * but sealed: how long until it opens — which is the only question anybody is asking then,
+ * and which the old header answered with the date it had already closed on. Open: the day it
+ * ended, because there is nothing left to wait for.
  */
 export function RollHeader({
   title,
-  coverIndex,
-  coverUrl,
   moments,
   people,
-  middleValue,
-  middleLabel,
+  finishesAt,
+  revealAt,
+  open,
+  now,
   back,
   settingsHref,
   peopleHref,
 }: {
   title: string;
-  coverIndex: number;
-  /** The host's uploaded cover, if they set one. Null falls back to the preset. */
-  coverUrl?: string | null;
   moments: number;
   people: number;
-  /** The countdown while the roll runs, the closing date once it has ended. */
-  middleValue: string;
-  middleLabel: string;
+  /** Epoch milliseconds — one caller holds Dates, the other ISO strings off a JSON feed. */
+  finishesAt: number;
+  revealAt: number;
+  /** Whether the photographs are legible yet. */
+  open: boolean;
+  now: number;
   back: string;
   /** Absent for guests, who have no settings to open. */
   settingsHref?: string;
   /** Absent for guests — the roster is the host's business, not theirs. */
   peopleHref?: string;
 }) {
-  return (
-    <div className="relative h-[290px] shrink-0">
-      <Cover url={coverUrl} preset={coverIndex} className="absolute inset-0" />
-      <div className="absolute inset-0 bg-gradient-to-b from-void/60 via-transparent to-void/85" />
+  /* Still running is checked first: a host who revealed early has an open roll whose shutter
+     has not closed yet, and "ended" would be the one wrong word for it.
 
-      <div className="pad-safe-top absolute inset-x-0 top-0 flex items-start justify-between p-4">
+     `lead` and `trail` rather than one label, because the figure does not sit in the same
+     place in all three sentences — "2d 4h until it closes" but "Ended 6 Sep". */
+  const timing =
+    now < finishesAt
+      ? { value: formatDuration(finishesAt - now), trail: "until it closes" }
+      : open
+        ? { lead: "Ended", value: formatDay(new Date(finishesAt)) }
+        : { value: formatDuration(revealAt - now), trail: "until it opens" };
+
+  return (
+    <div className="shrink-0">
+      <div className="pad-safe-top flex items-start justify-between px-4">
         <BackButton href={back} />
         {settingsHref ? (
           <Link
             href={settingsHref}
             aria-label="Roll settings"
-            className="flex h-12 w-12 items-center justify-center rounded-2xl bg-surface/70 text-[18px] text-chalk backdrop-blur-sm transition-colors hover:text-flame"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-surface text-[18px] text-chalk transition-colors hover:text-flame"
           >
             ⚙
           </Link>
         ) : null}
       </div>
 
-      <div className="absolute inset-x-0 bottom-0 px-5 pb-5">
-        <h1 className="display-md text-center text-[26px] text-balance text-chalk">{title}</h1>
+      {/* The logo's own glow, standing in for the photograph that used to sit here. */}
+      <div className="bloom px-5 pt-4 pb-7 text-center">
+        <h1 className="display text-[34px] text-balance text-chalk">{title}</h1>
+        <p className="mt-4 text-[14px] text-ash">
+          {"lead" in timing ? `${timing.lead} ` : null}
+          <span className="tabular text-chalk">{timing.value}</span>
+          {"trail" in timing ? ` ${timing.trail}` : null}
+        </p>
+      </div>
 
-        <div className="mt-4 grid grid-cols-3 text-center">
-          <Stat value={String(moments)} label="Moments" />
-          <Stat value={middleValue} label={middleLabel} />
-          <Stat
-            value={String(people)}
-            label={peopleHref ? "People ›" : "People"}
-            href={peopleHref}
-          />
-        </div>
+      <div className="flex items-center justify-between border-y border-hair px-5 py-3.5 text-[13px] text-dust">
+        <Figure value={moments} noun="moment" />
+        <Figure value={people} noun="person" plural="people" href={peopleHref} />
       </div>
     </div>
   );
 }
 
-function Stat({ value, label, href }: { value: string; label: string; href?: string }) {
+function Figure({
+  value,
+  noun,
+  plural,
+  href,
+}: {
+  value: number;
+  noun: string;
+  /** For the nouns an `s` will not make plural. */
+  plural?: string;
+  href?: string;
+}) {
   const body = (
     <>
-      <p className="display-md tabular text-[20px] text-chalk italic">{value}</p>
-      <p className="mt-0.5 text-[13px] text-chalk/60">{label}</p>
+      <span className="tabular text-chalk">{value}</span>{" "}
+      {value === 1 ? noun : (plural ?? `${noun}s`)}
+      {href ? <span className="ml-1.5">›</span> : null}
     </>
   );
 
-  if (!href) return <div>{body}</div>;
+  if (!href) return <span>{body}</span>;
 
   return (
     <Link href={href} className="transition-colors hover:text-flame">

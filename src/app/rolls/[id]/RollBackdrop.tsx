@@ -2,8 +2,9 @@ import { PillLink } from "@/components/roll/Chrome";
 import { RollHeader } from "@/components/roll/RollHeader";
 import { PhotoGrid, type GridPhoto } from "@/components/roll/PhotoGrid";
 import { RollControls, VisibilityNotice } from "@/components/roll/RollParts";
+import { SHOTS_SPENT } from "@/lib/constants";
 import { formatDay, formatDuration } from "@/lib/format";
-import { isOpen } from "@/lib/roll-access";
+import { isCapturing, isOpen } from "@/lib/roll-access";
 
 export interface BackdropRoll {
   id: string;
@@ -16,6 +17,8 @@ export interface BackdropRoll {
   finishesAt: Date;
   revealAt: Date;
   revealMode: "DURING" | "AFTER" | "DELAY";
+  /** Only read by the settings screen that edits the reveal; the backdrop never draws it. */
+  revealDelayHours: number;
   revealedEarly: boolean;
   everyoneCanSee: boolean;
   keptUntil: Date;
@@ -36,8 +39,8 @@ export type BackdropPhoto = GridPhoto;
  * The host's view of one roll.
  *
  * Pulled out of the page so the invite, people and settings routes can render it behind
- * their sheet — those are overlays on this screen, not separate destinations, and the cover
- * shows through them.
+ * their sheet — those are overlays on this screen, not separate destinations, and the roll
+ * stays visible under them.
  */
 export function RollBackdrop({
   roll,
@@ -51,18 +54,20 @@ export function RollBackdrop({
 }) {
   const now = new Date();
   const open = isOpen(roll, now);
+  // The shutter, not the seal. A roll can be legible while it is still shooting.
+  const ended = now >= roll.finishesAt;
   const revealsIn = formatDuration(roll.revealAt.getTime() - now.getTime());
 
   return (
     <div className="flex min-h-dvh flex-col">
       <RollHeader
         title={roll.name}
-        coverIndex={roll.coverPreset}
-        coverUrl={roll.coverUrl}
         moments={roll.photoCount}
         people={roll.guestCount}
-        middleValue={open ? formatDay(roll.finishesAt) : formatDuration(roll.finishesAt.getTime() - now.getTime())}
-        middleLabel={open ? "Ended" : "Left"}
+        finishesAt={roll.finishesAt.getTime()}
+        revealAt={roll.revealAt.getTime()}
+        open={open}
+        now={now.getTime()}
         back="/rolls"
         settingsHref={`/rolls/${roll.id}/settings`}
         peopleHref={`/rolls/${roll.id}/people`}
@@ -70,16 +75,25 @@ export function RollBackdrop({
 
       <div className="space-y-4 px-5 pt-4 pb-6">
         <RollControls
-          revealed={open}
+          ended={ended}
           // The camera is the guest app, and a host shoots their own roll by joining it like
           // anyone else — so this is the roll's code, not its id. Built from the id, it
           // normalised to a 25-character string matching no roll and dead-ended.
           cameraHref={`/e/${roll.code}`}
-          outOfFilm={roll.shotsLeft <= 0}
+          // The shutter is only open between the two dates the host picked. It was live from
+          // the moment the roll existed, so a host tapping it the week before their wedding
+          // was handed a camera the guest app then refused to give film to.
+          cameraOff={
+            !isCapturing(roll, now)
+              ? now < roll.startsAt
+                ? `Your roll opens ${formatDay(roll.startsAt)}.`
+                : "This roll has finished shooting."
+              : roll.shotsLeft <= 0
+                ? SHOTS_SPENT
+                : undefined
+          }
           inviteHref={`/rolls/${roll.id}/invite`}
-          // Once open, the same two things a host wants: hand the album round, or take it away.
-          sendHref={`/rolls/${roll.id}/invite`}
-          saveHref={`/api/rolls/${roll.id}/download`}
+          saveHref={open ? `/api/rolls/${roll.id}/download` : undefined}
           downloadsLeft={roll.downloadsLeft}
         />
 

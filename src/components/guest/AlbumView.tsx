@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { SHOTS_SPENT } from "@/lib/constants";
 import { cn } from "@/lib/cn";
 import { RollHeader } from "@/components/roll/RollHeader";
 import { RollControls, VisibilityNotice } from "@/components/roll/RollParts";
@@ -219,32 +220,29 @@ export function AlbumView({
     <div className="flex min-h-full flex-col">
       <RollHeader
         title={feed.rollName}
-        coverIndex={feed.coverPreset}
-        coverUrl={feed.coverUrl}
         moments={feed.totalPhotos}
         people={feed.guestCount}
-        middleValue={
-          feed.open
-            ? formatDay(new Date(feed.finishesAt))
-            : formatDuration(new Date(feed.finishesAt).getTime() - now)
-        }
-        middleLabel={feed.open ? "Ended" : "Left"}
+        finishesAt={new Date(feed.finishesAt).getTime()}
+        revealAt={new Date(feed.revealAt).getTime()}
+        open={feed.open}
+        now={now}
         back={back}
       />
 
       <div className="space-y-4 px-5 pt-4 pb-6">
         {cameraHref && feed.capturing ? (
           <RollControls
-            revealed={feed.open}
+            ended={!feed.capturing}
             cameraHref={cameraHref}
-            outOfFilm={feed.me.shotsLeft <= 0}
+            cameraOff={feed.me.shotsLeft <= 0 ? SHOTS_SPENT : undefined}
           />
         ) : null}
 
         {/*
-          Kept from the reference, and the one place the app leaves its palette. A banner
-          whose job is to interrupt cannot be drawn in the same two colours as everything
-          around it.
+          The one solid block of accent in the product. A banner whose job is to interrupt
+          cannot be drawn in the same two colours as everything around it — but the cream this
+          used to be was the reference's own, borrowed wholesale. Our orange interrupts just
+          as hard on a black screen and is a colour we already own.
 
           Only for guests who are not signed in. Telling someone with an account that they
           are "currently on guest mode" and should make one is both wrong and the most
@@ -253,7 +251,7 @@ export function AlbumView({
         {feed.me.linked ? null : (
           <Link
             href="/welcome"
-            className="flex items-center gap-4 rounded-2xl bg-[#f2e4bd] px-4 py-4 text-void"
+            className="flex items-center gap-4 rounded-2xl bg-flame px-4 py-4 text-void"
           >
             <span className="flex-1">
               <span className="block text-[16px] font-semibold">
@@ -305,7 +303,7 @@ export function AlbumView({
                 ) : null}
 
                 {photo.by ? (
-                  <span className="absolute bottom-3 left-3 text-[15px] text-chalk italic drop-shadow">
+                  <span className="marking absolute bottom-3 left-3 text-chalk/90 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">
                     {photo.by}
                   </span>
                 ) : null}

@@ -88,6 +88,7 @@ const rollSummary = {
   finishesAt: true,
   revealAt: true,
   revealMode: true,
+  revealDelayHours: true,
   revealedEarly: true,
   everyoneCanSee: true,
   maxGuests: true,
@@ -129,7 +130,7 @@ const STACK = 4;
  * differs is where a card leads: your own roll opens the host screen, with its settings and
  * its invite QR; a roll you joined opens the camera, because that is all you have there.
  */
-export async function listRollsForUser(userId: string) {
+export async function listRollsForUser(userId: string, { thumbs = true } = {}) {
   const select = {
     ...rollSummary,
     _count: { select: { guests: true, photos: photoCount } },
@@ -190,7 +191,14 @@ export async function listRollsForUser(userId: string) {
   const active = cards.filter((roll) => now < roll.finishesAt);
   const albums = cards.filter((roll) => now >= roll.finishesAt);
 
-  await attachThumbs(albums, new Map([...hosted, ...joined].map((roll) => [roll.id, roll])), userId, now);
+  /*
+    The prints on each album tile cost one photo query per open album, and the home screen no
+    longer draws them — it shows the active rolls and nothing else. Asking for them there was
+    a per-album round trip spent on markup that never renders.
+  */
+  if (thumbs) {
+    await attachThumbs(albums, new Map([...hosted, ...joined].map((roll) => [roll.id, roll])), userId, now);
+  }
 
   return { active, albums };
 }
@@ -513,8 +521,50 @@ export async function updateRollVisibility(id: string, hostId: string, everyoneC
   await prisma.roll.updateMany({ where: { id, hostId }, data: { everyoneCanSee } });
 }
 
-export async function revealRollNow(id: string, hostId: string) {
-  await prisma.roll.updateMany({ where: { id, hostId }, data: { revealedEarly: true } });
+/**
+ * Moving the reveal of a roll that is still sealed.
+ *
+ * This is also how a roll opens early, which is why there is no longer a `revealRollNow`
+ * beside it: `DURING` means a roll with no seal at all, so choosing it here is the same act
+ * the "Reveal now" button used to perform — said in the host's own vocabulary, on the screen
+ * that explains what each mode looks like to a guest.
+ *
+ * `revealedEarly` is set with it rather than left to `revealMode` alone, because the mode can
+ * be changed again: without the flag, a host who opened their roll and then picked `AFTER`
+ * would re-seal photographs their guests had already been shown.
+ */
+export async function updateRollReveal(
+  id: string,
+  hostId: string,
+  revealMode: RevealMode,
+  delayHours: number,
+): Promise<boolean> {
+  const roll = await prisma.roll.findFirst({
+    where: { id, hostId },
+    select: {
+      startsAt: true,
+      finishesAt: true,
+      revealAt: true,
+      revealMode: true,
+      revealedEarly: true,
+    },
+  });
+  if (!roll) return false;
+  // Nothing left to move: the photographs are out, and a reveal in the future would not put
+  // them back.
+  if (isOpen(roll)) return false;
+
+  const hours = revealMode === "DELAY" ? delayHours : 0;
+  await prisma.roll.update({
+    where: { id },
+    data: {
+      revealMode,
+      revealDelayHours: hours,
+      revealAt: computeRevealAt(roll.finishesAt, revealMode, hours),
+      revealedEarly: revealMode === "DURING",
+    },
+  });
+  return true;
 }
 
 export async function deleteRoll(id: string, hostId: string) {

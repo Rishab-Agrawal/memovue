@@ -222,7 +222,7 @@ export function PhotoViewer({
     <div className="fixed inset-0 z-50 flex flex-col bg-void">
       <header className="flex items-start justify-between gap-4 px-5 pt-[calc(var(--safe-top)+1.25rem)]">
         <div>
-          <p className="display-md text-[22px] text-chalk italic">{photo.by ?? "Someone"}</p>
+          <p className="display-sm text-[19px] text-chalk">{photo.by ?? "Someone"}</p>
           <p className="mt-1 text-[14px] text-dust">
             {photo.takenAt ? formatStamp(new Date(photo.takenAt)) : null}
             {photos.length > 1 ? (

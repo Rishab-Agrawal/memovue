@@ -88,7 +88,11 @@ export function CoverChoice({
 
       {error ? <p className="mt-3 text-[13px] text-danger">{error}</p> : null}
 
-      <div className="mt-5 flex gap-2.5 overflow-x-auto no-scrollbar">
+      {/* The negative margin and matching padding are the ring's room to exist. `overflow-x`
+          clips on both axes, so the selected cover's 4px halo was being sliced off on three
+          sides and only its right edge survived — which read as a stray orange line between
+          two thumbnails rather than as a selection. */}
+      <div className="mt-4 -mx-1 flex gap-2.5 overflow-x-auto px-1 py-1 no-scrollbar">
         {COVER_PRESETS.map((option) => (
           <button
             key={option}

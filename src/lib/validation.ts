@@ -108,6 +108,17 @@ export const editFinishSchema = z.object({
   finishesAt: z.iso.datetime({ offset: true }),
 });
 
+/**
+ * A new reveal. The same two fields the wizard sends, held to the same rule — the moment
+ * itself is derived server-side from the roll's own closing time, never posted.
+ */
+export const editRevealSchema = rollFields
+  .pick({ revealMode: true, revealDelayHours: true })
+  .refine((data) => data.revealMode !== "DELAY" || data.revealDelayHours >= MIN_DELAY_HOURS, {
+    path: ["revealDelayHours"],
+    message: `Add at least ${MIN_DELAY_HOURS} hour`,
+  });
+
 /* ------------------------------------------------------------------ guests */
 
 /**

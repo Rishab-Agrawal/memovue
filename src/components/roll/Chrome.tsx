@@ -4,9 +4,9 @@ import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 /**
- * The shapes the reference uses everywhere: a squircle back button, pager dots, and pill
- * buttons. Rounded and filled, unlike the rest of MemoVue — on these screens the reference's
- * geometry wins and only the palette and typeface are ours.
+ * The small controls every screen shares: a squircle back button and pill buttons. Rounded
+ * and filled, unlike the rest of MemoVue — on these screens the reference's geometry wins and
+ * only the palette and typeface are ours.
  */
 
 export function BackButton({
@@ -43,19 +43,32 @@ export function CloseButton({ href, label = "Close" }: { href: string; label?: s
   );
 }
 
-export function PagerDots({ count, current }: { count: number; current: number }) {
+/**
+ * One end of a stepper. Circular, so it never reads as one of the rounded-rectangle tiles
+ * everything else on these screens is made of — and shared, because the wizard was growing a
+ * second, differently-shaped stepper per screen that needed one.
+ */
+export function StepButton({
+  label,
+  glyph,
+  disabled,
+  onClick,
+}: {
+  label: string;
+  glyph: string;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
   return (
-    <div className="flex items-center gap-2" aria-label={`Step ${current} of ${count}`}>
-      {Array.from({ length: count }, (_, index) => (
-        <span
-          key={index}
-          className={cn(
-            "h-1.5 w-1.5 rounded-full",
-            index + 1 === current ? "bg-chalk" : "bg-hair-bright",
-          )}
-        />
-      ))}
-    </div>
+    <button
+      type="button"
+      aria-label={label}
+      disabled={disabled}
+      onClick={onClick}
+      className="flex h-13 w-13 shrink-0 items-center justify-center rounded-full border border-hair-bright text-[24px] text-chalk transition-colors hover:border-flame hover:text-flame disabled:pointer-events-none disabled:opacity-25"
+    >
+      {glyph}
+    </button>
   );
 }
 

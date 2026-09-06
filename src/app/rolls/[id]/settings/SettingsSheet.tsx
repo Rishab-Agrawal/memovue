@@ -19,7 +19,7 @@ import { Toggle } from "@/components/roll/Toggle";
 import { formatDateTime } from "@/lib/format";
 import { visibilityLabel } from "@/lib/roll-config";
 
-import { deleteRollAction, revealNowAction, setVisibilityAction } from "../actions";
+import { deleteRollAction, setVisibilityAction } from "../actions";
 
 const REVEAL_LABEL = { DURING: "During", AFTER: "After", DELAY: "After + delay" } as const;
 
@@ -49,7 +49,6 @@ export function SettingsSheet({
   const router = useRouter();
   const [everyoneCanSee, setEveryoneCanSee] = useState(initialVisibility);
   const [confirming, setConfirming] = useState(false);
-  const [revealing, setRevealing] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const toggleVisibility = (next: boolean) => {
@@ -63,7 +62,7 @@ export function SettingsSheet({
   return (
     <>
       <Sheet back={`/rolls/${rollId}`} title="Roll Settings">
-        <div className="mt-5 space-y-2">
+        <div className="mt-5">
           <SettingRow
             icon={<Pencil className="h-5 w-5" />}
             label="Name & Cover"
@@ -86,10 +85,19 @@ export function SettingsSheet({
             value={formatDateTime(finishesAt)}
             href={open ? undefined : `/rolls/${rollId}/settings/finish`}
           />
+          {/*
+            The reveal itself, not a button beside it. This row printed the mode as a fact and
+            the only thing a host could do about it was a "Reveal now" button underneath that
+            opened the roll for good — so someone who had simply picked the wrong option at
+            creation had one irreversible move available and no way to make a smaller one.
+            Opening early is `DURING` on the screen this leads to, which is the same screen
+            they chose the mode on.
+          */}
           <SettingRow
             icon={<Clock className="h-5 w-5" />}
             label="Reveal time"
             value={REVEAL_LABEL[revealMode]}
+            href={open ? undefined : `/rolls/${rollId}/settings/reveal`}
           />
 
           <SettingRow
@@ -105,61 +113,15 @@ export function SettingsSheet({
           />
         </div>
 
-        {/*
-          Only while there is something still sealed. `revealNowAction` has existed since the
-          reveal became its own moment and had no way to be reached, so a host who set the
-          wrong time — or simply could not wait — had no recourse but to delete the roll.
-        */}
-        {open ? null : (
-          <button
-            type="button"
-            onClick={() => setRevealing(true)}
-            className="mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-flame/10 text-[15px] font-medium text-flame transition-colors hover:bg-flame/15"
-          >
-            <LockOpen className="h-4 w-4" />
-            Reveal now
-          </button>
-        )}
-
         <button
           type="button"
           onClick={() => setConfirming(true)}
-          className="mt-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-danger/10 text-[15px] font-medium text-danger transition-colors hover:bg-danger/15"
+          className="mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-danger/10 text-[15px] font-medium text-danger transition-colors hover:bg-danger/15"
         >
           <Trash className="h-4 w-4" />
           Delete
         </button>
       </Sheet>
-
-      <Dialog
-        open={revealing}
-        title="Open the roll now?"
-        onClose={() => setRevealing(false)}
-        actions={
-          <>
-            <Pill variant="quiet" full disabled={pending} onClick={() => setRevealing(false)}>
-              Cancel
-            </Pill>
-            <Pill
-              variant="flame"
-              full
-              disabled={pending}
-              onClick={() =>
-                startTransition(async () => {
-                  await revealNowAction(rollId);
-                  setRevealing(false);
-                  router.refresh();
-                })
-              }
-            >
-              {pending ? "Opening…" : "Reveal"}
-            </Pill>
-          </>
-        }
-      >
-        Every guest sees every photograph they are allowed to, straight away. A roll cannot be
-        sealed again once it has been opened.
-      </Dialog>
 
       <Dialog
         open={confirming}

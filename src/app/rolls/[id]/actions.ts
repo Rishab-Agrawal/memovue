@@ -8,14 +8,19 @@ import {
   deleteRollPhoto,
   raiseGuestCap,
   removeGuest,
-  revealRollNow,
   updateRollFinish,
   updateRollInfo,
+  updateRollReveal,
   updateRollVisibility,
 } from "@/lib/rolls";
 import { rateLimit } from "@/lib/ratelimit";
 import { requireHost } from "@/lib/session";
-import { editFinishSchema, editRollSchema, fieldErrors } from "@/lib/validation";
+import {
+  editFinishSchema,
+  editRevealSchema,
+  editRollSchema,
+  fieldErrors,
+} from "@/lib/validation";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -133,13 +138,31 @@ export async function removeGuestAction(rollId: string, guestId: string): Promis
   return { ok: true };
 }
 
-/** The escape hatch when a host wants the album open early. Cannot be undone. */
-export async function revealNowAction(rollId: string): Promise<ActionResult> {
+/**
+ * A different reveal, while the roll is still sealed — including `DURING`, which opens it on
+ * the spot and cannot be undone.
+ */
+export async function updateRevealAction(
+  rollId: string,
+  input: { revealMode: "DURING" | "AFTER" | "DELAY"; revealDelayHours: number },
+): Promise<ActionResult> {
   const user = await requireHost();
   const over = overWriteBudget(user.id);
   if (over) return over;
 
-  await revealRollNow(rollId, user.id);
+  const parsed = editRevealSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: Object.values(fieldErrors(parsed.error))[0] ?? "Invalid" };
+  }
+
+  const moved = await updateRollReveal(
+    rollId,
+    user.id,
+    parsed.data.revealMode,
+    parsed.data.revealDelayHours,
+  );
+  if (!moved) return { ok: false, error: "This roll has already opened." };
+
   revalidatePath(`/rolls/${rollId}`);
   return { ok: true };
 }

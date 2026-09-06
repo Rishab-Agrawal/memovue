@@ -7,7 +7,7 @@ export function joinUrl(code: string): string {
 }
 
 /**
- * A PNG data URL, for the invite sheet's "Save QR image".
+ * A PNG data URL, for the invite sheet's "Save QR".
  *
  * The SVG below is right for the printable card; a phone's save-to-photos wants a raster,
  * and a data URL means the whole thing works from a plain anchor with no download endpoint.

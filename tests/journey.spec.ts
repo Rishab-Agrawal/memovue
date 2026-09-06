@@ -129,7 +129,7 @@ test.describe("a roll from creation to reveal", () => {
     await startTodayAtMidnight(page);
 
     // Finish, reveal and the invitation card all keep their defaults.
-    for (const step of ["finish", "reveal", "card", "guests"]) {
+    for (const step of ["finish", "reveal", "guests"]) {
       await page.getByRole("link", { name: /Next/ }).click();
       await expect(page).toHaveURL(new RegExp(`/new/${step}$`));
     }
@@ -250,7 +250,7 @@ test.describe("a roll from creation to reveal", () => {
     await page.getByLabel("Event name").fill("Second Roll");
     // Each step is waited for. Five Next clicks in a row race the router and all land on
     // the same screen, which is how this loop used to sit on /new/start until it timed out.
-    for (const step of ["start", "finish", "reveal", "card", "guests"]) {
+    for (const step of ["start", "finish", "reveal", "guests"]) {
       await page.getByRole("link", { name: /Next/ }).click();
       await expect(page).toHaveURL(new RegExp(`/new/${step}$`));
     }
@@ -262,12 +262,24 @@ test.describe("a roll from creation to reveal", () => {
     const secondUrl = page.url();
 
     /*
+      And it has no camera yet, which is the whole difference between this roll and the one
+      above. The control used to be live from the moment a roll existed, so a host tapping it
+      the week before their wedding was handed a viewfinder the guest app then refused film
+      to. It stays in the row, dead, and says when it opens.
+    */
+    await expect(page.getByLabel("Take a photo")).toHaveAttribute("aria-disabled", "true");
+    // Forced, because Playwright reads `aria-disabled` as unclickable and a real thumb does
+    // not: the point of the control is that it answers when tapped.
+    await page.getByLabel("Take a photo").click({ force: true });
+    await expect(page.getByRole("status")).toContainText("Your roll opens");
+
+    /*
       Nothing left, so the way into the wizard stops being a link at all. The refusal has to
       land before the six steps, not after them — being told no once you have picked a date,
       a reveal rule and a cover is the worst possible moment to hear it.
     */
     await page.goto("/rolls");
-    await page.getByRole("button", { name: /New/ }).click();
+    await page.getByRole("button", { name: /Create roll/ }).click();
     await expect(page.getByRole("heading", { name: /don.t have access yet/ })).toBeVisible();
 
     // And the way out of the refusal is a form, not a dead end.
@@ -293,7 +305,7 @@ test.describe("a roll from creation to reveal", () => {
     await page.getByRole("dialog").getByRole("button", { name: "Delete", exact: true }).click();
     await expect(page).toHaveURL(/\/rolls$/);
 
-    await page.getByRole("link", { name: /New/ }).click();
+    await page.getByRole("link", { name: /Create roll/ }).click();
     await expect(page).toHaveURL(/\/new\/name$/);
   });
 
@@ -414,7 +426,10 @@ test.describe("a roll from creation to reveal", () => {
     // And the roll is now on their home screen, attributed to whoever invited them.
     await page.goto("/rolls");
     await expect(page.getByText("Playwright Roll")).toBeVisible();
-    await expect(page.getByText(`Invited by ${TEST_HOST.name}`)).toBeVisible();
+    // Who invited them, credited on the card. The words around the name are the card's to
+    // choose — at two cards to a row there is no room for a sentence, so the person glyph
+    // carries the "invited by" and this asserts the attribution rather than the phrasing.
+    await expect(page.getByText(TEST_HOST.name)).toBeVisible();
 
     await context.close();
   });
@@ -443,11 +458,12 @@ test.describe("a roll from creation to reveal", () => {
 
     await expect(page.getByText(/Reveals in/).first()).toBeVisible();
 
-    // The sealed row keeps both of its controls — they became optional props so a guest could
-    // stop passing dead ones, and the host must not have lost them in the same change — and
-    // the download says plainly that it is not one yet.
+    // A roll that is still shooting carries a camera and a way to invite people to it, and
+    // nothing else: there is no album to save yet, and a permanently greyed-out Save is a
+    // control that has never once done anything on this screen.
     await expect(page.getByRole("link", { name: "Invite guests" })).toBeVisible();
-    await expect(page.getByLabel("Download album")).toHaveAttribute("aria-disabled", "true");
+    await expect(page.getByLabel("Take a photo")).toBeVisible();
+    await expect(page.getByLabel("Download album")).toHaveCount(0);
 
     // The host is not exempt: the download is refused too.
     const rollId = rollUrl.split("/").pop();
@@ -456,43 +472,62 @@ test.describe("a roll from creation to reveal", () => {
   });
 
   /**
-   * The escape hatch, and the two controls that only exist on the other side of it.
+   * The reveal, edited from the settings row that used to only display it.
    *
-   * `revealNowAction` was written when the reveal became its own moment and then reached from
-   * nowhere, so a host who set the wrong time had no recourse but to delete the roll. It also
-   * left the opened state of this screen untestable, which is how Send and Save sat pointing
-   * at "#" without anything noticing.
+   * A host who picked the wrong option at creation had exactly one move — a "Reveal now"
+   * button that opened the roll for good — and no way to make a smaller one. The row is the
+   * way in now, and opening early is `DURING` on the same screen the wizard sells the choice
+   * on. It also leaves the opened state of the roll screen testable, which is how the album
+   * controls were caught pointing at "#".
    *
    * Last in the file on purpose: it opens the roll for good, and everything above it needs
    * the roll sealed.
    */
-  test("the host can open a sealed roll early, and then take it away", async ({ page }) => {
+  test("the host can change the reveal, and open the roll from the same screen", async ({
+    page,
+  }) => {
     await page.goto(`${rollUrl}/settings`);
+    await page.getByRole("link", { name: /Reveal time/ }).click();
+    await expect(page).toHaveURL(`${rollUrl}/settings/reveal`);
 
-    await page.getByRole("button", { name: "Reveal now" }).click();
-    await expect(page.getByRole("dialog", { name: "Open the roll now?" })).toBeVisible();
-
-    // Asking is the point: a roll cannot be sealed again.
-    await page.getByRole("button", { name: "Cancel" }).click();
-    await expect(page.getByRole("dialog")).toHaveCount(0);
+    // A smaller move first: a delay is a date that can be moved again tomorrow, and the roll
+    // stays sealed through it.
+    await page.getByRole("button", { name: "Additional\nDelay" }).click();
+    await page.getByRole("button", { name: "Increase delay" }).click();
+    await expect(page.getByTestId("delay-hours")).toHaveText("2");
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect(page).toHaveURL(`${rollUrl}/settings`);
+    await expect(page.getByText("After + delay")).toBeVisible();
     expect((await page.request.get(`/api/rolls/${rollId()}/download`)).status()).toBe(403);
 
-    await page.getByRole("button", { name: "Reveal now" }).click();
-    await page.getByRole("button", { name: "Reveal", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Reveal now" })).toHaveCount(0);
+    // Opening it for good is the one choice that asks first.
+    await page.getByRole("link", { name: /Reveal time/ }).click();
+    await page.getByRole("button", { name: "During\nEvent" }).click();
+    page.once("dialog", (dialog) => dialog.dismiss());
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect(page).toHaveURL(`${rollUrl}/settings/reveal`);
+    expect((await page.request.get(`/api/rolls/${rollId()}/download`)).status()).toBe(403);
 
-    // Opened, the roll screen offers the two things it never could before.
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect(page).toHaveURL(`${rollUrl}/settings`);
+    // Open for good: the row that led here is a plain row again.
+    await expect(page.getByRole("link", { name: /Reveal time/ })).toHaveCount(0);
+
+    /*
+      Opened while the shutter is still up, which is what `DURING` means.
+
+      The row stays a camera and an invite, because the party is not over: it splits on the
+      roll ending, not on the photographs becoming legible. Opening early used to swap the
+      whole row for Send and Save — so a host who chose `DURING` lost their camera and their
+      invite button mid-event, with guests still arriving.
+    */
     await page.goto(rollUrl);
-    await expect(page.getByRole("link", { name: "Send" })).toHaveAttribute(
-      "href",
-      `/rolls/${rollId()}/invite`,
-    );
-    await expect(page.getByRole("link", { name: "Save" })).toHaveAttribute(
-      "href",
-      `/api/rolls/${rollId()}/download`,
-    );
+    await expect(page.getByLabel("Take a photo")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Invite guests" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Save" })).toHaveCount(0);
 
-    // And Save is now a real archive rather than a refusal.
+    // The archive route itself is open, though — it is gated on the seal, not the shutter.
     const zip = await page.request.get(`/api/rolls/${rollId()}/download`);
     expect(zip.status()).toBe(200);
     expect(zip.headers()["content-type"]).toContain("zip");
@@ -528,24 +563,32 @@ test.describe("a roll from creation to reveal", () => {
 /**
  * The home screen, and the two ways it used to mislead.
  *
- * Albums appeared only once a roll had finished, so a new host saw one block of content and a
- * wide emptiness under it with no indication that finished rolls go anywhere at all. And Join
- * sat one tap from a page that offers nothing but "Continue with Google", so pressing back
- * after it looked exactly like having been signed out.
+ * Albums used to be the bottom half of this screen, and only appeared once a roll had
+ * finished — so a new host saw one block of content and a wide emptiness under it with no
+ * indication that finished rolls go anywhere at all. They are a tab of their own now, which
+ * is named in the bar whether or not there is anything in it. And Join sat one tap from a
+ * page that offers nothing but "Continue with Google", so pressing back after it looked
+ * exactly like having been signed out.
  */
 test.describe("the home screen after signing in", () => {
   test.use({ storageState: STORAGE_STATE });
 
-  test("both sections are always there, empty or not", async ({ page }) => {
+  test("home carries the two things to do, and albums are one tab away", async ({ page }) => {
     await page.goto("/rolls");
 
-    await expect(page.getByRole("heading", { name: "Active" })).toBeVisible();
+    // Whatever is or isn't running, both ways to start are on the screen.
+    // Either element: the way in is a button rather than a link once the allowance is spent.
+    await expect(page.getByText("Create roll")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Join" })).toBeVisible();
+
+    // The albums tab exists before there is an album in it, and says so when empty.
+    await page.getByRole("link", { name: "Albums" }).click();
+    await expect(page).toHaveURL(/\/albums$/);
     await expect(page.getByRole("heading", { name: "Albums" })).toBeVisible();
 
-    // Whichever is empty says so in its own words rather than vanishing.
-    const albums = page.getByText("No albums yet");
-    const rolls = page.getByText("No active rolls");
-    expect((await albums.count()) + (await rolls.count())).toBeGreaterThanOrEqual(0);
+    // And the bar leads back.
+    await page.getByRole("link", { name: "Home" }).click();
+    await expect(page).toHaveURL(/\/rolls$/);
   });
 
   test("Join and back is not a sign-out", async ({ page }) => {
@@ -556,7 +599,7 @@ test.describe("the home screen after signing in", () => {
     // Back belongs to where they came from, not to the sign-in screen.
     await page.getByRole("link", { name: "Back" }).click();
     await expect(page).toHaveURL(/\/rolls$/);
-    await expect(page.getByRole("heading", { name: "Active" })).toBeVisible();
+    await expect(page.getByText("Create roll")).toBeVisible();
 
     // And the sign-in screen itself refuses to entertain someone already signed in.
     await page.goto("/welcome");

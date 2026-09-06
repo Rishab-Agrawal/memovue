@@ -37,3 +37,6 @@ export const UPLOAD_LIMITS = {
    */
   coverMaxBytes: 8 * 1024 * 1024,
 } as const;
+
+/** What anyone holding a spent camera is told when they tap it anyway. */
+export const SHOTS_SPENT = "That’s all your shots for this roll.";

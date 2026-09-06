@@ -2,44 +2,46 @@ import Link from "next/link";
 
 import { cn } from "@/lib/cn";
 
-import { Home, Person } from "@/components/roll/Icons";
+import { Home, Person, Photo } from "@/components/roll/Icons";
 
 /**
- * Two items, not three. The reference carries a second product in the middle of this bar and
- * labels its own; we have one product, so the first item is simply home rather than a camera
- * beside the word "Rolls" — naming the only thing there is says nothing.
+ * Three destinations, three equal columns.
  *
- * With the label gone both items are glyphs, and each takes half the bar and centres in it.
- * Pinned to the outer corners they read as two unrelated controls with a gap, rather than as
- * a pair. Each half is the tap target, full height, which is also far easier to hit than a
- * 36px circle in a corner.
+ * Albums used to be the lower half of the home screen, which meant the two things a host
+ * does — start something, look back at something finished — competed for one scroll. They
+ * are separate concerns on separate clocks, so they get separate screens and the bar names
+ * all three.
+ *
+ * Labelled, unlike the two bare glyphs this replaces. A house and a person are guessable on
+ * their own; a picture frame standing for "albums" is not, and a bar you have to try is not
+ * a bar. The word is 11px under the glyph, so the column still reads as an icon first.
  */
-export function BottomNav({ current }: { current: "rolls" | "account" }) {
-  return (
-    <nav className="box-content flex h-14 shrink-0 items-stretch border-t border-hair bg-page/95 pb-[var(--safe-bottom)] backdrop-blur">
-      <Link
-        href="/rolls"
-        aria-label="Home"
-        aria-current={current === "rolls" ? "page" : undefined}
-        className={cn(
-          "flex flex-1 items-center justify-center transition-colors",
-          current === "rolls" ? "text-chalk" : "text-dust hover:text-ash",
-        )}
-      >
-        <Home className="h-6 w-6" />
-      </Link>
+const TABS = [
+  { href: "/rolls", label: "Home", key: "rolls", Icon: Home },
+  { href: "/albums", label: "Albums", key: "albums", Icon: Photo },
+  { href: "/account", label: "You", key: "account", Icon: Person },
+] as const;
 
-      <Link
-        href="/account"
-        aria-label="Account"
-        aria-current={current === "account" ? "page" : undefined}
-        className={cn(
-          "flex flex-1 items-center justify-center transition-colors",
-          current === "account" ? "text-chalk" : "text-dust hover:text-ash",
-        )}
-      >
-        <Person className="h-6 w-6" />
-      </Link>
+export function BottomNav({ current }: { current: (typeof TABS)[number]["key"] }) {
+  return (
+    <nav className="box-content flex h-16 shrink-0 items-stretch border-t border-hair bg-page/95 pb-[var(--safe-bottom)] backdrop-blur">
+      {TABS.map(({ href, label, key, Icon }) => {
+        const here = key === current;
+        return (
+          <Link
+            key={key}
+            href={href}
+            aria-current={here ? "page" : undefined}
+            className={cn(
+              "flex flex-1 flex-col items-center justify-center gap-1 transition-colors",
+              here ? "text-flame" : "text-dust hover:text-ash",
+            )}
+          >
+            <Icon className="h-[22px] w-[22px]" />
+            <span className="text-[11px] leading-none font-medium tracking-wide">{label}</span>
+          </Link>
+        );
+      })}
     </nav>
   );
 }

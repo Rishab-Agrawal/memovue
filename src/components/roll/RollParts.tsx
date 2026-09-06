@@ -3,35 +3,41 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { Camera, Download, Lock, Qr, Send } from "@/components/roll/Icons";
+import { Camera, Download, Lock, Qr } from "@/components/roll/Icons";
+import { cn } from "@/lib/cn";
 import { ZIP_DOWNLOAD_SPENT } from "@/lib/constants";
 
 /**
  * The pieces below the cover, shared by the host's roll home and the guest's album.
  */
 
+/** Every control in the row is this shape and this width, whatever it does. */
+const tile =
+  "flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl text-[14px] font-medium";
+
 export function RollControls({
-  revealed,
+  ended,
   cameraHref,
   inviteHref,
-  sendHref,
   saveHref,
   downloadsLeft,
   onCamera,
-  outOfFilm,
+  cameraOff,
 }: {
-  revealed: boolean;
+  /**
+   * Whether the shutter has closed. It is what splits this row: a roll still running wants a
+   * camera and a way to invite people to it; one that is over wants the album handed round or
+   * taken away.
+   *
+   * It used to split on whether the photographs were legible, which meant a roll set to
+   * reveal *during* the event lost its camera and its invite button the moment it opened —
+   * mid-party, with guests still arriving and film left in every pocket.
+   */
+  ended: boolean;
   /** Ignored when `onCamera` is given, which is how the guest app keeps its stream alive. */
   cameraHref?: string;
   /** Omitted by a guest, who has no invite sheet to open. */
   inviteHref?: string;
-  /*
-    Both were hardcoded to "#", so on an opened roll the only two controls on the screen did
-    nothing at all. They are the host's: sharing the album is the invite sheet it already has,
-    and saving it is the ZIP route that already exists.
-  */
-  /** Where "Send" goes. Omitted by anyone with nothing to share. */
-  sendHref?: string;
   /** Where "Save" goes. Omitted by anyone who cannot download the album. */
   saveHref?: string;
   /** ZIP downloads this roll has left of its lifetime ten. Ignored without `saveHref`. */
@@ -39,8 +45,11 @@ export function RollControls({
   /** When given, the camera closes a sheet instead of navigating — the guest app keeps its
       viewfinder alive underneath rather than tearing the stream down and back up. */
   onCamera?: () => void;
-  /** No shots left for whoever is looking. The camera stays put, but says why it is dead. */
-  outOfFilm?: boolean;
+  /**
+   * Why the camera cannot be used, when it cannot — a spent quota, or a roll whose window is
+   * not open. The camera stays put and says this when tapped, rather than disappearing.
+   */
+  cameraOff?: string;
 }) {
   /*
     One line of transient text for the whole row.
@@ -72,16 +81,28 @@ export function RollControls({
   const left = downloadsLeft === undefined ? Infinity : downloadsLeft - spent;
 
   // A guest has neither, and two dead buttons are worse than none.
-  if (revealed && !sendHref && !saveHref) return null;
+  if (ended && !saveHref) return null;
 
   return (
     <>
-      <div className="flex gap-3">
-        {revealed ? (
+      {/*
+        Equal width, and every control named rather than left to a glyph.
+
+        This was one wide white pill with a camera on it and two unlabelled squares beside it —
+        the reference's exact arrangement, and a row where two of the three controls could only
+        be guessed at. Equal width says they are peers; the words say what they do; and the one
+        that matters is the one filled in the accent colour, not the one three times wider.
+
+        A finished roll offers only Save. It used to offer a Send beside it, which opened the
+        invite sheet — the join link. Handing that round is not the same as handing a photograph
+        round: a photograph is a public object on a CDN and costs the same whether one person or
+        a million open it, while the album is a dynamic page that polls every twenty seconds per
+        open tab and hands each new arrival a participant slot out of the roll's cap. So the
+        album travels as the ZIP, and single frames travel as their own cached links.
+      */}
+      <div className="flex gap-2">
+        {ended ? (
           <>
-            {sendHref ? (
-              <Control href={sendHref} label="Send" icon={<Send className="h-5 w-5" />} />
-            ) : null}
             {saveHref ? (
               <Control
                 href={saveHref}
@@ -102,36 +123,40 @@ export function RollControls({
         ) : (
           <>
             {/*
-              Out of film. Removing the control would leave the row a different shape every
-              time somebody spends their last shot, and a live camera that refuses to take a
-              photo is worse still — so it stays where it was and answers when tapped.
+              Out of film, or the roll is not shooting yet. Removing the control would leave
+              the row a different shape every time somebody spends their last shot, and a live
+              camera that leads somewhere that refuses the photo is worse still — so it stays
+              where it was and answers when tapped.
             */}
-            {outOfFilm ? (
+            {cameraOff ? (
               <button
                 type="button"
                 aria-disabled="true"
                 aria-label="Take a photo"
-                onClick={() => setNotice("That’s all your shots for this roll.")}
-                className="flex h-14 flex-1 items-center justify-center rounded-full bg-surface text-dust/60"
+                onClick={() => setNotice(cameraOff)}
+                className={cn(tile, "bg-surface text-dust/60")}
               >
-                <Camera className="h-6 w-6" />
+                <Camera className="h-5 w-5" />
+                Camera
               </button>
             ) : onCamera ? (
               <button
                 type="button"
                 onClick={onCamera}
                 aria-label="Take a photo"
-                className="flex h-14 flex-1 items-center justify-center rounded-full bg-chalk text-void transition-colors hover:bg-white"
+                className={cn(tile, "bg-flame text-void")}
               >
-                <Camera className="h-6 w-6" />
+                <Camera className="h-5 w-5" />
+                Camera
               </button>
             ) : cameraHref ? (
               <Link
                 href={cameraHref}
                 aria-label="Take a photo"
-                className="flex h-14 flex-1 items-center justify-center rounded-full bg-chalk text-void transition-colors hover:bg-white"
+                className={cn(tile, "bg-flame text-void")}
               >
-                <Camera className="h-6 w-6" />
+                <Camera className="h-5 w-5" />
+                Camera
               </Link>
             ) : null}
 
@@ -139,23 +164,12 @@ export function RollControls({
               <Link
                 href={inviteHref}
                 aria-label="Invite guests"
-                className="flex h-14 w-14 items-center justify-center rounded-2xl bg-surface text-chalk transition-colors hover:text-flame"
+                className={cn(tile, "bg-surface text-chalk transition-colors hover:text-flame")}
               >
                 <Qr className="h-5 w-5" />
+                Invite
               </Link>
             ) : null}
-
-            {/* Nothing to download until the reveal. It was a bare span, so the one dead
-                control that said nothing sat right beside the one that did. */}
-            <button
-              type="button"
-              aria-disabled="true"
-              aria-label="Download album"
-              onClick={() => setNotice("The album can be saved once the roll is revealed.")}
-              className="flex h-14 w-14 items-center justify-center rounded-2xl bg-surface text-dust/50"
-            >
-              <Download className="h-5 w-5" />
-            </button>
           </>
         )}
       </div>
@@ -184,8 +198,7 @@ function Control({
   /** Takes the event so a control can refuse the navigation it would otherwise start. */
   onClick?: (event: React.MouseEvent) => void;
 }) {
-  const className =
-    "flex h-14 flex-1 items-center justify-center gap-2.5 rounded-2xl bg-surface text-[15px] text-chalk transition-colors hover:text-flame";
+  const className = cn(tile, "bg-surface text-chalk transition-colors hover:text-flame");
 
   // An API route serves a file, not a page. A client-side navigation would try to render the
   // ZIP as one, so the download leaves through a plain anchor.
@@ -208,7 +221,7 @@ function Control({
 
 export function VisibilityNotice() {
   return (
-    <div className="flex h-14 items-center justify-center gap-2.5 rounded-2xl bg-surface text-[14px] text-dust">
+    <div className="flex items-center justify-center gap-2.5 border-y border-hair py-3.5 text-[13px] text-dust">
       <Lock className="h-4 w-4" />
       Only the host can see everyone&rsquo;s photos
     </div>

@@ -100,7 +100,7 @@ export function PhotoGrid({
               </span>
             ) : null}
 
-            <span className="absolute bottom-3 left-3 text-[15px] text-chalk italic drop-shadow">
+            <span className="marking absolute bottom-3 left-3 text-chalk/90 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">
               {photo.by}
             </span>
           </button>

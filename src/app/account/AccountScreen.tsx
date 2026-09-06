@@ -11,23 +11,30 @@ import { SettingRow } from "@/components/roll/SettingRow";
 
 import { deleteAccountAction, logoutAction, updateNameAction } from "./actions";
 
+/** The two red rows, which are the same shape as a `SettingRow` but act rather than lead. */
+const danger =
+  "flex h-14 w-full items-center gap-3.5 border-b border-hair-bright/60 text-left text-[15px] text-danger last:border-b-0";
+
 /**
- * Two things from the reference are missing on purpose.
+ * Your own screen.
  *
- * "Website" sat next to Instagram under SOCIALS — pointless for us, because the thing it
- * would link to is the page you are already on. And the whole PARTNER section, whose only
- * row was "Have a discount code?", is gone: there are no codes any more — access hangs on
- * the address you signed in with, so there is nothing here for anyone to type.
+ * It opens on the person rather than on the word "Settings" over a white circle of initials,
+ * and the rows below are separated by hairlines rather than each being its own filled tile —
+ * which is what this app's own first design rule asks for and what the version copied from
+ * the reference was ignoring.
+ *
+ * Two of the reference's sections never existed here. "Website" sat next to Instagram —
+ * pointless for us, because the thing it would link to is the page you are already on. And
+ * the PARTNER section, whose only row was "Have a discount code?", has nothing to hold:
+ * access hangs on the address you signed in with, so there is nothing for anyone to type.
  */
 export function AccountScreen({
   name: initialName,
   email,
-  initials,
   isAdmin,
 }: {
   name: string;
   email: string;
-  initials: string;
   isAdmin: boolean;
 }) {
   const [name, setName] = useState(initialName);
@@ -45,15 +52,13 @@ export function AccountScreen({
   return (
     <div className="flex h-dvh flex-col">
       <div className="flex-1 overflow-y-auto px-5 pt-[calc(var(--safe-top)+2rem)] pb-6">
-        <h1 className="display text-[30px] text-chalk">Settings</h1>
-
-        <section className="mt-6">
-          <p className="marking">Info</p>
-          <div className="mt-3 flex items-center gap-4">
-            <span className="display-md flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-chalk text-[20px] text-void">
-              {initials}
-            </span>
-
+        {/*
+          The person is the heading, not the word "Settings" over a white circle holding their
+          initials. This screen is reached from a tab called You: it should open with who you
+          are, at the size everything else on this app gives to the thing it is about.
+        */}
+        <section>
+          <div className="flex items-start gap-4">
             {editing ? (
               /* A real form, so the phone keyboard's Go key submits it — and a way back out,
                  which a field whose only exit was Save did not have. */
@@ -92,21 +97,22 @@ export function AccountScreen({
               <button
                 type="button"
                 onClick={() => setEditing(true)}
-                className="flex h-16 flex-1 items-center justify-between rounded-2xl bg-surface px-4 text-left transition-colors hover:text-flame"
+                aria-label="Edit your name"
+                className="group flex flex-1 items-start justify-between gap-4 text-left"
               >
-                <span>
-                  <span className="block text-[16px] text-chalk">{name}</span>
-                  <span className="block text-[13px] text-dust">{email}</span>
+                <span className="min-w-0">
+                  <span className="display block truncate text-[32px] text-chalk">{name}</span>
+                  <span className="mt-1 block truncate text-[14px] text-dust">{email}</span>
                 </span>
-                <Pencil className="h-4 w-4 text-dust" />
+                <Pencil className="mt-2.5 h-5 w-5 shrink-0 text-dust transition-colors group-hover:text-flame" />
               </button>
             )}
           </div>
         </section>
 
-        <section className="mt-8 border-t border-hair pt-6">
-          <p className="marking">Socials</p>
-          <div className="mt-3 space-y-2.5">
+        <section className="mt-10">
+          <p className="marking">Support</p>
+          <div className="mt-1">
             <SettingRow
               icon={<Instagram className="h-5 w-5" />}
               label="Instagram"
@@ -114,16 +120,16 @@ export function AccountScreen({
             />
             <SettingRow
               icon={<Mail className="h-5 w-5" />}
-              label="Contact Support"
+              label="Contact support"
               href="mailto:hello@memovue.com"
             />
           </div>
         </section>
 
         {isAdmin ? (
-          <section className="mt-8 border-t border-hair pt-6">
+          <section className="mt-9">
             <p className="marking">Admin</p>
-            <div className="mt-3">
+            <div className="mt-1">
               <SettingRow
                 icon={<Pencil className="h-5 w-5" />}
                 label="Beta access"
@@ -133,25 +139,21 @@ export function AccountScreen({
           </section>
         ) : null}
 
-        <section className="mt-8 border-t border-hair pt-6">
+        <section className="mt-9">
           <p className="marking">Account</p>
-          <div className="mt-3 space-y-2.5">
+          <div className="mt-1">
             <button
               type="button"
               onClick={() => startTransition(() => void logoutAction())}
-              className="flex h-14 w-full items-center gap-3 rounded-2xl bg-surface px-3.5 text-left text-[15px] text-danger transition-colors"
+              className={danger}
             >
               <Logout className="h-5 w-5" />
-              Logout
+              Log out
             </button>
 
-            <button
-              type="button"
-              onClick={() => setConfirming(true)}
-              className="flex h-14 w-full items-center gap-3 rounded-2xl bg-surface px-3.5 text-left text-[15px] text-danger transition-colors"
-            >
+            <button type="button" onClick={() => setConfirming(true)} className={danger}>
               <Trash className="h-5 w-5" />
-              Delete Account
+              Delete account
             </button>
           </div>
         </section>

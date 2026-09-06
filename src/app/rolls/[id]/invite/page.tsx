@@ -31,7 +31,6 @@ export default async function InvitePage({ params }: PageProps<"/rolls/[id]/invi
       <Sheet
         back={`/rolls/${roll.id}`}
         title="Invite guests to your roll."
-        subtitle="Take a glimpse of your world through their lens. Invite your guests to make this roll unforgettable."
       >
         <div className="mt-5 border-t border-hair pt-6">
           {/* A real, scannable code — unlike the prototype's placeholder, this one has
@@ -55,7 +54,7 @@ export default async function InvitePage({ params }: PageProps<"/rolls/[id]/invi
             className="px-3 text-[14px]"
           >
             <Download className="h-4 w-4" />
-            Save QR image
+            Save QR
           </PillLink>
         </div>
       </Sheet>

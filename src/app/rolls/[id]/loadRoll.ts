@@ -85,7 +85,7 @@ export async function loadRoll(
     take > 0
       ? await prisma.photo.findMany({
           where: { rollId: found.id, status: "READY" },
-          orderBy: { takenAt: "desc" },
+          orderBy: [{ takenAt: "desc" }, { id: "desc" }],
           take: take + 1,
           select: {
             id: true,
@@ -121,6 +121,7 @@ export async function loadRoll(
       finishesAt: found.finishesAt,
       revealAt: found.revealAt,
       revealMode: found.revealMode,
+      revealDelayHours: found.revealDelayHours,
       revealedEarly: found.revealedEarly,
       everyoneCanSee: found.everyoneCanSee,
       keptUntil: found.keptUntil,

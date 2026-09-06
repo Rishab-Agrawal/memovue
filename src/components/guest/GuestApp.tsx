@@ -14,6 +14,8 @@ interface GuestAppProps {
   code: string;
   rollName: string;
   shotsLeft: number;
+  /** The roll's film allowance per guest, which the counter reads as a fraction. */
+  shotsTotal: number;
   /** When the shutter closes, in epoch milliseconds. */
   finishesAt: number;
   /**
@@ -38,6 +40,7 @@ export function GuestApp({
   code,
   rollName,
   shotsLeft: initialShots,
+  shotsTotal,
   finishesAt,
   home,
   latestBlur,
@@ -97,6 +100,7 @@ export function GuestApp({
       <div className="h-full pt-[var(--safe-top)] pb-[var(--safe-bottom)]">
         <CameraView
           shotsLeft={shotsLeft}
+          shotsTotal={shotsTotal}
           closed={closed}
           onCaptured={handleCaptured}
           latestThumb={latestThumb}

@@ -6,7 +6,6 @@ import { cn } from "@/lib/cn";
 import { type ProcessedPhoto, processCapture } from "@/lib/image";
 
 import { Pill } from "@/components/roll/Chrome";
-import { Counter } from "@/components/roll/Counter";
 import { Flash, FlashOff, Flip } from "@/components/roll/Icons";
 
 type Facing = "environment" | "user";
@@ -19,6 +18,8 @@ const FLIGHT_MS = 420;
 
 interface CameraViewProps {
   shotsLeft: number;
+  /** This guest's whole quota, so the rule under the figure has something to be a fraction of. */
+  shotsTotal: number;
   /**
    * The roll has ended. Separate from being out of film, because it is a different fact about
    * a different thing and the two want different words on the screen.
@@ -43,6 +44,7 @@ interface CameraViewProps {
  */
 export function CameraView({
   shotsLeft,
+  shotsTotal,
   closed = false,
   onCaptured,
   onLeave,
@@ -296,7 +298,31 @@ export function CameraView({
       </div>
 
       <div className="flex items-center justify-between px-6 pt-6 pb-8">
-        <Counter value={shotsLeft} />
+        {/*
+          What is left, stated. This was a mechanical frame dial with the neighbouring numbers
+          half-visible either side, which is a lovely object and the wrong one: on a phone in a
+          dark room the number you need is the smallest thing in the widget, wrapped in two
+          numbers that are not true. Here the figure is the whole control, and the rule under
+          it carries the part the dial was really for — the sense that the film is running out.
+        */}
+        <div className="w-[72px]">
+          <p
+            className="tabular text-[38px] leading-none font-medium text-chalk"
+            data-testid="shots-left"
+          >
+            {shotsLeft}
+          </p>
+          <p className="marking mt-1.5 text-dust">Left</p>
+          <span
+            aria-hidden="true"
+            className="mt-2 block h-0.5 w-full overflow-hidden rounded-full bg-hair-bright"
+          >
+            <span
+              className="block h-full bg-flame transition-[width] duration-500 ease-[var(--ease-out-soft)]"
+              style={{ width: `${shotsTotal > 0 ? (shotsLeft / shotsTotal) * 100 : 0}%` }}
+            />
+          </span>
+        </div>
 
         {/*
           Disabled until the stream is actually live.

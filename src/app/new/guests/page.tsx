@@ -6,13 +6,9 @@ import { useState, useTransition } from "react";
 import { cn } from "@/lib/cn";
 
 import { BetaGate } from "@/components/roll/BetaGate";
-import { Pill } from "@/components/roll/Chrome";
-import { Counter } from "@/components/roll/Counter";
+import { Pill, StepButton } from "@/components/roll/Chrome";
 import { Dialog } from "@/components/roll/Dialog";
-import { Person } from "@/components/roll/Icons";
-import { Plate } from "@/components/roll/Plate";
 import { ShareLink } from "@/components/roll/ShareLink";
-import { FRAMES } from "@/lib/imagery";
 import { Toggle } from "@/components/roll/Toggle";
 import { WizardShell } from "@/components/roll/WizardShell";
 import { uploadCover } from "@/lib/cover-upload";
@@ -28,6 +24,15 @@ import {
 
 import { createRollAction } from "../actions";
 import { draftToInput, forgetDraft, useDraft } from "../DraftContext";
+
+/**
+ * The highest tier the stepper will climb to today.
+ *
+ * Read off `shotsAvailable` rather than hardcoded, and taken as the last index that passes
+ * rather than a count of them, so it stays right if the tier that is held back ever stops
+ * being the last one in the list.
+ */
+const SHOT_MAX = SHOT_TIERS.reduce((max, shots, index) => (shotsAvailable(shots) ? index : max), 0);
 
 export default function StepGuests() {
   const { draft, update, hostName } = useDraft();
@@ -84,10 +89,9 @@ export default function StepGuests() {
   return (
     <>
       <WizardShell
-        step={6}
+        step={5}
         title="How many guests for your roll?"
-        subtitle="Make sure all guests have a chance to take the most amazing photo from your event."
-        back="/new/card"
+        back="/new/reveal"
         next={{
           label: pending ? "Creating…" : "Create →",
           href: "/new/guests",
@@ -95,13 +99,20 @@ export default function StepGuests() {
         }}
         onNext={create}
       >
-        <div className="flex items-start justify-between gap-4">
-          <p className="display-md text-[26px] text-chalk">
-            Up to
-            <br />
-            {PARTICIPANT_TIERS[draft.participantIndex]} Participants
-          </p>
-          <div className="shrink-0 pt-2 text-right" data-testid="price">
+        {/*
+          One drag across six tiers rather than six separate taps at six separate targets. A
+          native range gives the keyboard and the screen reader their own way through it for
+          nothing, which a row of buttons pretending to be one control never had.
+        */}
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <p className="marking">Up to</p>
+            <p className="display tabular mt-1 text-[48px] text-chalk">
+              {PARTICIPANT_TIERS[draft.participantIndex]}
+            </p>
+            <p className="mt-0.5 text-[14px] text-ash">participants</p>
+          </div>
+          <div className="shrink-0 text-right" data-testid="price">
             <p className={cn("text-[15px] text-dust", BETA && "line-through")}>
               {formatPrice(price)}
             </p>
@@ -109,63 +120,67 @@ export default function StepGuests() {
           </div>
         </div>
 
-        <div className="mt-5 grid grid-cols-6 gap-1.5">
-          {PARTICIPANT_TIERS.map((cap, index) => {
-            const filled = index <= draft.participantIndex;
-            return (
-              <button
-                key={cap}
-                type="button"
-                aria-label={`Up to ${cap} participants`}
-                aria-pressed={index === draft.participantIndex}
-                onClick={() => update({ participantIndex: index })}
-                className={cn(
-                  "flex h-12 items-center justify-center rounded-2xl border transition-colors",
-                  filled ? "border-flame bg-flame/10 text-flame" : "border-hair-bright text-dust",
-                )}
-              >
-                {index === draft.participantIndex ? <Person className="h-4 w-4" /> : null}
-              </button>
-            );
-          })}
+        <input
+          type="range"
+          className="film-slider mt-3"
+          min={0}
+          max={PARTICIPANT_TIERS.length - 1}
+          step={1}
+          value={draft.participantIndex}
+          aria-label="Participant limit"
+          aria-valuetext={`Up to ${PARTICIPANT_TIERS[draft.participantIndex]} participants`}
+          onChange={(event) => update({ participantIndex: Number(event.target.value) })}
+        />
+
+        {/* `justify-between`, not six columns: a thumb travels between its own half-widths,
+            so evenly-spaced column centres would sit off the ends it actually reaches. */}
+        <div aria-hidden="true" className="flex justify-between px-0.5">
+          {PARTICIPANT_TIERS.map((cap, index) => (
+            <span
+              key={cap}
+              className={cn(
+                "tabular text-[12px]",
+                index === draft.participantIndex ? "text-flame" : "text-dust",
+              )}
+            >
+              {cap}
+            </span>
+          ))}
         </div>
 
         <div className="mt-7 border-t border-hair pt-6">
           <p className="marking">Shots per person</p>
 
-          <div className="mt-4 flex items-center justify-between rounded-b-[3rem] border border-t-0 border-hair-bright px-4 pt-2 pb-6">
-            <Counter value={SHOT_TIERS[draft.shotIndex]} />
-            <span className="h-[76px] w-[76px] rounded-full border-4 border-chalk bg-chalk/10" />
-            <div className="flex w-24 justify-end">
-              <Plate photo={FRAMES[2]} className="h-14 w-10 -rotate-8 rounded-lg ring-1 ring-void" />
-              <Plate photo={FRAMES[3]} className="-ml-3 h-14 w-10 rotate-8 rounded-lg ring-1 ring-void" />
-            </div>
-          </div>
+          {/*
+            A stepper, not a second slider. The two numbers on this screen are chosen the same
+            way if both are sliders, and the screen stops saying that they are different kinds
+            of decision — the guest list is a range you sweep, the film is a count you land on.
+          */}
+          <div className="mt-5 flex items-center justify-center gap-8">
+            <StepButton
+              label="Fewer shots"
+              glyph="−"
+              disabled={draft.shotIndex === 0}
+              onClick={() => update({ shotIndex: draft.shotIndex - 1 })}
+            />
 
-          <div className="mt-4 grid grid-cols-6 gap-2">
-            {SHOT_TIERS.map((shots, index) => {
-              const locked = !shotsAvailable(shots);
-              return (
-                <button
-                  key={shots}
-                  type="button"
-                  disabled={locked}
-                  aria-pressed={index === draft.shotIndex}
-                  aria-label={locked ? `${shots} shots, not available in beta` : `${shots} shots`}
-                  onClick={() => update({ shotIndex: index })}
-                  className={cn(
-                    "tabular flex h-12 items-center justify-center rounded-2xl text-[15px] transition-colors",
-                    locked
-                      ? "bg-surface text-dust/40 line-through"
-                      : index === draft.shotIndex
-                        ? "border border-flame text-flame"
-                        : "bg-surface text-chalk hover:text-flame",
-                  )}
-                >
-                  {shots}
-                </button>
-              );
-            })}
+            <div className="text-center">
+              <p
+                aria-live="polite"
+                className="display tabular text-[52px] leading-none text-chalk"
+                data-testid="shots-tier"
+              >
+                {SHOT_TIERS[draft.shotIndex]}
+              </p>
+              <p className="marking mt-2">shots each</p>
+            </div>
+
+            <StepButton
+              label="More shots"
+              glyph="+"
+              disabled={draft.shotIndex >= SHOT_MAX}
+              onClick={() => update({ shotIndex: draft.shotIndex + 1 })}
+            />
           </div>
         </div>
 

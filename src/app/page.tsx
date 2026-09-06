@@ -128,7 +128,7 @@ export default function MarketingHome() {
                     <div className="relative aspect-[4/5] overflow-hidden rounded-xl shadow-[0_24px_48px_rgba(0,0,0,0.6)] ring-1 ring-hair-bright">
                       <Plate photo={print.photo} className="absolute inset-0" />
                       <figcaption
-                        className={`absolute left-3 text-[13px] text-chalk/85 italic drop-shadow ${
+                        className={`marking absolute left-3 text-chalk/85 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)] ${
                           index === HERO.length - 1 ? "bottom-2" : "top-2"
                         }`}
                       >
