@@ -24,9 +24,9 @@ export const SAMPLE_ALBUM = {
     the one thing a shared roll never looks like.
   */
   photos: [
-    { id: "sample-dance", by: "Meera", src: "/frames/wedding-dance.jpg" },
-    { id: "sample-toast", by: "Meera", src: "/frames/wedding-toast.jpg" },
     { id: "sample-walk", by: "Kabir", src: "/frames/wedding-walk.jpg" },
+    { id: "sample-toast", by: "Meera", src: "/frames/wedding-toast.jpg" },
+    { id: "sample-dance", by: "Meera", src: "/frames/wedding-dance.jpg" },
   ],
 };
 
