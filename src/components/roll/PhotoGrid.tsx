@@ -32,7 +32,8 @@ export function PhotoGrid({
   sealed,
   revealsIn,
 }: {
-  rollId: string;
+  /** Absent on the sample album: nobody hosts it, so there is nothing to take out of it. */
+  rollId?: string;
   photos: GridPhoto[];
   sealed: boolean;
   revealsIn: string;
@@ -48,15 +49,17 @@ export function PhotoGrid({
    * through. On success the viewer closes and the page reloads: the list is the server's, and
    * refreshing it is cheaper than keeping a second copy in sync with it.
    */
-  const remove = async (photo: ViewerPhoto) => {
-    const result = await deletePhotoAction(rollId, photo.id);
-    if (!result.ok) {
-      window.alert(result.error);
-      return;
-    }
-    setViewing(null);
-    router.refresh();
-  };
+  const remove = rollId
+    ? async (photo: ViewerPhoto) => {
+        const result = await deletePhotoAction(rollId, photo.id);
+        if (!result.ok) {
+          window.alert(result.error);
+          return;
+        }
+        setViewing(null);
+        router.refresh();
+      }
+    : undefined;
 
   const openable: ViewerPhoto[] = sealed
     ? []

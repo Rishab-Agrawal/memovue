@@ -6,6 +6,7 @@ import { Person } from "@/components/roll/Icons";
 import { cn } from "@/lib/cn";
 import { formatRange } from "@/lib/format";
 import { type RollCard, coverUrlsFor, listRollsForUser } from "@/lib/rolls";
+import { SAMPLE_ALBUM, SAMPLE_PHOTOS } from "@/lib/sample-album";
 import { requireHost } from "@/lib/session";
 
 export const metadata = { title: "Albums" };
@@ -36,39 +37,49 @@ export default async function AlbumsPage() {
         <h1 className="display text-[30px] text-chalk">Albums</h1>
         <p className="mt-2 text-[14px] text-dust">
           {albums.length === 0
-            ? "Nothing has closed yet."
+            ? "Nothing of yours has closed yet. A roll becomes an album the moment it stops shooting — here is one to look through."
             : `${albums.length} ${albums.length === 1 ? "roll" : "rolls"}, finished`}
         </p>
 
-        {albums.length === 0 ? (
-          /* No button. The only thing it could offer is Home, which is already in the bar
-             two inches below it. */
-          <p className="mx-auto max-w-[17rem] py-24 text-center text-[14px] leading-relaxed text-ash">
-            A roll becomes an album the moment it stops shooting. Yours and the ones you were
-            invited to both land here.
-          </p>
-        ) : (
-          <div className="mt-6 grid grid-cols-2 gap-x-3 gap-y-6">
-            {albums.map((roll) => (
-              <Link key={roll.id} href={destination(roll)} className="block">
-                <Mosaic roll={roll} coverUrl={covers.get(roll.id)} />
+        <div className="mt-6 grid grid-cols-2 gap-x-3 gap-y-6">
+          {albums.map((roll) => (
+            <Link key={roll.id} href={destination(roll)} className="block">
+              <Mosaic roll={roll} coverUrl={covers.get(roll.id)} />
 
-                <p className="display-sm mt-2.5 line-clamp-2 text-[15px] text-chalk">
-                  {roll.name}
+              <p className="display-sm mt-2.5 line-clamp-2 text-[15px] text-chalk">
+                {roll.name}
+              </p>
+              <p className="tabular mt-0.5 text-[12px] text-dust">
+                {formatRange(roll.startsAt, roll.finishesAt)}
+              </p>
+              {roll.invitedBy ? (
+                <p className="mt-1 flex items-center gap-1 text-[12px] text-dust">
+                  <Person className="h-3 w-3 shrink-0" />
+                  <span className="truncate">{roll.invitedBy}</span>
                 </p>
-                <p className="tabular mt-0.5 text-[12px] text-dust">
-                  {formatRange(roll.startsAt, roll.finishesAt)}
-                </p>
-                {roll.invitedBy ? (
-                  <p className="mt-1 flex items-center gap-1 text-[12px] text-dust">
-                    <Person className="h-3 w-3 shrink-0" />
-                    <span className="truncate">{roll.invitedBy}</span>
-                  </p>
-                ) : null}
-              </Link>
-            ))}
-          </div>
-        )}
+              ) : null}
+            </Link>
+          ))}
+
+          {/*
+            Last, and labelled. It is somebody else's evening — an empty tab explaining an
+            album in a paragraph teaches less than one tile you can open, and a host with
+            albums of their own still gets theirs first.
+          */}
+          <Link href={SAMPLE_ALBUM.href} className="block">
+            <Mosaic
+              roll={{ thumbs: SAMPLE_PHOTOS.map((photo) => photo.url), coverPreset: 1 }}
+            />
+
+            <p className="display-sm mt-2.5 line-clamp-2 text-[15px] text-chalk">
+              {SAMPLE_ALBUM.name}
+            </p>
+            <p className="tabular mt-0.5 text-[12px] text-dust">
+              {formatRange(SAMPLE_ALBUM.startsAt, SAMPLE_ALBUM.finishesAt)}
+            </p>
+            <p className="mt-1 text-[12px] text-ash">Sample</p>
+          </Link>
+        </div>
       </div>
 
       <BottomNav current="albums" />
@@ -83,7 +94,14 @@ export default async function AlbumsPage() {
  * back to the cover the host chose rather than to stock photography, which would tell them
  * their guests' pictures had loaded when they had not.
  */
-function Mosaic({ roll, coverUrl }: { roll: RollCard; coverUrl?: string | null }) {
+function Mosaic({
+  roll,
+  coverUrl,
+}: {
+  /** Only the two fields a tile draws, so the sample can be one without being a roll. */
+  roll: Pick<RollCard, "thumbs" | "coverPreset">;
+  coverUrl?: string | null;
+}) {
   if (roll.thumbs.length === 0) {
     return (
       <Cover
