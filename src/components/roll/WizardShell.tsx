@@ -1,6 +1,10 @@
+"use client";
+
+import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { BackButton, Pill, PillLink } from "@/components/roll/Chrome";
+import { forgetDraft } from "@/app/new/DraftContext";
 
 export const WIZARD_STEPS = 5;
 
@@ -9,8 +13,13 @@ export const WIZARD_STEPS = 5;
  *
  * Progress is a rule that fills and a counter that says `03 / 05`, not five dots — dots tell
  * you there are five of something without telling you which one you are on until you count
- * them. And the way forward is a full-width button at the thumb rather than a small pill in
- * the bottom-right corner, which is the hardest place on a phone to reach one-handed.
+ * them. And the way forward is a button at the thumb rather than a small pill in the
+ * bottom-right corner, which is the hardest place on a phone to reach one-handed.
+ *
+ * Beside it, the way out. The back button in the corner steps one screen at a time, so
+ * abandoning a roll from step five meant five taps at the far end of the phone from the hand
+ * holding it. Cancel is the same journey in one, and it asks first — five steps of work is
+ * too much to lose to a mis-tap next to the button you meant to press.
  *
  * Note there is still no Skip anywhere. The reference offers one on its date screen; skipping
  * the date would leave a roll with no window to shoot in, which is not a state worth allowing.
@@ -34,7 +43,16 @@ export function WizardShell({
   onNext?: () => void;
   children: ReactNode;
 }) {
+  const router = useRouter();
   const pad = (n: number) => String(n).padStart(2, "0");
+
+  const cancel = () => {
+    if (!window.confirm("Discard this roll? Nothing you've picked will be kept.")) return;
+    // The draft outlives the page it was typed on, so leaving without clearing it would seed
+    // the next roll somebody starts with the one they just abandoned.
+    forgetDraft();
+    router.push("/rolls");
+  };
 
   return (
     <div className="pad-safe-top flex min-h-dvh flex-col px-5 pb-[calc(var(--safe-bottom)+1.25rem)]">
@@ -71,7 +89,12 @@ export function WizardShell({
           come adrift rather than as breathing room. */}
       <div className="flex-1 pt-7">{children}</div>
 
-      <div className="pt-6">
+      {/* Equal halves. The forward action keeps the right — the side the thumb of a
+          right-handed grip lands on, and the side the step counter reads towards. */}
+      <div className="grid grid-cols-2 gap-3 pt-6">
+        <Pill variant="quiet" full className="h-14" onClick={cancel}>
+          Cancel
+        </Pill>
         {onNext ? (
           <Pill variant="flame" full className="h-14" onClick={onNext} disabled={next.inert}>
             {next.label}

@@ -53,7 +53,7 @@ export default function StepName() {
   return (
     <WizardShell
       step={1}
-      title="Name your event and choose a cover."
+      title="Roll name and cover"
       back="/rolls"
       next={{ label: "Next →", href: "/new/start", inert: !draft.name.trim() }}
     >

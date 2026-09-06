@@ -6,11 +6,12 @@ import { redirect } from "next/navigation";
 import {
   deleteRoll,
   deleteRollPhoto,
-  raiseGuestCap,
   removeGuest,
+  setRollSize,
   updateRollFinish,
   updateRollInfo,
   updateRollReveal,
+  updateRollStart,
   updateRollVisibility,
 } from "@/lib/rolls";
 import { rateLimit } from "@/lib/ratelimit";
@@ -19,6 +20,8 @@ import {
   editFinishSchema,
   editRevealSchema,
   editRollSchema,
+  editSizeSchema,
+  editStartSchema,
   fieldErrors,
 } from "@/lib/validation";
 
@@ -89,14 +92,46 @@ export async function updateFinishAction(
   return { ok: true };
 }
 
-/** One more tier of guests, for a roll that filled up while people were still arriving. */
-export async function raiseCapAction(rollId: string): Promise<ActionResult> {
+/** A different opening time, for a roll whose event has not begun. */
+export async function updateStartAction(rollId: string, startsAt: string): Promise<ActionResult> {
   const user = await requireHost();
   const over = overWriteBudget(user.id);
   if (over) return over;
 
-  const raised = await raiseGuestCap(rollId, user.id);
-  if (raised === null) return { ok: false, error: "This roll is already at the largest size." };
+  const parsed = editStartSchema.safeParse({ startsAt });
+  if (!parsed.success) {
+    return { ok: false, error: Object.values(fieldErrors(parsed.error))[0] ?? "Invalid" };
+  }
+
+  const moved = await updateRollStart(rollId, user.id, new Date(parsed.data.startsAt));
+  if (!moved) return { ok: false, error: "This roll has already started." };
+
+  revalidatePath(`/rolls/${rollId}`);
+  return { ok: true };
+}
+
+/**
+ * More guests, or more film each — for a roll that filled up while people were still arriving,
+ * or ran out of shots halfway through the evening.
+ */
+export async function setSizeAction(
+  rollId: string,
+  next: { maxGuests?: number; photosPerGuest?: number },
+): Promise<ActionResult> {
+  const user = await requireHost();
+  const over = overWriteBudget(user.id);
+  if (over) return over;
+
+  const parsed = editSizeSchema.safeParse(next);
+  if (!parsed.success) {
+    return { ok: false, error: Object.values(fieldErrors(parsed.error))[0] ?? "Invalid" };
+  }
+
+  const result = await setRollSize(rollId, user.id, parsed.data);
+  if (result === "not-found") return { ok: false, error: "This roll is no longer there." };
+  if (result === "below-joined") {
+    return { ok: false, error: "More people than that have already joined this roll." };
+  }
 
   revalidatePath(`/rolls/${rollId}`);
   return { ok: true };

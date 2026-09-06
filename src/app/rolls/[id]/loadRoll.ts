@@ -128,6 +128,7 @@ export async function loadRoll(
       photoCount: found._count.photos,
       guestCount: found._count.guests,
       maxGuests: found.maxGuests,
+      photosPerGuest: found.photosPerGuest,
       shotsLeft,
       downloadsLeft: Math.max(0, ZIP_DOWNLOAD_LIMIT - found.downloads),
     },

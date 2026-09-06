@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 
+import { ArrowLeft, Close, Gear } from "@/components/roll/Icons";
 import { cn } from "@/lib/cn";
 
 /**
@@ -8,6 +9,17 @@ import { cn } from "@/lib/cn";
  * and filled, unlike the rest of MemoVue — on these screens the reference's geometry wins and
  * only the palette and typeface are ours.
  */
+
+/**
+ * Both chrome buttons are the same square, so the square is written once. A typed "←" sat on
+ * the font's baseline rather than on the middle of its button and changed shape per platform;
+ * these are drawn, so they are centred by geometry and thin like everything else here.
+ */
+const chromeButton =
+  "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-surface text-chalk " +
+  "transition-[color,background-color,transform] duration-150 hover:bg-hair-bright hover:text-flame " +
+  "active:scale-[0.94] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 " +
+  "focus-visible:outline-flame";
 
 export function BackButton({
   href,
@@ -24,9 +36,9 @@ export function BackButton({
       href={href}
       onNavigate={onNavigate}
       aria-label={label}
-      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-surface text-[20px] text-chalk transition-colors hover:text-flame"
+      className={chromeButton}
     >
-      ←
+      <ArrowLeft className="h-[18px] w-[18px]" />
     </Link>
   );
 }
@@ -36,9 +48,18 @@ export function CloseButton({ href, label = "Close" }: { href: string; label?: s
     <Link
       href={href}
       aria-label={label}
-      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-surface text-[18px] text-chalk transition-colors hover:text-flame"
+      className={chromeButton}
     >
-      ✕
+      <Close className="h-4 w-4" />
+    </Link>
+  );
+}
+
+/** The other half of a roll's top row, so it matches the back button rather than resembling it. */
+export function SettingsButton({ href, label = "Roll settings" }: { href: string; label?: string }) {
+  return (
+    <Link href={href} aria-label={label} className={chromeButton}>
+      <Gear className="h-[18px] w-[18px]" />
     </Link>
   );
 }
@@ -51,11 +72,14 @@ export function CloseButton({ href, label = "Close" }: { href: string; label?: s
 export function StepButton({
   label,
   glyph,
+  small,
   disabled,
   onClick,
 }: {
   label: string;
   glyph: string;
+  /** For a stepper that has to fit inside a settings row rather than carry a screen. */
+  small?: boolean;
   disabled?: boolean;
   onClick: () => void;
 }) {
@@ -65,7 +89,10 @@ export function StepButton({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="flex h-13 w-13 shrink-0 items-center justify-center rounded-full border border-hair-bright text-[24px] text-chalk transition-colors hover:border-flame hover:text-flame disabled:pointer-events-none disabled:opacity-25"
+      className={cn(
+        "flex shrink-0 items-center justify-center rounded-full border border-hair-bright text-chalk transition-colors hover:border-flame hover:text-flame disabled:pointer-events-none disabled:opacity-25",
+        small ? "h-8 w-8 text-[17px]" : "h-13 w-13 text-[24px]",
+      )}
     >
       {glyph}
     </button>

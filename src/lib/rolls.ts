@@ -6,7 +6,7 @@ import { type Account, refundRoll, spendRoll } from "./beta";
 import { rollCode } from "./codes";
 import { prisma } from "./prisma";
 import { computeKeptUntil, computeRevealAt, isOpen, visiblePhotoWhere } from "./roll-access";
-import { PARTICIPANT_TIERS, clampFinish, earliestFinish } from "./roll-config";
+import { clampFinish, earliestFinish, movedStart } from "./roll-config";
 import { purgeRoll } from "./retention";
 import { coverKey, deleteObjects, publicUrl, storageConfigured, zipKey } from "./storage";
 
@@ -352,28 +352,81 @@ export async function updateRollFinish(
   return true;
 }
 
+/* ------------------------------------------------------------------ moving the start */
+
 /**
- * The next participant tier up, for a roll that has filled.
+ * A new opening time, for a roll whose event has not begun.
  *
- * A cap reached mid-event turns people away at the door with no way for the host to fix it,
- * which is the worst failure this product has at the worst possible moment. One step per tap
- * rather than a picker: the tiers are the price list, and stepping is the whole interaction.
+ * `movedStart` is the whole rule — window, floor and ceiling — and the settings screen asks
+ * it the same question to show what a move would do, so the preview and the write cannot
+ * disagree. What is left here is the consequences: everything hanging off the close moves
+ * with it, exactly as `updateRollFinish` moves them.
+ */
+export async function updateRollStart(
+  id: string,
+  hostId: string,
+  startsAt: Date,
+): Promise<boolean> {
+  const roll = await prisma.roll.findFirst({
+    where: { id, hostId },
+    select: {
+      startsAt: true,
+      finishesAt: true,
+      revealMode: true,
+      revealDelayHours: true,
+    },
+  });
+  if (!roll) return false;
+
+  const moved = movedStart(roll, startsAt);
+  if (!moved) return false;
+
+  await prisma.roll.update({
+    where: { id },
+    data: {
+      startsAt: moved.startsAt,
+      finishesAt: moved.finishesAt,
+      revealAt: computeRevealAt(moved.finishesAt, roll.revealMode, roll.revealDelayHours),
+      keptUntil: computeKeptUntil(moved.finishesAt),
+      warnedAt: null,
+    },
+  });
+  return true;
+}
+
+/* ------------------------------------------------------------------ how big a roll is */
+
+export type SizeResult = "ok" | "not-found" | "below-joined";
+
+/**
+ * How many people a roll holds, and how much film each of them gets.
+ *
+ * Both were fixed at creation, which is the worst moment to fix them: a cap reached mid-event
+ * turns people away at the door, and a host who guessed low on shots watched an evening run
+ * out of film with no lever at all. Either can move in either direction — except below the
+ * number of guests already standing in the roll, which would be a limit that removes people
+ * who are already in.
+ *
+ * Lowering the shot count is allowed and takes nothing away: `shotsLeft` floors at zero, so a
+ * guest who has already spent more than the new number simply has none left.
  *
  * ponytail: free while `BETA`, because nothing is charged for a roll either. Whatever takes
  * payments has to come through here.
  */
-export async function raiseGuestCap(id: string, hostId: string): Promise<number | null> {
+export async function setRollSize(
+  id: string,
+  hostId: string,
+  next: { maxGuests?: number; photosPerGuest?: number },
+): Promise<SizeResult> {
   const roll = await prisma.roll.findFirst({
     where: { id, hostId },
-    select: { maxGuests: true },
+    select: { _count: { select: { guests: true } } },
   });
-  if (!roll) return null;
+  if (!roll) return "not-found";
+  if (next.maxGuests !== undefined && next.maxGuests < roll._count.guests) return "below-joined";
 
-  const next = PARTICIPANT_TIERS.find((tier) => tier > roll.maxGuests);
-  if (next === undefined) return null;
-
-  await prisma.roll.update({ where: { id }, data: { maxGuests: next } });
-  return next;
+  await prisma.roll.update({ where: { id }, data: next });
+  return "ok";
 }
 
 /* ------------------------------------------------------------------ taking things out */

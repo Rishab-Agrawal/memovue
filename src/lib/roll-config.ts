@@ -136,6 +136,34 @@ export function clampFinish(startsAt: Date, finishesAt: Date): Date {
   return finishesAt;
 }
 
+/**
+ * A roll's window after its opening time is moved, or `null` if it may not be.
+ *
+ * One rule, asked by the settings screen to show what a move would do and by the server to
+ * do it — the two cannot disagree about a date that is the difference between a guest having
+ * a camera and not.
+ *
+ * The window is narrow on purpose. Once the event has begun the start is history: guests are
+ * mid-roll, and a start pushed back into the future would make a shot roll look unstarted to
+ * everything that reads it, including the allowance refunded when an unstarted roll is
+ * deleted. Before the first moment nothing has been photographed and nothing derived.
+ */
+export function movedStart(
+  roll: { startsAt: Date; finishesAt: Date },
+  wanted: Date,
+  now: Date = new Date(),
+): { startsAt: Date; finishesAt: Date } | null {
+  if (roll.startsAt.getTime() <= now.getTime()) return null;
+
+  // Never behind the present — that is a roll which opened at a moment nobody could have shot
+  // in. Pulling it forward as far as now is the legitimate "we're starting early".
+  const startsAt = new Date(Math.max(wanted.getTime(), now.getTime()));
+  if (!isWithin(startsAt, startDateRange(now))) return null;
+
+  // The close comes along when it has to, by the same pairing rule the wizard runs.
+  return { startsAt, finishesAt: clampFinish(startsAt, roll.finishesAt) };
+}
+
 /** Hours a host may add on top of the close before photos open. */
 export const MIN_DELAY_HOURS = 1;
 export const MAX_DELAY_HOURS = 72;

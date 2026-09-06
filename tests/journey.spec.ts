@@ -548,11 +548,20 @@ test.describe("a roll from creation to reveal", () => {
     expect(refused.status()).toBe(403);
     expect(await refused.text()).toContain("hello@memovue.com");
 
-    // And the button says so on the page itself, rather than navigating the host onto it.
+    /*
+      And the ceiling changes nothing about the screen, because the screen never offered the
+      archive in the first place: Save belongs to a roll whose shutter has closed, and this one
+      is still shooting. This block used to tap a Save button here and read the refusal off the
+      page — written when opening a roll early swapped the whole row for Send and Save, which
+      is the very behaviour the assertions above exist to keep from coming back.
+
+      ponytail: so the host-side notice for a spent download is not covered by a browser. It
+      needs a roll that is closed, opened, and carries photographs — a third roll on a
+      two-roll allowance — and the refusal it renders is asserted here as the server's.
+    */
     await page.reload();
-    await page.getByRole("link", { name: "Save" }).click();
-    await expect(page.getByRole("status")).toContainText("already downloaded this roll");
-    await expect(page).toHaveURL(rollUrl);
+    await expect(page.getByRole("link", { name: "Save" })).toHaveCount(0);
+    await expect(page.getByLabel("Take a photo")).toBeVisible();
   });
 
   function rollId() {

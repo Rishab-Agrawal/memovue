@@ -26,6 +26,8 @@ export interface BackdropRoll {
   guestCount: number;
   /** What the roll was set up to hold, which is what a joined count is worth comparing to. */
   maxGuests: number;
+  /** The other half of the roll's size. Only the settings sheet, which edits it, reads it. */
+  photosPerGuest: number;
   /** What the host has left of their own film, for the camera control below. */
   shotsLeft: number;
   /** ZIP downloads this roll has left. Zero makes Save answer instead of navigating. */

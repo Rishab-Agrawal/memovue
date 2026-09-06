@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { BackButton } from "@/components/roll/Chrome";
+import { BackButton, SettingsButton } from "@/components/roll/Chrome";
 import { formatDay, formatDuration } from "@/lib/format";
 
 /**
@@ -65,22 +65,16 @@ export function RollHeader({
         : { value: formatDuration(revealAt - now), trail: "until it opens" };
 
   return (
-    <div className="shrink-0">
+    /* The glow belongs to the whole header, not to the title block inside it: lit from below
+       the back and settings buttons it had a visible ceiling across the top of the screen,
+       which read as a banner rather than as light. */
+    <div className="bloom shrink-0">
       <div className="pad-safe-top flex items-start justify-between px-4">
         <BackButton href={back} />
-        {settingsHref ? (
-          <Link
-            href={settingsHref}
-            aria-label="Roll settings"
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-surface text-[18px] text-chalk transition-colors hover:text-flame"
-          >
-            ⚙
-          </Link>
-        ) : null}
+        {settingsHref ? <SettingsButton href={settingsHref} /> : null}
       </div>
 
-      {/* The logo's own glow, standing in for the photograph that used to sit here. */}
-      <div className="bloom px-5 pt-4 pb-7 text-center">
+      <div className="px-5 pt-8 pb-10 text-center">
         <h1 className="display text-[34px] text-balance text-chalk">{title}</h1>
         <p className="mt-4 text-[14px] text-ash">
           {"lead" in timing ? `${timing.lead} ` : null}

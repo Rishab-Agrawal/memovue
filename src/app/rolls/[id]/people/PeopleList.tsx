@@ -7,7 +7,7 @@ import { Pill } from "@/components/roll/Chrome";
 import { Trash } from "@/components/roll/Icons";
 import { PARTICIPANT_TIERS } from "@/lib/roll-config";
 
-import { raiseCapAction, removeGuestAction } from "../actions";
+import { removeGuestAction, setSizeAction } from "../actions";
 
 export interface Participant {
   id: string;
@@ -108,7 +108,7 @@ export function PeopleList({
               full
               className="mt-3"
               disabled={pending}
-              onClick={() => run(() => raiseCapAction(rollId))}
+              onClick={() => run(() => setSizeAction(rollId, { maxGuests: nextTier }))}
             >
               {pending ? "Raising…" : `Raise the limit to ${nextTier}`}
             </Pill>

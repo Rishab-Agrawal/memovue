@@ -108,6 +108,17 @@ export const editFinishSchema = z.object({
   finishesAt: z.iso.datetime({ offset: true }),
 });
 
+/** The same, for the opening time. `updateRollStart` holds it to the roll's own state. */
+export const editStartSchema = z.object({
+  startsAt: z.iso.datetime({ offset: true }),
+});
+
+/**
+ * A bigger — or smaller — roll. Both fields are the wizard's own, held to the same tier list
+ * and the same beta ceiling, so a hundred-shot roll cannot be bought here either.
+ */
+export const editSizeSchema = rollFields.pick({ maxGuests: true, photosPerGuest: true }).partial();
+
 /**
  * A new reveal. The same two fields the wizard sends, held to the same rule — the moment
  * itself is derived server-side from the roll's own closing time, never posted.

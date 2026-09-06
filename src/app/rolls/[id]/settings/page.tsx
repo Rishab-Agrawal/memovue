@@ -22,6 +22,12 @@ export default async function SettingsPage({ params }: PageProps<"/rolls/[id]/se
         revealMode={roll.revealMode}
         // The seal is decided by one function everywhere, including here.
         open={isOpen(roll)}
+        // Read here rather than in the sheet, which is a client component and may re-render at
+        // any moment — a row that is a link or dead depending on the clock has to be decided once.
+        beforeStart={roll.startsAt > new Date()}
+        maxGuests={roll.maxGuests}
+        photosPerGuest={roll.photosPerGuest}
+        guestCount={roll.guestCount}
         everyoneCanSee={roll.everyoneCanSee}
       />
     </div>

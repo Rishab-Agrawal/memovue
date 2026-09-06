@@ -116,7 +116,10 @@ export function AccountScreen({
             <SettingRow
               icon={<Instagram className="h-5 w-5" />}
               label="Instagram"
-              href="https://instagram.com"
+              // The account itself, not the front door — this row went to whichever profile
+              // the phone happened to be logged into.
+              value="@memovue.official"
+              href="https://instagram.com/memovue.official"
             />
             <SettingRow
               icon={<Mail className="h-5 w-5" />}
