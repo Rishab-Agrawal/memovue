@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Pill } from "@/components/roll/Chrome";
-import { Download, Trash } from "@/components/roll/Icons";
+import { Download, Link as LinkIcon, Send, Trash } from "@/components/roll/Icons";
 import { formatStamp } from "@/lib/format";
+import { shareOrCopy } from "@/lib/share";
 import { useOverlay } from "@/lib/useOverlay";
 import { spring, swipeDelta, velocityFrom } from "@/lib/spring";
 
@@ -50,6 +51,7 @@ export function PhotoViewer({
   const [index, setIndex] = useState(startIndex);
   const [offset, setOffset] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const trackRef = useRef<HTMLDivElement>(null);
@@ -195,6 +197,20 @@ export function PhotoViewer({
     }
   }
 
+  /**
+   * The link rather than the file.
+   *
+   * The photograph is already being read from the cached domain, so the same URL handed to
+   * somebody outside the roll is served from the edge and costs us nothing beyond the first
+   * read. Sharing the picture and sharing the bytes would be the same thing at a much higher
+   * price.
+   */
+  async function share(target: ViewerPhoto) {
+    if ((await shareOrCopy({ url: target.src })) !== "copied") return;
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
   const photo = photos[index];
   if (!photo) return null;
 
@@ -252,8 +268,31 @@ export function PhotoViewer({
         ))}
       </div>
 
-      <div className="flex justify-center gap-3 px-5 pt-4 pb-[calc(var(--safe-bottom)+2rem)]">
-        <Pill variant="quiet" disabled={saving} onClick={() => void save(photo)}>
+      {/* A grid rather than a row, so Save sits in the middle of the bar whether or not the
+          host's Remove is there to balance it: two columns for a guest, three for the host. */}
+      <div
+        className={`grid ${onDelete ? "grid-cols-3" : "grid-cols-2"} justify-items-center px-5 pt-4 pb-[calc(var(--safe-bottom)+2rem)]`}
+      >
+        <Pill variant="quiet" className="px-3 text-[14px]" onClick={() => void share(photo)}>
+          {copied ? (
+            <>
+              <LinkIcon className="h-4 w-4" />
+              Copied
+            </>
+          ) : (
+            <>
+              <Send className="h-4 w-4" />
+              Share
+            </>
+          )}
+        </Pill>
+
+        <Pill
+          variant="quiet"
+          className="px-3 text-[14px]"
+          disabled={saving}
+          onClick={() => void save(photo)}
+        >
           <Download className="h-4 w-4" />
           {saving ? "Saving…" : "Save"}
         </Pill>
@@ -265,7 +304,7 @@ export function PhotoViewer({
           <Pill
             variant="quiet"
             disabled={deleting}
-            className="text-danger"
+            className="px-3 text-[14px] text-danger"
             onClick={() => {
               if (!window.confirm("Remove this photograph from the album? This cannot be undone."))
                 return;

@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { Pill } from "@/components/roll/Chrome";
 import { Link as LinkIcon, Send } from "@/components/roll/Icons";
+import { shareOrCopy } from "@/lib/share";
 
 /**
  * Hands the join link to somebody else.
@@ -21,23 +22,10 @@ export function ShareLink({ url, rollName }: { url: string; rollName: string }) 
   const [done, setDone] = useState<"copied" | null>(null);
 
   async function share() {
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: rollName, text: `Join ${rollName} on MemoVue`, url });
-        return;
-      } catch {
-        // Dismissing the share sheet throws, and is not a failure worth reporting. Fall
-        // through to the clipboard so the tap still leaves them holding the link.
-      }
-    }
-
-    try {
-      await navigator.clipboard.writeText(url);
-      setDone("copied");
-      setTimeout(() => setDone(null), 2000);
-    } catch {
-      /* Clipboard refused — the link is printed in full above this button either way. */
-    }
+    const how = await shareOrCopy({ url, title: rollName, text: `Join ${rollName} on MemoVue` });
+    if (how !== "copied") return;
+    setDone("copied");
+    setTimeout(() => setDone(null), 2000);
   }
 
   return (
