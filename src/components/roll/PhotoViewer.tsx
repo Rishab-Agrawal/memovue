@@ -57,55 +57,84 @@ export function PhotoViewer({
   const trackRef = useRef<HTMLDivElement>(null);
   const animation = useRef<ReturnType<typeof spring> | null>(null);
   /* The live gesture, kept out of state: `dx` has to be exact at the moment of release, and
-     a flick can outrun a render. */
-  const drag = useRef<{ startX: number; dx: number; samples: { v: number; t: number }[] } | null>(
-    null,
-  );
+     a flick can outrun a render. `id` is the one finger that owns it. */
+  const drag = useRef<{
+    id: number;
+    startX: number;
+    dx: number;
+    samples: { v: number; t: number }[];
+  } | null>(null);
+  /* Read through a ref by the history effect below, so that effect can run once on mount. */
+  const close = useRef(onClose);
+  useEffect(() => {
+    close.current = onClose;
+  });
+  /* Whether the viewer is still on screen, for the history effect's deferred tidy-up. */
+  const live = useRef(false);
 
   useEffect(() => () => animation.current?.stop(), []);
 
   // Escape, and the roll behind held still while a photograph is open over it.
   useOverlay(onClose);
 
-  /** Springs the strip to `to`, then commits the frame change once it has settled. */
-  const settle = useCallback((from: number, to: number, velocity: number, nextIndex: number) => {
+  /**
+   * Moves `delta` frames, from wherever the strip is at `at` and at whatever speed.
+   *
+   * The frame change is committed here and now, and the strip rebased around it so that not
+   * one pixel moves — rather than committed when the spring comes to rest. A settling spring
+   * is interruptible by construction: the next gesture stops it mid-flight, and the rest that
+   * would have committed the frame then never arrives. So a swipe taken before the last one
+   * landed was measured from the frame the reader had already left, sent back to it, and a
+   * fast hand ping-ponged between two photographs without ever reaching the third.
+   */
+  const shift = useCallback((delta: number, at: number, velocity: number) => {
     animation.current?.stop();
-    animation.current = spring({
-      from,
-      to,
-      velocity,
-      response: 0.35,
-      onFrame: setOffset,
-      onRest: () => {
-        // Unconditional: landing back on the same frame makes this a no-op, and the offset
-        // has to return to zero either way.
-        setIndex(nextIndex);
-        setOffset(0);
-      },
-    });
+    const width = trackRef.current?.clientWidth ?? window.innerWidth;
+    const from = at + delta * width;
+    setIndex((current) => current + delta);
+    setOffset(from);
+    animation.current = spring({ from, to: 0, velocity, response: 0.35, onFrame: setOffset });
   }, []);
 
   const go = useCallback(
     (delta: number) => {
-      const next = index + delta;
-      if (next < 0 || next >= photos.length) return;
-      const width = trackRef.current?.clientWidth ?? window.innerWidth;
-      settle(0, -delta * width, 0, next);
+      if (index + delta < 0 || index + delta >= photos.length) return;
+      // Whatever is still in flight is carried, so a held arrow key runs rather than stutters.
+      const live = animation.current;
+      shift(delta, live?.value() ?? 0, live?.velocity() ?? 0);
     },
-    [index, photos.length, settle],
+    [index, photos.length, shift],
   );
 
-  // Back closes the viewer rather than leaving the roll — the layer that was opened is the
-  // layer the gesture should take away.
+  /*
+    Back closes the viewer rather than leaving the roll — the layer that was opened is the
+    layer the gesture should take away. One dummy entry while it is open, taken away again on
+    the way out so that leaving by the ✕ does not cost the reader a wasted press of Back.
+
+    Both halves are written to survive being torn down and rebuilt, because they were not.
+    The effect used to depend on `onClose`, which in the guest album is a fresh closure every
+    twenty seconds off the feed poll; and React's development double-invoke does the same
+    thing once, immediately. Either way the cleanup's `back()` — which is asynchronous —
+    landed after the rebuild and closed the photograph that had just been opened. In
+    development that meant the viewer could not be opened at all.
+
+    So: push only when we are not already standing on the entry, and defer the `back()` far
+    enough to see whether anybody still wants it.
+  */
   useEffect(() => {
-    window.history.pushState({ mvPhoto: true }, "");
-    const onPop = () => onClose();
+    live.current = true;
+    if (!window.history.state?.mvPhoto) window.history.pushState({ mvPhoto: true }, "");
+
+    const onPop = () => close.current();
     window.addEventListener("popstate", onPop);
     return () => {
       window.removeEventListener("popstate", onPop);
-      if (window.history.state?.mvPhoto) window.history.back();
+      live.current = false;
+      queueMicrotask(() => {
+        if (!live.current && window.history.state?.mvPhoto) window.history.back();
+      });
     };
-  }, [onClose]);
+  }, []);
 
   // Arrow keys, because this is a web page and half the people looking at a wedding album
   // afterwards are doing it on a laptop.
@@ -118,19 +147,30 @@ export function PhotoViewer({
     return () => window.removeEventListener("keydown", onKey);
   }, [go]);
 
-  function onPointerDown(event: React.PointerEvent) {
+  function onPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    // One finger owns the gesture. A second landing mid-swipe would restart the drag from
+    // its own position, which is a jump rather than a swipe. `isPrimary` rather than "a drag
+    // is already open", so a release we somehow never heard cannot lock the viewer shut.
+    if (!event.isPrimary) return;
+
+    // Take over a settling spring from where it actually is, so the strip stays under the
+    // finger instead of snapping back to the frame it was in the middle of leaving.
+    const at = animation.current?.value() ?? 0;
     animation.current?.stop();
     drag.current = {
-      startX: event.clientX,
-      dx: 0,
+      id: event.pointerId,
+      startX: event.clientX - at,
+      dx: at,
       samples: [{ v: event.clientX, t: performance.now() }],
     };
-    (event.target as Element).setPointerCapture?.(event.pointerId);
+    // The track rather than the photograph under the finger: the track is always mounted, so
+    // the release is delivered here even once the finger has left the frame it started on.
+    event.currentTarget.setPointerCapture(event.pointerId);
   }
 
   function onPointerMove(event: React.PointerEvent) {
     const state = drag.current;
-    if (!state) return;
+    if (!state || event.pointerId !== state.id) return;
 
     let dx = event.clientX - state.startX;
     // Nothing to move towards at either end, so the strip resists instead of sliding into
@@ -145,16 +185,18 @@ export function PhotoViewer({
     setOffset(dx);
   }
 
-  function onPointerUp() {
+  function onPointerUp(event: React.PointerEvent) {
     const state = drag.current;
-    if (!state) return;
+    if (!state || event.pointerId !== state.id) return;
     drag.current = null;
 
     const width = trackRef.current?.clientWidth ?? window.innerWidth;
     const velocity = velocityFrom(state.samples);
-    const delta = swipeDelta({ dx: state.dx, velocity, width, index, count: photos.length });
-
-    settle(state.dx, -delta * width, velocity, index + delta);
+    shift(
+      swipeDelta({ dx: state.dx, velocity, width, index, count: photos.length }),
+      state.dx,
+      velocity,
+    );
   }
 
   /**
@@ -245,7 +287,7 @@ export function PhotoViewer({
 
       <div
         ref={trackRef}
-        className="relative flex flex-1 touch-pan-y items-center overflow-hidden"
+        className="relative flex flex-1 touch-none items-center overflow-hidden"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}

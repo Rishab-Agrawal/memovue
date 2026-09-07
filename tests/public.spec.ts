@@ -69,6 +69,34 @@ test.describe("public pages", () => {
     await expect(page).toHaveURL(/\/join\/ZZZZZZ/);
   });
 
+  /**
+   * Swiping the album faster than it settles.
+   *
+   * The viewer used to commit the frame change on the spring's rest, so a second swipe taken
+   * before the first had landed stopped that spring and threw the move away — and a fast hand
+   * bounced between the first two photographs for ever. The sample album is three frames and
+   * needs no account, which makes it the cheapest place to hold that down.
+   */
+  test("swiping faster than the animation settles still moves through the album", async ({
+    page,
+  }) => {
+    await page.goto("/albums/sample");
+    await page.getByRole("button", { name: "Photo by Kabir" }).click();
+    await expect(page.getByText("1 of 3")).toBeVisible();
+
+    // Back to back, with no pause: the second gesture lands mid-flight, which is the case
+    // that was broken.
+    for (let i = 0; i < 2; i += 1) {
+      await page.mouse.move(340, 420);
+      await page.mouse.down();
+      await page.mouse.move(240, 420);
+      await page.mouse.move(70, 420);
+      await page.mouse.up();
+    }
+
+    await expect(page.getByText("3 of 3")).toBeVisible();
+  });
+
   test("Google sign-in starts a real OAuth round trip", async ({ page }) => {
     // Follows the redirect only far enough to prove we hand off to Google with a state
     // parameter — without it the callback would be an open login endpoint.
