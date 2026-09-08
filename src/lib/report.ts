@@ -24,11 +24,32 @@ let sent = 0;
  * its promise in the browser too — deleting a roll, signing out, closing an account. Nothing
  * went wrong; the router is already doing as it was told. An alerts channel that cries
  * NEXT_REDIRECT every time somebody signs out is a channel nobody reads.
+ *
+ * The same list the server keeps in `instrumentation.ts`, minus the ones only a render can
+ * throw. Matched on the value itself as well as its fields, because `error.tsx` reports a
+ * digest — a bare string — rather than the error it came from.
  */
 const isControlFlow = (error: unknown): boolean => {
   const digest = (error as { digest?: unknown } | null)?.digest;
   const message = (error as { message?: unknown } | null)?.message;
   return [digest, message, error].some((v) => typeof v === "string" && v.startsWith("NEXT_"));
+};
+
+/**
+ * What to put in the message, when the thing thrown is not an `Error`.
+ *
+ * `String()` on an object is `[object Object]`, which wakes a phone to say nothing at all.
+ * A rejection carrying `{ code: 413, key: "…" }` is worth reading, so serialise it; anything
+ * circular or otherwise hostile falls back to what we had.
+ */
+const describe = (value: unknown): string => {
+  if (value instanceof Error) return value.message;
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value) ?? String(value);
+  } catch {
+    return String(value);
+  }
 };
 
 export function reportClientError(message: unknown, source: string): void {
@@ -38,7 +59,7 @@ export function reportClientError(message: unknown, source: string): void {
 
   try {
     const body = JSON.stringify({
-      message: String(message instanceof Error ? message.message : message).slice(0, 300),
+      message: describe(message).slice(0, 300),
       source,
       path: location.pathname,
     });
