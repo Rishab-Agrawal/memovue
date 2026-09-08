@@ -374,6 +374,10 @@ test.describe("a roll from creation to reveal", () => {
     const code = page.url().split("/").pop();
     await page.getByRole("button", { name: "Open the roll" }).click();
     await expect(page).toHaveURL(/\/e\/[A-Z0-9]{6}\/album$/);
+    // On the wall before the server has it at all: this phone's own copy of the frame, drawn
+    // from IndexedDB. The upload is still going at this point — that is the whole reason it
+    // is there.
+    await expect(page.getByText("Saving…")).toBeVisible();
     // Sealed, and theirs — the blurred tile carries "You" either side of the reveal.
     await expect(page.getByRole("button", { name: "Photo by You" })).toHaveCount(1, {
       timeout: 30_000,

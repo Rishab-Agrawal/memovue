@@ -1,10 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 import { cn } from "@/lib/cn";
 import { PhotoViewer, type ViewerPhoto } from "@/components/roll/PhotoViewer";
+import { GhostTile, LostShots, useUploadQueue } from "@/components/roll/QueueParts";
 
 import { deletePhotoAction } from "@/app/rolls/[id]/actions";
 
@@ -28,18 +29,28 @@ export interface GridPhoto {
  */
 export function PhotoGrid({
   rollId,
+  code,
   photos,
   sealed,
   revealsIn,
 }: {
   /** Absent on the sample album: nobody hosts it, so there is nothing to take out of it. */
   rollId?: string;
+  /** The roll's join code, which is what this phone's own queue is filed under. Absent on
+      the sample album for the same reason: nobody's camera belongs to it. */
+  code?: string;
   photos: GridPhoto[];
   sealed: boolean;
   revealsIn: string;
 }) {
   const router = useRouter();
   const [viewing, setViewing] = useState<number | null>(null);
+
+  /* A host shoots their own roll like anybody else, and lands back here while the last
+     frames are still going out. The wall is the server's, and it was rendered before they
+     reached it — so those frames are drawn from this phone until it has been asked again. */
+  const settle = useCallback(() => router.refresh(), [router]);
+  const { shots, waiting, dropped } = useUploadQueue(code, photos, settle);
 
   /**
    * Taking a photograph out of the album.
@@ -71,7 +82,13 @@ export function PhotoGrid({
 
   return (
     <>
+      <LostShots count={dropped} />
+
       <div className="grid grid-cols-2 gap-3">
+        {shots.map((shot) => (
+          <GhostTile key={shot.localId} shot={shot} waiting={waiting} />
+        ))}
+
         {photos.map((photo, index) => (
           <button
             key={photo.id}

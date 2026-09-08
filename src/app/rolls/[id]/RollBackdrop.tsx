@@ -1,7 +1,6 @@
 import { PillLink } from "@/components/roll/Chrome";
 import { RollHeader } from "@/components/roll/RollHeader";
 import { PhotoGrid, type GridPhoto } from "@/components/roll/PhotoGrid";
-import { QueueStatusLine } from "@/components/roll/QueueStatusLine";
 import { RefreshAt } from "@/components/roll/RefreshAt";
 import { RollControls, VisibilityNotice } from "@/components/roll/RollParts";
 import { formatDay, formatDuration } from "@/lib/format";
@@ -84,14 +83,6 @@ export function RollBackdrop({
       {open ? null : <RefreshAt at={roll.revealAt.getTime()} />}
 
       <div className="space-y-4 px-5 pt-4 pb-6">
-        {/*
-          A host shoots their own roll like anybody else, and lands back here while the last
-          frames are still going out. This is what says so, and what refreshes this screen
-          once they have — the wall below was rendered from a database that did not have them
-          yet, and no amount of waiting on it would have changed that.
-        */}
-        <QueueStatusLine code={roll.code} />
-
         <RollControls
           ended={ended}
           code={roll.code}
@@ -117,7 +108,15 @@ export function RollBackdrop({
 
         {roll.everyoneCanSee ? null : <VisibilityNotice />}
 
-        <PhotoGrid rollId={roll.id} photos={photos} sealed={!open} revealsIn={revealsIn} />
+        {/* `code` as well as `id`: a host shoots their own roll by joining it, so the wall
+            carries their phone's own queue at its head until the server has caught up. */}
+        <PhotoGrid
+          rollId={roll.id}
+          code={roll.code}
+          photos={photos}
+          sealed={!open}
+          revealsIn={revealsIn}
+        />
 
         {/*
           Said out loud rather than left to be noticed. A wall that stops at a number without

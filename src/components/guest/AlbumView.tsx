@@ -11,7 +11,7 @@ import { formatDay, formatDuration } from "@/lib/format";
 import { useNow } from "@/lib/useNow";
 
 import { PhotoViewer, type ViewerPhoto } from "@/components/roll/PhotoViewer";
-import { QueueStatusLine } from "@/components/roll/QueueStatusLine";
+import { GhostTile, LostShots, useUploadQueue } from "@/components/roll/QueueParts";
 
 export interface FeedPhoto {
   id: string;
@@ -172,6 +172,10 @@ export function AlbumView({
     void loadStatus();
   }, [loadPage, loadStatus]);
 
+  /* The frames this phone is still holding, drawn at the head of the wall until the wall
+     itself has them. The photo list is what tells it that has happened. */
+  const { shots, waiting, dropped } = useUploadQueue(code, photos, reloadWall);
+
   useEffect(() => {
     /*
       Polling, not push. The seal lifting is a server-side clock event with no request behind
@@ -276,7 +280,7 @@ export function AlbumView({
       />
 
       <div className="space-y-4 px-5 pt-4 pb-6">
-        <QueueStatusLine code={code} onSettled={reloadWall} />
+        <LostShots count={dropped} />
 
         {cameraHref && feed.capturing ? (
           <RollControls
@@ -318,7 +322,7 @@ export function AlbumView({
 
         {feed.everyoneCanSee ? null : <VisibilityNotice />}
 
-        {photos.length === 0 ? (
+        {photos.length === 0 && shots.length === 0 ? (
           /* An empty grid means two different things. When everybody can see everything it
              is the roll that is empty; when only the host can, it is only this guest's own
              wall — and "nothing shot yet" is then a claim about other people's photographs
@@ -330,6 +334,10 @@ export function AlbumView({
           </p>
         ) : (
           <div className="grid grid-cols-2 gap-3">
+            {shots.map((shot) => (
+              <GhostTile key={shot.localId} shot={shot} waiting={waiting} />
+            ))}
+
             {photos.map((photo, index) => (
               <button
                 key={photo.id}

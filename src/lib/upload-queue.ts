@@ -28,10 +28,18 @@ export interface QueuedPhoto {
   createdAt: number;
 }
 
+/** Enough of a queued photograph to draw it before it exists anywhere else. */
+export interface PendingShot {
+  localId: string;
+  /** The ~32px inlined JPEG the camera made. The whole of what a tile needs. */
+  blurData: string;
+}
+
 export interface QueueStatus {
   /** Which roll these counts are about. One queue, and a phone can hold two parties. */
   code: string | null;
-  pending: number;
+  /** The frames still to go out, newest last — drawn on the wall until they are on it. */
+  pending: PendingShot[];
   /**
    * Of those, the ones the server has not reserved a shot for yet.
    *
@@ -70,7 +78,7 @@ function db(): Promise<IDBPDatabase> {
 const listeners = new Set<(status: QueueStatus) => void>();
 let status: QueueStatus = {
   code: null,
-  pending: 0,
+  pending: [],
   unreserved: 0,
   uploading: false,
   dropped: 0,
@@ -91,7 +99,7 @@ async function refreshPending(code: string) {
   const items = (await (await db()).getAllFromIndex(STORE, "code", code)) as QueuedPhoto[];
   publish({
     code,
-    pending: items.length,
+    pending: items.map(({ localId, blurData }) => ({ localId, blurData })),
     unreserved: items.filter((item) => !item.photoId).length,
     // A different roll's losses are not this one's. Reset on the way in rather than left to
     // accumulate across every roll a phone has ever held.
