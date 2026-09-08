@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { after } from "next/server";
 
 import { AlbumView } from "@/components/guest/AlbumView";
-import { QueueStatusLine } from "@/components/guest/QueueStatusLine";
 import { getGuestContext, guestHome } from "@/lib/guest-context";
 import { prisma } from "@/lib/prisma";
 
@@ -59,7 +58,6 @@ export default async function GuestAlbumPage({ params }: PageProps<"/e/[code]/al
   return (
     <div className="min-h-dvh bg-page">
       <div className="pt-[var(--safe-top)]">
-        <QueueStatusLine code={context.roll.code} />
         <AlbumView
           code={context.roll.code}
           // Back out of the roll entirely: their own list, or the page they arrived past.

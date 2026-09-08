@@ -12,6 +12,7 @@ import { formatDay, formatDuration } from "@/lib/format";
 import { useNow } from "@/lib/useNow";
 
 import { PhotoViewer, type ViewerPhoto } from "@/components/roll/PhotoViewer";
+import { QueueStatusLine } from "@/components/roll/QueueStatusLine";
 
 export interface FeedPhoto {
   id: string;
@@ -143,6 +144,26 @@ export function AlbumView({
     [code],
   );
 
+  /**
+   * The wall, as the server has it now.
+   *
+   * This screen is opened straight out of the camera, seconds after the shutter — long
+   * before the photographs it is meant to show have finished uploading, so the grid it
+   * loaded on arrival is missing exactly the frames the guest came to look for. The queue
+   * calls this the moment it has handed the last one over.
+   *
+   * Invalidating first, because a page may be in flight: without it the reload is refused by
+   * the loading guard, and the wall stays wrong until somebody reloads the page by hand.
+   * Pages already scrolled past are dropped, the same as when the seal lifts.
+   */
+  const reloadWall = useCallback(() => {
+    request.current += 1;
+    loading.current = false;
+    void loadPage(null);
+    // The header's counts came from the same stale render.
+    void loadStatus();
+  }, [loadPage, loadStatus]);
+
   useEffect(() => {
     /*
       Polling, not push. The seal lifting is a server-side clock event with no request behind
@@ -230,6 +251,8 @@ export function AlbumView({
       />
 
       <div className="space-y-4 px-5 pt-4 pb-6">
+        <QueueStatusLine code={code} onSettled={reloadWall} />
+
         {cameraHref && feed.capturing ? (
           <RollControls
             ended={!feed.capturing}

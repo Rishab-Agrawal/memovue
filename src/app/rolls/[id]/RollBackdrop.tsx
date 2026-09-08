@@ -1,6 +1,7 @@
 import { PillLink } from "@/components/roll/Chrome";
 import { RollHeader } from "@/components/roll/RollHeader";
 import { PhotoGrid, type GridPhoto } from "@/components/roll/PhotoGrid";
+import { QueueStatusLine } from "@/components/roll/QueueStatusLine";
 import { RollControls, VisibilityNotice } from "@/components/roll/RollParts";
 import { SHOTS_SPENT } from "@/lib/constants";
 import { formatDay, formatDuration } from "@/lib/format";
@@ -76,6 +77,14 @@ export function RollBackdrop({
       />
 
       <div className="space-y-4 px-5 pt-4 pb-6">
+        {/*
+          A host shoots their own roll like anybody else, and lands back here while the last
+          frames are still going out. This is what says so, and what refreshes this screen
+          once they have — the wall below was rendered from a database that did not have them
+          yet, and no amount of waiting on it would have changed that.
+        */}
+        <QueueStatusLine code={roll.code} />
+
         <RollControls
           ended={ended}
           // The camera is the guest app, and a host shoots their own roll by joining it like

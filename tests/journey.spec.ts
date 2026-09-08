@@ -329,23 +329,24 @@ test.describe("a roll from creation to reveal", () => {
     await expect(page.getByTestId("shots-left")).toHaveText(String(before - 1));
 
     /*
-      Wait for the photo to actually land in R2 before letting the next test look at the roll.
+      Out of the viewfinder and onto the roll, by the thumbnail, without a reload.
 
-      The counter above drops as soon as the shot is *reserved*, which is deliberate — the
-      reservation is what stops a guest issuing more upload URLs than they have shots. But the
-      row stays PENDING until the bytes arrive, and a PENDING row appears in no grid. Without
-      this the next test raced the upload and saw an empty album.
+      This is the path that was broken. The counter above drops as soon as the shot is
+      *reserved*, but the row stays PENDING until the bytes arrive and a PENDING row appears
+      in no grid — so the album loads, seconds after the shutter, without the photograph it
+      was opened to see. It used to stay that way until the guest pulled the page down by
+      hand. The queue refetches the wall when the last frame lands, and this is that.
+
+      It also does what a poll on `/feed` used to do here: nothing below is allowed to look at
+      the roll until the upload has actually finished.
     */
     const code = page.url().split("/").pop();
-    await expect
-      .poll(
-        async () => {
-          const feed = await page.request.get(`/api/r/${code}/feed`);
-          return ((await feed.json()) as { totalPhotos: number }).totalPhotos;
-        },
-        { timeout: 30_000, message: "the captured photo never finished uploading" },
-      )
-      .toBeGreaterThan(0);
+    await page.getByRole("button", { name: "Open the roll" }).click();
+    await expect(page).toHaveURL(/\/e\/[A-Z0-9]{6}\/album$/);
+    // Sealed, and theirs — the blurred tile carries "You" either side of the reveal.
+    await expect(page.getByRole("button", { name: "Photo by You" })).toHaveCount(1, {
+      timeout: 30_000,
+    });
 
     /*
       The seal, on the endpoint that now enforces it.

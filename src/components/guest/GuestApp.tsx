@@ -5,10 +5,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import type { ProcessedPhoto } from "@/lib/image";
-import { enqueuePhoto } from "@/lib/upload-queue";
+import { drainQueue, enqueuePhoto, watchConnectivity } from "@/lib/upload-queue";
 
 import { CameraView } from "./CameraView";
-import { QueueStatusLine } from "./QueueStatusLine";
 
 interface GuestAppProps {
   code: string;
@@ -73,6 +72,21 @@ export function GuestApp({
     return () => clearTimeout(timer);
   }, [finishesAt, home, router]);
 
+  /*
+    The queue keeps going, silently.
+
+    A line under the roll name used to count the photographs still going out, which is the
+    app narrating its own housekeeping to somebody holding a camera. The retries it was
+    quietly arming are the part worth keeping: whatever a previous session left behind goes
+    now, and a phone that finds signal again mid-party picks up without waiting for the next
+    shutter press. What is still owed is said on the roll screen instead, where a missing
+    photograph is a thing you can actually notice.
+  */
+  useEffect(() => {
+    void drainQueue(code);
+    return watchConnectivity(code);
+  }, [code]);
+
   /**
    * No keep/retake step. The shot is spent the moment the shutter fires, the frame flies
    * into the thumbnail, and the upload happens in the background — surviving a locked phone
@@ -90,7 +104,7 @@ export function GuestApp({
       pretending it still has a job, so it closes and hands them the roll.
 
       The upload is unaffected — the queue is a module, not a component, so it keeps draining
-      across a client-side navigation, and the album it lands on shows the same status line.
+      across a client-side navigation, and the roll it lands on is the screen that says so.
     */
     if (left === 0) router.push(home);
   }
@@ -119,10 +133,6 @@ export function GuestApp({
       <span className="marking pointer-events-none absolute inset-x-0 top-[calc(var(--safe-top)+0.5rem)] truncate px-16 text-center text-chalk/60">
         {rollName}
       </span>
-
-      <div className="pointer-events-none absolute inset-x-0 top-[calc(var(--safe-top)+2.25rem)]">
-        <QueueStatusLine code={code} />
-      </div>
     </div>
   );
 }
