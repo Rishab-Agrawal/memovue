@@ -4,7 +4,6 @@ import { PhotoGrid, type GridPhoto } from "@/components/roll/PhotoGrid";
 import { QueueStatusLine } from "@/components/roll/QueueStatusLine";
 import { RefreshAt } from "@/components/roll/RefreshAt";
 import { RollControls, VisibilityNotice } from "@/components/roll/RollParts";
-import { SHOTS_SPENT } from "@/lib/constants";
 import { formatDay, formatDuration } from "@/lib/format";
 import { isCapturing, isOpen } from "@/lib/roll-access";
 
@@ -95,6 +94,8 @@ export function RollBackdrop({
 
         <RollControls
           ended={ended}
+          code={roll.code}
+          shotsLeft={roll.shotsLeft}
           // The camera is the guest app, and a host shoots their own roll by joining it like
           // anyone else — so this is the roll's code, not its id. Built from the id, it
           // normalised to a 25-character string matching no roll and dead-ended.
@@ -103,13 +104,11 @@ export function RollBackdrop({
           // the moment the roll existed, so a host tapping it the week before their wedding
           // was handed a camera the guest app then refused to give film to.
           cameraOff={
-            !isCapturing(roll, now)
-              ? now < roll.startsAt
+            isCapturing(roll, now)
+              ? undefined
+              : now < roll.startsAt
                 ? `Your roll opens ${formatDay(roll.startsAt)}.`
                 : "This roll has finished shooting."
-              : roll.shotsLeft <= 0
-                ? SHOTS_SPENT
-                : undefined
           }
           inviteHref={`/rolls/${roll.id}/invite`}
           saveHref={open ? `/api/rolls/${roll.id}/download` : undefined}

@@ -129,7 +129,10 @@ export function DraftProvider({
       coverPreviewUrl: null,
       participantIndex: 1,
       shotIndex: 3,
-      everyoneCanSee: false,
+      // On, because a shared album is what somebody sets a roll up for. The other way round
+      // is a deliberate choice — a surprise for the host — and deliberate choices are the
+      // ones worth making a host reach for.
+      everyoneCanSee: true,
     };
   });
 

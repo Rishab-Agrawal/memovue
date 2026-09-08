@@ -155,6 +155,10 @@ test.describe("a roll from creation to reveal", () => {
    * the guest app — which is keyed on the roll's six-character code, not its id. Built from
    * the id it normalised to a 25-character string that matched no roll, and the button on the
    * host's own roll screen dead-ended.
+   *
+   * And it opens the viewfinder, not an invitation. The host is enrolled in their own roll at
+   * creation, so the camera on their own screen used to hand them a card inviting them to the
+   * event they had just built, asking for the name their account already carries.
    */
   test("the host's camera button reaches the roll", async ({ page }) => {
     await page.goto(rollUrl);
@@ -163,9 +167,27 @@ test.describe("a roll from creation to reveal", () => {
     await expect(camera).toHaveAttribute("href", joinUrl.replace("/join/", "/e/"));
 
     await camera.click();
-    // No guest session on this device yet, so the camera hands off to the join screen.
-    await expect(page).toHaveURL(joinUrl);
-    await expect(page.getByPlaceholder("Enter your name")).toBeVisible();
+    await expect(page).toHaveURL(joinUrl.replace("/join/", "/e/"));
+    await expect(page.getByTestId("shots-left")).toBeVisible();
+    await expect(page.getByPlaceholder("Enter your name")).toHaveCount(0);
+  });
+
+  /**
+   * And they are on the roll before they ever reach for it.
+   *
+   * Enrolment used to happen on the first camera tap, which meant a host who never shot was
+   * not on their own roll at all: absent from the people list, holding film nothing had
+   * counted, and one slot short of the number the roll was sold as holding.
+   */
+  test("the host is on their own roll from the moment it exists", async ({ page }) => {
+    await page.goto(rollUrl + "/people");
+
+    await expect(page.getByText("Playwright Host")).toBeVisible();
+    // Their own row offers no removal: it would delete their photographs and hand their slot
+    // back to a roll they own.
+    await expect(page.getByRole("button", { name: "Remove Playwright Host" })).toHaveCount(0);
+    // And the list being non-empty does not mean anybody has actually turned up.
+    await expect(page.getByText(/Nobody else has joined yet/)).toBeVisible();
   });
 
   /**
@@ -215,7 +237,7 @@ test.describe("a roll from creation to reveal", () => {
    * single test noticing. So this one takes the URL off the sheet the way a guest takes it off
    * a printed card, and follows it.
    */
-  test("the invite sheet hands out a link that resolves", async ({ page }) => {
+  test("the invite sheet hands out a link that resolves", async ({ page, browser }) => {
     await page.goto(`${rollUrl}/invite`);
 
     const shared = (await page.getByText(/\/join\/|\/j\//).first().textContent())?.trim() ?? "";
@@ -229,7 +251,16 @@ test.describe("a roll from creation to reveal", () => {
 
     const response = await page.goto(new URL(shared).pathname);
     expect(response?.status()).toBe(200);
-    await expect(page.getByPlaceholder("Enter your name")).toBeVisible();
+    // The host is already on their own roll, so their own invitation is not one to accept —
+    // it hands them the camera rather than a form asking for the name they signed in with.
+    await expect(page).toHaveURL(joinUrl.replace("/join/", "/e/"));
+
+    // And what a guest gets off the same printed card: the name step.
+    const stranger = await browser.newContext(ANONYMOUS);
+    const strangerPage = await stranger.newPage();
+    await strangerPage.goto(new URL(shared).pathname);
+    await expect(strangerPage.getByPlaceholder("Enter your name")).toBeVisible();
+    await stranger.close();
   });
 
   /**

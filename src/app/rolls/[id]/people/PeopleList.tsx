@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { Pill } from "@/components/roll/Chrome";
+import { Dialog } from "@/components/roll/Dialog";
 import { Trash } from "@/components/roll/Icons";
 import { PARTICIPANT_TIERS } from "@/lib/roll-config";
 
@@ -13,6 +14,8 @@ export interface Participant {
   id: string;
   name: string;
   shotsUsed: number;
+  /** Whoever is reading this screen. They hold film like everybody else, and cannot be removed. */
+  isHost: boolean;
 }
 
 /**
@@ -41,6 +44,8 @@ export function PeopleList({
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  /** Who is being removed, and the box asking about it. Null when there is no question open. */
+  const [confirming, setConfirming] = useState<Participant | null>(null);
 
   const full = people.length >= maxGuests;
   const nextTier = PARTICIPANT_TIERS.find((tier) => tier > maxGuests);
@@ -57,45 +62,41 @@ export function PeopleList({
     });
   };
 
-  const remove = (person: Participant) => {
-    const photos = person.shotsUsed === 1 ? "1 photograph" : `${person.shotsUsed} photographs`;
-    if (
-      !window.confirm(
-        `Remove ${person.name} from this roll? Their ${photos} will be deleted and cannot be recovered.`,
-      )
-    ) {
-      return;
-    }
-    run(() => removeGuestAction(rollId, person.id));
-  };
-
-  if (people.length === 0) {
-    return (
-      <p className="mt-6 text-[15px] text-dust">
-        Nobody has joined yet. Share the QR code and they&rsquo;ll appear here.
-      </p>
-    );
-  }
-
   return (
     <>
       <ul className="mt-5 divide-y divide-hair border-t border-hair">
         {people.map((person) => (
           <li key={person.id} className="flex items-center gap-3 py-4">
-            <span className="flex-1 truncate text-[15px] text-chalk">{person.name}</span>
+            <span className="flex-1 truncate text-[15px] text-chalk">
+              {person.name}
+              {person.isHost ? <span className="text-dust"> · you</span> : null}
+            </span>
             <span className="tabular text-[13px] text-dust">{person.shotsUsed} shots used</span>
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => remove(person)}
-              aria-label={`Remove ${person.name}`}
-              className="tap shrink-0 text-dust transition-colors hover:text-danger disabled:opacity-40"
-            >
-              <Trash className="h-4 w-4" />
-            </button>
+            {/* The host's own row keeps the list honest about who holds film, and offers
+                nothing: removing yourself from your own roll deletes your photographs and
+                hands your slot back to an event you own. */}
+            {person.isHost ? null : (
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => setConfirming(person)}
+                aria-label={`Remove ${person.name}`}
+                className="tap shrink-0 text-dust transition-colors hover:text-danger disabled:opacity-40"
+              >
+                <Trash className="h-4 w-4" />
+              </button>
+            )}
           </li>
         ))}
       </ul>
+
+      {/* A roll whose only participant is the host has had nobody turn up yet, whatever the
+          list above shows. */}
+      {people.every((person) => person.isHost) ? (
+        <p className="mt-5 text-[15px] text-dust">
+          Nobody else has joined yet. Share the QR code and they&rsquo;ll appear here.
+        </p>
+      ) : null}
 
       {full ? (
         <div className="mt-6 rounded-2xl bg-page px-4 py-4">
@@ -121,6 +122,39 @@ export function PeopleList({
       ) : null}
 
       {error ? <p className="mt-4 text-[14px] text-danger">{error}</p> : null}
+
+      {/* The browser's own confirm box was the one piece of chrome in the product drawn by
+          somebody else — system font, system buttons, and no way to say what is about to be
+          deleted in our own words. Same card, same danger pill as deleting a roll. */}
+      <Dialog
+        open={confirming !== null}
+        title={`Remove ${confirming?.name}?`}
+        onClose={() => setConfirming(null)}
+        actions={
+          <>
+            <Pill variant="quiet" full disabled={pending} onClick={() => setConfirming(null)}>
+              Cancel
+            </Pill>
+            <Pill
+              full
+              disabled={pending}
+              className="bg-danger text-void hover:bg-danger"
+              onClick={() => {
+                const person = confirming;
+                if (!person) return;
+                setConfirming(null);
+                run(() => removeGuestAction(rollId, person.id));
+              }}
+            >
+              {pending ? "Removing…" : "Remove"}
+            </Pill>
+          </>
+        }
+      >
+        {confirming?.shotsUsed === 1
+          ? "Their photograph will be permanently deleted and cannot be recovered."
+          : `Their ${confirming?.shotsUsed ?? 0} photographs will be permanently deleted and cannot be recovered.`}
+      </Dialog>
     </>
   );
 }

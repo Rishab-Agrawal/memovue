@@ -366,13 +366,12 @@ export function CameraView({
         </button>
       </div>
 
-      {/* The roll ending outranks running out of film: it is true of everybody, and a guest
-          holding four unused shots is exactly the person owed the reason why. */}
-      {closed || out ? (
+      {/* Only the roll ending gets a word. Running out of film closes the camera instead —
+          a spent viewfinder explaining itself is a screen nobody stays on long enough to
+          read, and it flashed up for a beat on the way out. */}
+      {closed ? (
         <p className="px-8 pb-6 text-center text-[14px] leading-relaxed text-flame">
-          {closed
-            ? "The roll has closed. Everything opens for everyone at reveal time."
-            : "That’s all your shots. Everything opens for everyone at reveal time."}
+          The roll has closed. Everything opens for everyone at reveal time.
         </p>
       ) : null}
     </div>

@@ -46,7 +46,7 @@ export interface CreateRollInput {
  * somebody's allowance and then failing to insert it would charge them for nothing, and there
  * is no self-serve way to hand it back.
  */
-export async function createRoll(host: Account, input: CreateRollInput) {
+export async function createRoll(host: Account & { name: string }, input: CreateRollInput) {
   const revealAt = computeRevealAt(input.finishesAt, input.revealMode, input.revealDelayHours);
 
   // A `BetaAccessError` from `spendRoll` travels straight out to the server action, which
@@ -71,6 +71,22 @@ export async function createRoll(host: Account, input: CreateRollInput) {
         keptUntil: computeKeptUntil(input.finishesAt),
       },
       select: { id: true, code: true, name: true },
+    });
+
+    /*
+      The host is in their own roll from the moment it exists.
+
+      A `Guest` row is only how film is counted, and the host shoots like anybody else — so
+      making them accept an invitation to their own event was the join screen standing in
+      front of their own camera button, asking for the name their account already carries.
+      Written here rather than the first time they reach for the camera: a host who never
+      opens the viewfinder should still be one of the people on this roll.
+
+      In the transaction, because a roll whose host is not in it is the state this exists to
+      prevent — and it is one insert against a row that was written a line ago.
+    */
+    await tx.guest.create({
+      data: { rollId: roll.id, name: host.name, userId: host.id },
     });
 
     return roll;
@@ -274,7 +290,13 @@ export async function getRollForHost(id: string, hostId: string) {
   });
 }
 
-/** Who has joined, and how much film each has spent. */
+/**
+ * Who is on this roll, and how much film each has spent.
+ *
+ * The host is one of them — they are enrolled at creation and hold the same quota as anybody
+ * else — so they are flagged rather than hidden. Their row is the one that cannot be removed,
+ * and the one that means "nobody has actually turned up yet".
+ */
 export async function listParticipants(rollId: string) {
   const guests = await prisma.guest.findMany({
     where: { rollId },
@@ -282,6 +304,8 @@ export async function listParticipants(rollId: string) {
     select: {
       id: true,
       name: true,
+      roll: { select: { hostId: true } },
+      userId: true,
       _count: { select: { photos: photoCount } },
     },
   });
@@ -290,6 +314,7 @@ export async function listParticipants(rollId: string) {
     id: guest.id,
     name: guest.name,
     shotsUsed: guest._count.photos,
+    isHost: guest.userId !== null && guest.userId === guest.roll.hostId,
   }));
 }
 
@@ -495,6 +520,18 @@ export async function removeGuest(
 ): Promise<boolean> {
   const owned = await prisma.roll.findFirst({ where: { id: rollId, hostId }, select: { id: true } });
   if (!owned) return false;
+
+  /*
+    Not the host. They are enrolled in their own roll at creation, so they appear in the same
+    list as everybody else — and removing themselves would delete their own photographs and
+    hand their slot back to a roll they own. The screen does not offer it; this is why a
+    replayed post cannot either.
+  */
+  const target = await prisma.guest.findFirst({
+    where: { id: guestId, rollId },
+    select: { userId: true },
+  });
+  if (!target || target.userId === hostId) return false;
 
   const photos = await prisma.photo.findMany({
     where: { guestId, rollId },

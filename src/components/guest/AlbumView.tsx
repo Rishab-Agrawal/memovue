@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { SHOTS_SPENT } from "@/lib/constants";
 import { cn } from "@/lib/cn";
 import { RollHeader } from "@/components/roll/RollHeader";
 import { RollControls, VisibilityNotice } from "@/components/roll/RollParts";
@@ -68,8 +67,11 @@ export function AlbumView({
   cameraHref,
 }: {
   code: string;
-  /** Where the header's arrow goes. Decided by the page, which knows who is holding this. */
-  back: string;
+  /**
+   * Where the header's arrow goes. Decided by the page, which knows who is holding this —
+   * and null for a guest with no account, who has nothing of ours behind this screen.
+   */
+  back: string | null;
   /** The viewfinder, while the roll is still shooting. Absent once it has closed. */
   cameraHref?: string;
 }) {
@@ -267,7 +269,10 @@ export function AlbumView({
         revealAt={new Date(feed.revealAt).getTime()}
         open={feed.open}
         now={now}
-        back={back}
+        back={back ?? undefined}
+        // Who else turned up. The host's roster carries controls a guest has no business
+        // with; the screen behind this link is the same list with none of them.
+        peopleHref={`/e/${code}/people`}
       />
 
       <div className="space-y-4 px-5 pt-4 pb-6">
@@ -276,16 +281,17 @@ export function AlbumView({
         {cameraHref && feed.capturing ? (
           <RollControls
             ended={!feed.capturing}
+            code={code}
+            shotsLeft={feed.me.shotsLeft}
             cameraHref={cameraHref}
-            cameraOff={feed.me.shotsLeft <= 0 ? SHOTS_SPENT : undefined}
           />
         ) : null}
 
         {/*
-          The one solid block of accent in the product. A banner whose job is to interrupt
-          cannot be drawn in the same two colours as everything around it — but the cream this
-          used to be was the reference's own, borrowed wholesale. Our orange interrupts just
-          as hard on a black screen and is a colour we already own.
+          An offer, not an alarm. This was a solid block of the accent orange — the loudest
+          thing on a screen of photographs, sitting above them every single time the album was
+          opened. It is the same tile as everything else here now, and it still says what it
+          has to say.
 
           Only for guests who are not signed in. Telling someone with an account that they
           are "currently on guest mode" and should make one is both wrong and the most
@@ -294,17 +300,17 @@ export function AlbumView({
         {feed.me.linked ? null : (
           <Link
             href="/welcome"
-            className="flex items-center gap-4 rounded-2xl bg-flame px-4 py-4 text-void"
+            className="flex items-center gap-4 rounded-2xl bg-surface px-4 py-4 transition-colors hover:bg-hair-bright"
           >
             <span className="flex-1">
-              <span className="block text-[16px] font-semibold">
+              <span className="block text-[16px] font-semibold text-chalk">
                 Sign up to keep your memories alive.
               </span>
-              <span className="mt-1 block text-[14px] leading-snug text-void/70">
+              <span className="mt-1 block text-[14px] leading-snug text-ash">
                 You are currently on guest mode. Create an account to keep your memories safe.
               </span>
             </span>
-            <span className="text-[18px]" aria-hidden="true">
+            <span className="text-[18px] text-dust" aria-hidden="true">
               →
             </span>
           </Link>
@@ -313,8 +319,14 @@ export function AlbumView({
         {feed.everyoneCanSee ? null : <VisibilityNotice />}
 
         {photos.length === 0 ? (
+          /* An empty grid means two different things. When everybody can see everything it
+             is the roll that is empty; when only the host can, it is only this guest's own
+             wall — and "nothing shot yet" is then a claim about other people's photographs
+             that this screen is in no position to make. */
           <p className="py-10 text-center text-[15px] text-dust">
-            Nothing shot yet. Be the first.
+            {feed.everyoneCanSee
+              ? "Nothing shot yet. Be the first."
+              : "Nothing of yours yet. Your photos land here."}
           </p>
         ) : (
           <div className="grid grid-cols-2 gap-3">

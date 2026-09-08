@@ -46,10 +46,10 @@ export function RollHeader({
   /** Whether the photographs are legible yet. */
   open: boolean;
   now: number;
-  back: string;
+  /** Absent for a guest with no account, who has no screen of ours behind this one. */
+  back?: string;
   /** Absent for guests, who have no settings to open. */
   settingsHref?: string;
-  /** Absent for guests — the roster is the host's business, not theirs. */
   peopleHref?: string;
 }) {
   /* Still running is checked first: a host who revealed early has an open roll whose shutter
@@ -69,8 +69,10 @@ export function RollHeader({
        the back and settings buttons it had a visible ceiling across the top of the screen,
        which read as a banner rather than as light. */
     <div className="bloom shrink-0">
+      {/* `justify-end` needs something to push against when there is no back button, and a
+          row with neither still holds the top padding this header is measured from. */}
       <div className="pad-safe-top flex items-start justify-between px-4">
-        <BackButton href={back} />
+        {back ? <BackButton href={back} /> : <span />}
         {settingsHref ? <SettingsButton href={settingsHref} /> : null}
       </div>
 

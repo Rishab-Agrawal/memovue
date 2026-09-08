@@ -47,10 +47,16 @@ export async function rollHome(roll: Located): Promise<string> {
   return user?.id === roll.hostId ? `/rolls/${roll.id}` : `/e/${roll.code}/album`;
 }
 
-/** Out of the roll altogether: your own list if you have one, the way you came in if not. */
-export async function guestHome(roll: Located): Promise<string> {
+/**
+ * Out of the roll altogether: your own list of rolls.
+ *
+ * Null for a guest with no account, and that is the whole point — there is no list behind
+ * them to go back to. They arrived on a link, the roll is the only screen of ours they have,
+ * and an arrow out of it landed them on a marketing page they never asked for.
+ */
+export async function guestHome(roll: Located): Promise<string | null> {
   const user = await getCurrentUser();
-  if (!user) return "/";
+  if (!user) return null;
   return user.id === roll.hostId ? `/rolls/${roll.id}` : "/rolls";
 }
 
@@ -91,6 +97,23 @@ export async function getGuestContext(code: string): Promise<GuestContext | null
         where: { rollId: roll.id, userId: user.id },
         select: guestFields,
       });
+
+      /*
+        A host from before `createRoll` started enrolling them, caught up on the way past.
+
+        Their roll has no `Guest` row for them, so the camera button on their own roll screen
+        led to the join screen — an invitation to their own event, asking for the name their
+        account already carries. New rolls arrive with this row already written; this is only
+        for the ones that did not.
+      */
+      if (!guest && user.id === roll.hostId) {
+        guest = await prisma.guest.upsert({
+          where: { rollId_userId: { rollId: roll.id, userId: user.id } },
+          create: { rollId: roll.id, name: user.name, userId: user.id },
+          update: {},
+          select: guestFields,
+        });
+      }
     }
   }
 

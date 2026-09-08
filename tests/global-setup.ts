@@ -6,6 +6,8 @@ import { PrismaClient } from "@prisma/client";
 import { config as loadEnv } from "dotenv";
 import { SignJWT } from "jose";
 
+import { purgeTestRolls } from "./purge-test-rolls";
+
 loadEnv({ path: ".env.local", quiet: true });
 loadEnv({ quiet: true });
 
@@ -37,7 +39,8 @@ export const STORAGE_STATE = path.join("tests", ".auth", "host.json");
 export const GUEST_STORAGE_STATE = path.join("tests", ".auth", "invited.json");
 
 /**
- * Seeds the accounts and hands the suite their signed session cookies.
+ * Clears the last run's wreckage, seeds the accounts, and hands the suite their signed
+ * session cookies.
  *
  * Sign-in is Google now, and a browser cannot complete a real OAuth round trip in CI. The
  * alternative — keeping a password column so tests can log in through a form — would be a
@@ -50,6 +53,18 @@ export default async function globalSetup() {
   });
 
   try {
+    /*
+      On the way in, not only on the way out.
+
+      A run that fails half way leaves its rolls behind, and the next run then trips over
+      them: two "Playwright Roll" cards on a home screen is a strict-mode violation, so the
+      suite reports a duplicate-name failure for a bug nobody wrote. Cleaning first means a
+      suite can only ever be poisoned by itself, and `cleanup:test` goes back to being the
+      manual door rather than a step somebody has to remember.
+    */
+    const { rolls } = await purgeTestRolls(prisma, TEST_HOST.email);
+    if (rolls > 0) console.log(`Cleared ${rolls} roll(s) left behind by an earlier run.`);
+
     const secret = new TextEncoder().encode(
       process.env.AUTH_SECRET ?? "memovue-dev-secret-not-for-production",
     );

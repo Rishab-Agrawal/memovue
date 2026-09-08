@@ -38,9 +38,11 @@ export function QueueStatusLine({
 }) {
   const router = useRouter();
   const [queue, setQueue] = useState<QueueStatus>({
+    code: null,
     pending: 0,
+    unreserved: 0,
     uploading: false,
-    lastError: null,
+    dropped: 0,
   });
 
   useEffect(() => {
@@ -63,6 +65,24 @@ export function QueueStatusLine({
     }
     owed.current = queue.pending > 0;
   }, [queue.pending, onSettled, router]);
+
+  /*
+    A photograph we could not save, said out loud.
+
+    This is the one queue outcome that is permanent: the roll refused the frame, so the local
+    copy went with it. It used to be recorded in a `lastError` field that no screen anywhere
+    read — the app quietly destroying somebody's photograph and telling only itself.
+  */
+  const lost = queue.code === code ? queue.dropped : 0;
+  if (lost > 0) {
+    return (
+      <p role="status" className="text-center text-[13px] leading-snug text-danger">
+        {lost === 1
+          ? "One photo couldn’t be saved to this roll."
+          : `${lost} photos couldn’t be saved to this roll.`}
+      </p>
+    );
+  }
 
   if (queue.pending === 0) return null;
 

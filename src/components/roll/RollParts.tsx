@@ -5,7 +5,8 @@ import { useEffect, useState } from "react";
 
 import { Camera, Download, Lock, Qr } from "@/components/roll/Icons";
 import { cn } from "@/lib/cn";
-import { ZIP_DOWNLOAD_SPENT } from "@/lib/constants";
+import { SHOTS_SPENT, ZIP_DOWNLOAD_SPENT } from "@/lib/constants";
+import { subscribeQueue } from "@/lib/upload-queue";
 
 /**
  * The pieces below the cover, shared by the host's roll home and the guest's album.
@@ -17,6 +18,8 @@ const tile =
 
 export function RollControls({
   ended,
+  code,
+  shotsLeft,
   cameraHref,
   inviteHref,
   saveHref,
@@ -34,6 +37,13 @@ export function RollControls({
    * mid-party, with guests still arriving and film left in every pocket.
    */
   ended: boolean;
+  /** This roll's join code, so the queue's counts can be told apart from another roll's. */
+  code?: string;
+  /**
+   * Film left, as the server counted it. Read together with the upload queue below, because
+   * a frame that has been shot but not yet handed over is not in that count.
+   */
+  shotsLeft?: number;
   /** Ignored when `onCamera` is given, which is how the guest app keeps its stream alive. */
   cameraHref?: string;
   /** Omitted by a guest, who has no invite sheet to open. */
@@ -46,11 +56,29 @@ export function RollControls({
       viewfinder alive underneath rather than tearing the stream down and back up. */
   onCamera?: () => void;
   /**
-   * Why the camera cannot be used, when it cannot — a spent quota, or a roll whose window is
-   * not open. The camera stays put and says this when tapped, rather than disappearing.
+   * Why the camera cannot be used, when it cannot — a roll whose window is not open. A spent
+   * quota is worked out below instead. The camera stays put and says this when tapped, rather
+   * than disappearing.
    */
   cameraOff?: string;
 }) {
+  /*
+    Shots still in this phone's pocket.
+
+    A guest walks out of the camera the instant they spend their last frame, onto a screen
+    that was rendered from a database which has not been told about it yet — so the camera
+    tile sat there lit, and tapping it handed back a viewfinder claiming a shot that was
+    already gone. The queue is the only thing that knows, so it is asked.
+  */
+  const [unreserved, setUnreserved] = useState(0);
+  useEffect(
+    () =>
+      subscribeQueue((queue) => setUnreserved(queue.code === code ? queue.unreserved : 0)),
+    [code],
+  );
+
+  const off =
+    cameraOff ?? (shotsLeft !== undefined && shotsLeft - unreserved <= 0 ? SHOTS_SPENT : undefined);
   /*
     One line of transient text for the whole row.
 
@@ -128,12 +156,12 @@ export function RollControls({
               camera that leads somewhere that refuses the photo is worse still — so it stays
               where it was and answers when tapped.
             */}
-            {cameraOff ? (
+            {off ? (
               <button
                 type="button"
                 aria-disabled="true"
                 aria-label="Take a photo"
-                onClick={() => setNotice(cameraOff)}
+                onClick={() => setNotice(off)}
                 className={cn(tile, "bg-surface text-dust/60")}
               >
                 <Camera className="h-5 w-5" />

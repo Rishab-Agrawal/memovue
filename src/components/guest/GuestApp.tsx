@@ -1,11 +1,17 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
+import { BackButton } from "@/components/roll/Chrome";
 import type { ProcessedPhoto } from "@/lib/image";
-import { drainQueue, enqueuePhoto, watchConnectivity } from "@/lib/upload-queue";
+import {
+  carriedForward,
+  drainQueue,
+  enqueuePhoto,
+  subscribeQueue,
+  watchConnectivity,
+} from "@/lib/upload-queue";
 
 import { CameraView } from "./CameraView";
 
@@ -46,9 +52,37 @@ export function GuestApp({
 }: GuestAppProps) {
   const router = useRouter();
 
-  const [shotsLeft, setShotsLeft] = useState(initialShots);
+  const [spent, setSpent] = useState(0);
   const [latestThumb, setLatestThumb] = useState(latestBlur);
   const [closed, setClosed] = useState(false);
+
+  /*
+    Film this device has already spent that the server has not been told about.
+
+    `initialShots` is counted from `Photo` rows, and a photograph sitting un-uploaded in
+    IndexedDB has no row — so a guest who shot their last frames offline and reopened the
+    viewfinder was handed the whole quota a second time. Every extra frame then came back
+    from the reserve route as `no_shots_left`, which is terminal, so the queue deleted the
+    only copy. The camera gave them shots that did not exist and destroyed what they took
+    with them.
+
+    A high-water mark, and `shot` is subtracted because the two counters overlap: a frame
+    taken in this session is in the queue *and* in `spent`, and counting it twice would take
+    two shots off the dial for one press. It only ever rises, so a reservation landing
+    mid-session cannot hand a shot back that was already spent.
+  */
+  const shot = useRef(0);
+  const [carried, setCarried] = useState(0);
+  useEffect(
+    () =>
+      subscribeQueue((queue) => {
+        if (queue.code !== code) return;
+        setCarried((previous) => carriedForward(previous, queue.unreserved, shot.current));
+      }),
+    [code],
+  );
+
+  const shotsLeft = Math.max(0, initialShots - spent - carried);
 
   /*
     The camera has its own clock now, because the page only ever had one on the way in.
@@ -92,21 +126,24 @@ export function GuestApp({
    * into the thumbnail, and the upload happens in the background — surviving a locked phone
    * or a dead signal because it goes through the queue rather than straight to the network.
    */
-  async function handleCaptured(photo: ProcessedPhoto) {
-    const left = Math.max(0, shotsLeft - 1);
-    setShotsLeft(left);
+  function handleCaptured(photo: ProcessedPhoto) {
+    shot.current += 1;
+    setSpent(shot.current);
+    const left = Math.max(0, initialShots - shot.current - carried);
     // What the frame flies into, and what stays there afterwards.
     setLatestThumb(photo.blurData);
-    await enqueuePhoto(code, photo);
 
     /*
       Out of film. Sitting on a dead viewfinder with a greyed-out shutter is the camera
       pretending it still has a job, so it closes and hands them the roll.
 
-      The upload is unaffected — the queue is a module, not a component, so it keeps draining
-      across a client-side navigation, and the roll it lands on is the screen that says so.
+      Before the queue rather than after it: writing a photograph into IndexedDB takes long
+      enough on a phone to leave the spent viewfinder on screen for several seconds, which is
+      the one moment this screen has nothing left to say. The upload is unaffected — the queue
+      is a module, not a component, so it keeps draining across the navigation.
     */
     if (left === 0) router.push(home);
+    void enqueuePhoto(code, photo);
   }
 
   return (
@@ -122,13 +159,11 @@ export function GuestApp({
         />
       </div>
 
-      <Link
-        href={home}
-        aria-label="Leave the camera"
-        className="absolute top-[calc(var(--safe-top)+0.25rem)] left-4 z-10 flex h-11 w-11 items-center justify-center rounded-2xl bg-void/50 text-[20px] text-chalk backdrop-blur-sm transition-colors hover:text-flame"
-      >
-        ←
-      </Link>
+      {/* The same squircle every other screen backs out of, rather than a typed arrow on a
+          translucent square that matched nothing. */}
+      <div className="absolute top-[calc(var(--safe-top)+0.25rem)] left-4 z-10">
+        <BackButton href={home} label="Leave the camera" />
+      </div>
 
       <span className="marking pointer-events-none absolute inset-x-0 top-[calc(var(--safe-top)+0.5rem)] truncate px-16 text-center text-chalk/60">
         {rollName}

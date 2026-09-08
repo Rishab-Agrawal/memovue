@@ -85,8 +85,10 @@ model Roll {
   maxGuests      Int
   photosPerGuest Int
 
-  /// false: a guest sees only their own frames, the host sees all.
-  everyoneCanSee Boolean @default(false)
+  /// false: a guest sees only their own frames, the host sees all. Defaults on, because a
+  /// shared album is what somebody sets a roll up for; the other way round is a deliberate
+  /// choice, and the wizard sends an explicit value either way.
+  everyoneCanSee Boolean @default(true)
 
   /// Capture runs startsAt..finishesAt. The reveal is a separate moment — which is the
   /// change from the previous model, where closing and revealing were one control.

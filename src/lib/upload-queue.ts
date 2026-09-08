@@ -29,9 +29,28 @@ export interface QueuedPhoto {
 }
 
 export interface QueueStatus {
+  /** Which roll these counts are about. One queue, and a phone can hold two parties. */
+  code: string | null;
   pending: number;
+  /**
+   * Of those, the ones the server has not reserved a shot for yet.
+   *
+   * A quota is counted from `Photo` rows, so a frame that is captured but still sitting in
+   * IndexedDB is one the roll screens cannot see — which is how a spent camera went on
+   * offering a shot that no longer existed. Reserved items are excluded because the row is
+   * already in the server's count, and subtracting them again would spend the shot twice.
+   */
+  unreserved: number;
   uploading: boolean;
-  lastError: string | null;
+  /**
+   * Photographs this roll's queue has given up on, and destroyed the only copy of.
+   *
+   * It replaces a `lastError` string that was published on every failure and rendered
+   * nowhere at all — so the one outcome worth interrupting somebody for, a frame that will
+   * never arrive, was the one thing the app kept entirely to itself. Transient failures are
+   * not counted here: those are still queued, and the line already says so.
+   */
+  dropped: number;
 }
 
 let dbPromise: Promise<IDBPDatabase> | null = null;
@@ -49,7 +68,13 @@ function db(): Promise<IDBPDatabase> {
 /* ------------------------------------------------------------------ subscriptions */
 
 const listeners = new Set<(status: QueueStatus) => void>();
-let status: QueueStatus = { pending: 0, uploading: false, lastError: null };
+let status: QueueStatus = {
+  code: null,
+  pending: 0,
+  unreserved: 0,
+  uploading: false,
+  dropped: 0,
+};
 
 function publish(patch: Partial<QueueStatus>) {
   status = { ...status, ...patch };
@@ -63,8 +88,29 @@ export function subscribeQueue(listener: (status: QueueStatus) => void): () => v
 }
 
 async function refreshPending(code: string) {
-  const items = await (await db()).getAllFromIndex(STORE, "code", code);
-  publish({ pending: items.length });
+  const items = (await (await db()).getAllFromIndex(STORE, "code", code)) as QueuedPhoto[];
+  publish({
+    code,
+    pending: items.length,
+    unreserved: items.filter((item) => !item.photoId).length,
+    // A different roll's losses are not this one's. Reset on the way in rather than left to
+    // accumulate across every roll a phone has ever held.
+    ...(code === status.code ? {} : { dropped: 0 }),
+  });
+}
+
+/**
+ * The film this device has spent that the server cannot see, as a high-water mark.
+ *
+ * `previous` is the mark so far, `unreserved` what the queue is holding without a reservation
+ * behind it, and `spent` how many frames this session has shot. The subtraction is the whole
+ * point: a frame taken in this session sits in both counters, and adding them would take two
+ * shots off the dial for one press. The maximum is the other half — a reservation landing
+ * mid-session empties the queue without the page's `initialShots` being recounted, and
+ * without this the camera would hand those shots straight back.
+ */
+export function carriedForward(previous: number, unreserved: number, spent: number): number {
+  return Math.max(previous, unreserved - spent);
 }
 
 /* ------------------------------------------------------------------ queue ops */
@@ -196,7 +242,6 @@ export async function drainQueue(code: string): Promise<void> {
         if (!confirm.ok) throw new Error("confirm_failed");
 
         await database.delete(STORE, item.localId);
-        publish({ lastError: null });
       } catch (error) {
         const reason = (error as { error?: string; message?: string }).error ?? "";
 
@@ -205,14 +250,13 @@ export async function drainQueue(code: string): Promise<void> {
           // held by a photograph that will never arrive is a shot the guest simply loses.
           if (item.photoId) await releaseShot(code, item.photoId);
           await database.delete(STORE, item.localId);
-          publish({ lastError: reason });
+          publish({ dropped: status.dropped + 1 });
           continue;
         }
 
         // Transient: leave it queued and stop for now. The next app open, the `online`
         // event, or the next capture will pick it back up.
         await database.put(STORE, { ...item, attempts: item.attempts + 1 });
-        publish({ lastError: (error as Error).message ?? "upload_failed" });
         break;
       } finally {
         await refreshPending(code);
