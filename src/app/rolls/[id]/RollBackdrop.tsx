@@ -2,6 +2,7 @@ import { PillLink } from "@/components/roll/Chrome";
 import { RollHeader } from "@/components/roll/RollHeader";
 import { PhotoGrid, type GridPhoto } from "@/components/roll/PhotoGrid";
 import { QueueStatusLine } from "@/components/roll/QueueStatusLine";
+import { RefreshAt } from "@/components/roll/RefreshAt";
 import { RollControls, VisibilityNotice } from "@/components/roll/RollParts";
 import { SHOTS_SPENT } from "@/lib/constants";
 import { formatDay, formatDuration } from "@/lib/format";
@@ -75,6 +76,13 @@ export function RollBackdrop({
         settingsHref={`/rolls/${roll.id}/settings`}
         peopleHref={`/rolls/${roll.id}/people`}
       />
+
+      {/*
+        This screen is rendered once and never asks again, which is right: nothing on it
+        changes without somebody navigating — except the seal lifting, whose moment is a date
+        on the roll. Only while it is still sealed, so an open roll schedules nothing at all.
+      */}
+      {open ? null : <RefreshAt at={roll.revealAt.getTime()} />}
 
       <div className="space-y-4 px-5 pt-4 pb-6">
         {/*

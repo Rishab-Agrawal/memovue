@@ -91,6 +91,8 @@ export function AlbumView({
   /* Which request the grid currently belongs to. A reset bumps it, so a page that was already
      in flight lands on a grid it no longer describes and is dropped instead of appended. */
   const request = useRef(0);
+  /* Whether this roll has anything left to say. See where it is set, below. */
+  const settled = useRef(false);
 
   const loadStatus = useCallback(async () => {
     try {
@@ -100,6 +102,10 @@ export function AlbumView({
         return;
       }
       const next = (await response.json()) as Feed;
+      /* Open, and no longer shooting: the seal has lifted and the counts are final, so there
+         is nothing left for the poll below to hear about. This is the state an album spends
+         the rest of its life in — the one people leave open on a phone and come back to. */
+      settled.current = next.open && !next.capturing;
       setFeed((previous) => {
         // The seal lifting while someone is looking at the wall is the moment the whole
         // product exists for, so the page refreshes itself rather than waiting for a tap.
@@ -178,7 +184,21 @@ export function AlbumView({
     */
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadStatus();
-    const timer = setInterval(loadStatus, 20_000);
+
+    /*
+      Twenty seconds is the right cadence for a roll that is still moving, and the wrong bill
+      for one that is not. An album is a thing people leave open — on a phone in a pocket, on
+      a tab behind forty others — and an evening of that used to be three requests a minute
+      for as long as it stayed there, whether or not anybody was looking and whether or not
+      anything could still change. Both of those are askable before we ask the server.
+
+      The interval itself keeps ticking rather than being torn down and rebuilt: a phone taken
+      back out of a pocket is current within twenty seconds, and costs nothing until it is.
+    */
+    const timer = setInterval(() => {
+      if (settled.current || document.visibilityState !== "visible") return;
+      void loadStatus();
+    }, 20_000);
     return () => clearInterval(timer);
   }, [loadStatus]);
 
