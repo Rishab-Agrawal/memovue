@@ -17,8 +17,23 @@
 const CAP_PER_PAGE = 5;
 let sent = 0;
 
+/**
+ * How Next says "navigate", not "broken".
+ *
+ * `redirect()` and `notFound()` work by throwing, so a server action that ends in one rejects
+ * its promise in the browser too — deleting a roll, signing out, closing an account. Nothing
+ * went wrong; the router is already doing as it was told. An alerts channel that cries
+ * NEXT_REDIRECT every time somebody signs out is a channel nobody reads.
+ */
+const isControlFlow = (error: unknown): boolean => {
+  const digest = (error as { digest?: unknown } | null)?.digest;
+  const message = (error as { message?: unknown } | null)?.message;
+  return [digest, message, error].some((v) => typeof v === "string" && v.startsWith("NEXT_"));
+};
+
 export function reportClientError(message: unknown, source: string): void {
   if (typeof navigator === "undefined" || sent >= CAP_PER_PAGE) return;
+  if (isControlFlow(message)) return;
   sent += 1;
 
   try {
