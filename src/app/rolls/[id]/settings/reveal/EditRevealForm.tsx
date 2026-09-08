@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { BackButton, Pill } from "@/components/roll/Chrome";
+import { Pill } from "@/components/roll/Chrome";
+import { EditBackButton, useConfirm } from "@/components/roll/Confirm";
 import { RevealPicker, type RevealMode } from "@/components/roll/RevealPicker";
 
 import { updateRevealAction } from "../../actions";
@@ -34,21 +35,27 @@ export function EditRevealForm({
   const [delayHours, setDelayHours] = useState(Math.max(initialDelay, 1));
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [confirm, confirmDialog] = useConfirm();
 
   const dirty = mode !== initialMode || (mode === "DELAY" && delayHours !== initialDelay);
 
   const save = () => {
     // The one choice here that cannot be taken back, so it is asked for rather than assumed.
     // Every other mode is a date that can be moved again tomorrow.
-    if (
-      mode === "DURING" &&
-      !window.confirm(
-        "Every guest sees every photograph they are allowed to, straight away. A roll cannot be sealed again once it has been opened.",
-      )
-    ) {
+    if (mode === "DURING") {
+      confirm({
+        title: "Open the roll as it is shot?",
+        body: "Every guest sees every photograph they are allowed to, straight away. A roll cannot be sealed again once it has been opened.",
+        action: "Open it",
+        danger: true,
+        onConfirm: commit,
+      });
       return;
     }
+    commit();
+  };
 
+  const commit = () => {
     setError(null);
     startTransition(async () => {
       const result = await updateRevealAction(rollId, {
@@ -66,12 +73,7 @@ export function EditRevealForm({
 
   return (
     <div className="pad-safe-top flex min-h-dvh flex-col px-5 pb-[calc(var(--safe-bottom)+1.5rem)]">
-      <BackButton
-        href={`/rolls/${rollId}/settings`}
-        onNavigate={(event) => {
-          if (dirty && !window.confirm("Discard your changes?")) event.preventDefault();
-        }}
-      />
+      <EditBackButton href={`/rolls/${rollId}/settings`} dirty={dirty} />
 
       <h1 className="display mt-5 text-center text-[30px] text-chalk">
         When should we reveal your photos?
@@ -96,6 +98,8 @@ export function EditRevealForm({
       <Pill variant="light" full className="mt-8" disabled={pending || !dirty} onClick={save}>
         {pending ? "Saving…" : "Save"}
       </Pill>
+
+      {confirmDialog}
     </div>
   );
 }

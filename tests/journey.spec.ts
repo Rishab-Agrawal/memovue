@@ -93,6 +93,37 @@ test.describe("an impossible window cannot be picked", () => {
     await page.getByRole("button", { name: "Done" }).click();
     await expect(page.getByRole("button", { name: /3:30 am/ })).toBeVisible();
   });
+
+  /**
+   * Abandoning a roll asks first, in our own box.
+   *
+   * Every one of these questions used to be a `window.confirm` — the browser's own dialog, in
+   * the system font, with the browser's word for "Cancel" on a button we did not choose and
+   * no way to say which of the two answers throws the work away. Playwright dismisses a native
+   * confirm on sight, so the suite could not have told the difference: this asserts the dialog
+   * is ours by reading the words on it.
+   */
+  test("cancelling the wizard asks before throwing the draft away", async ({ page }) => {
+    await page.goto("/new/name");
+    await page.getByLabel("Event name").fill("Abandoned roll");
+    await page.getByRole("link", { name: /Next/ }).click();
+    await expect(page).toHaveURL(/\/new\/start$/);
+
+    // Asked, not assumed — and backing out of the question leaves the draft where it was.
+    await page.getByRole("button", { name: "Cancel" }).click();
+    const box = page.getByRole("dialog");
+    await expect(box.getByText("Discard this roll?")).toBeVisible();
+    await box.getByRole("button", { name: "Cancel" }).click();
+    await expect(page).toHaveURL(/\/new\/start$/);
+
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Discard" }).click();
+    await expect(page).toHaveURL(/\/rolls$/);
+
+    // And the draft went with it, rather than seeding the next roll somebody starts.
+    await page.goto("/new/name");
+    await expect(page.getByLabel("Event name")).toHaveValue("");
+  });
 });
 
 /**
@@ -536,16 +567,18 @@ test.describe("a roll from creation to reveal", () => {
     await expect(page.getByText("After + delay")).toBeVisible();
     expect((await page.request.get(`/api/rolls/${rollId()}/download`)).status()).toBe(403);
 
-    // Opening it for good is the one choice that asks first.
+    // Opening it for good is the one choice that asks first — in our own dialog, which is
+    // why this drives a button rather than a `page.on("dialog")` handler.
     await page.getByRole("link", { name: /Reveal time/ }).click();
     await page.getByRole("button", { name: "During\nEvent" }).click();
-    page.once("dialog", (dialog) => dialog.dismiss());
     await page.getByRole("button", { name: "Save" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Cancel" }).click();
     await expect(page).toHaveURL(`${rollUrl}/settings/reveal`);
+    // Backing out of the question leaves the roll sealed.
     expect((await page.request.get(`/api/rolls/${rollId()}/download`)).status()).toBe(403);
 
-    page.once("dialog", (dialog) => dialog.accept());
     await page.getByRole("button", { name: "Save" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Open it" }).click();
     await expect(page).toHaveURL(`${rollUrl}/settings`);
     // Open for good: the row that led here is a plain row again.
     await expect(page.getByRole("link", { name: /Reveal time/ })).toHaveCount(0);

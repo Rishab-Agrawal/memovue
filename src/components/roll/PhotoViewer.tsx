@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Pill } from "@/components/roll/Chrome";
+import { useConfirm } from "@/components/roll/Confirm";
 import { Download, Link as LinkIcon, Send, Trash } from "@/components/roll/Icons";
 import { formatStamp } from "@/lib/format";
 import { shareOrCopy } from "@/lib/share";
@@ -53,6 +54,7 @@ export function PhotoViewer({
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [confirm, confirmDialog] = useConfirm();
 
   const trackRef = useRef<HTMLDivElement>(null);
   const animation = useRef<ReturnType<typeof spring> | null>(null);
@@ -339,26 +341,35 @@ export function PhotoViewer({
           {saving ? "Saving…" : "Save"}
         </Pill>
 
-        {/* The native confirm, as the cover editor uses for discarding changes. A designed
-            dialog over a full-screen photograph is a second overlay to unwind, and this one
-            question does not need one. */}
+        {/* The viewer is a stacking context of its own, so the box lands over the photograph
+            rather than behind it. It used to be the browser's own confirm on the grounds that
+            a second overlay was not worth unwinding — but the one screen in the product where
+            a picture is the entire frame is the last place to hand somebody a system font. */}
         {onDelete ? (
           <Pill
             variant="quiet"
             disabled={deleting}
             className="px-3 text-[14px] text-danger"
-            onClick={() => {
-              if (!window.confirm("Remove this photograph from the album? This cannot be undone."))
-                return;
-              setDeleting(true);
-              void onDelete(photo).finally(() => setDeleting(false));
-            }}
+            onClick={() =>
+              confirm({
+                title: "Remove this photograph?",
+                body: "It leaves the album for everyone, and cannot be recovered.",
+                action: "Remove",
+                danger: true,
+                onConfirm: () => {
+                  setDeleting(true);
+                  void onDelete(photo).finally(() => setDeleting(false));
+                },
+              })
+            }
           >
             <Trash className="h-4 w-4" />
             {deleting ? "Removing…" : "Remove"}
           </Pill>
         ) : null}
       </div>
+
+      {confirmDialog}
     </div>
   );
 }

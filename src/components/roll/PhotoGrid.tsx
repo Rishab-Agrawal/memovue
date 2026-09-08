@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 
 import { cn } from "@/lib/cn";
+import { useNotice } from "@/components/roll/Confirm";
 import { PhotoViewer, type ViewerPhoto } from "@/components/roll/PhotoViewer";
 import { GhostTile, LostShots, useUploadQueue } from "@/components/roll/QueueParts";
 
@@ -45,6 +46,9 @@ export function PhotoGrid({
 }) {
   const router = useRouter();
   const [viewing, setViewing] = useState<number | null>(null);
+  // A refusal from the server, in our own box. It was a `window.alert`, which is the browser
+  // reading our error message out in its own voice over the top of the album.
+  const [notify, notice] = useNotice();
 
   /* A host shoots their own roll like anybody else, and lands back here while the last
      frames are still going out. The wall is the server's, and it was rendered before they
@@ -64,7 +68,7 @@ export function PhotoGrid({
     ? async (photo: ViewerPhoto) => {
         const result = await deletePhotoAction(rollId, photo.id);
         if (!result.ok) {
-          window.alert(result.error);
+          notify(result.error);
           return;
         }
         setViewing(null);
@@ -135,6 +139,8 @@ export function PhotoGrid({
           onDelete={remove}
         />
       ) : null}
+
+      {notice}
     </>
   );
 }

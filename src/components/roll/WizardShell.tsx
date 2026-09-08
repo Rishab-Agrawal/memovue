@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { BackButton, Pill, PillLink } from "@/components/roll/Chrome";
+import { useConfirm } from "@/components/roll/Confirm";
 import { forgetDraft } from "@/app/new/DraftContext";
 
 export const WIZARD_STEPS = 5;
@@ -44,15 +45,22 @@ export function WizardShell({
   children: ReactNode;
 }) {
   const router = useRouter();
+  const [confirm, confirmDialog] = useConfirm();
   const pad = (n: number) => String(n).padStart(2, "0");
 
-  const cancel = () => {
-    if (!window.confirm("Discard this roll? Nothing you've picked will be kept.")) return;
-    // The draft outlives the page it was typed on, so leaving without clearing it would seed
-    // the next roll somebody starts with the one they just abandoned.
-    forgetDraft();
-    router.push("/rolls");
-  };
+  const cancel = () =>
+    confirm({
+      title: "Discard this roll?",
+      body: "Nothing you’ve picked will be kept.",
+      action: "Discard",
+      danger: true,
+      onConfirm: () => {
+        // The draft outlives the page it was typed on, so leaving without clearing it would
+        // seed the next roll somebody starts with the one they just abandoned.
+        forgetDraft();
+        router.push("/rolls");
+      },
+    });
 
   return (
     <div className="pad-safe-top flex min-h-dvh flex-col px-5 pb-[calc(var(--safe-bottom)+1.25rem)]">
@@ -105,6 +113,8 @@ export function WizardShell({
           </PillLink>
         )}
       </div>
+
+      {confirmDialog}
     </div>
   );
 }

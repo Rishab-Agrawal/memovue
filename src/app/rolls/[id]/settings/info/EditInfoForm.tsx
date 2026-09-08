@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 
-import { BackButton, Pill } from "@/components/roll/Chrome";
+import { Pill } from "@/components/roll/Chrome";
+import { EditBackButton } from "@/components/roll/Confirm";
 import { CoverChoice } from "@/components/roll/CoverChoice";
 import { Pencil } from "@/components/roll/Icons";
 import { CoverError, prepareCover, removeCover, uploadCover } from "@/lib/cover-upload";
@@ -99,12 +100,7 @@ export function EditInfoForm({
 
   return (
     <div className="pad-safe-top flex min-h-dvh flex-col px-5 pb-[calc(var(--safe-bottom)+1.5rem)]">
-      <BackButton
-        href={`/rolls/${rollId}/settings`}
-        onNavigate={(event) => {
-          if (dirty && !window.confirm("Discard your changes?")) event.preventDefault();
-        }}
-      />
+      <EditBackButton href={`/rolls/${rollId}/settings`} dirty={dirty} />
 
       <h1 className="display mt-5 text-center text-[30px] text-chalk">Edit your roll info</h1>
       <p className="mt-3 text-center text-[15px] text-ash">
