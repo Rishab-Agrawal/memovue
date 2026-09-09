@@ -41,6 +41,24 @@ export function isOpen(roll: RollTimings, now: Date = new Date()): boolean {
 }
 
 /**
+ * The same rule as `isOpen`, written as a Prisma `where`.
+ *
+ * Here beside it rather than spelled out wherever open rolls are counted, because
+ * `revealAt < now` is only one of its three arms: a `DURING` roll has no seal at all, and an
+ * early reveal opens an album without moving the column. Counting on that column alone leaves
+ * both out silently — the two-call-sites-disagreeing failure this module exists to prevent.
+ */
+export function openRollWhere(now: Date) {
+  return {
+    OR: [
+      { revealedEarly: true },
+      { revealMode: "DURING" as const },
+      { revealAt: { lt: now } },
+    ],
+  };
+}
+
+/**
  * `closed` is the state the previous model could not express: shooting has finished but the
  * photos have not opened yet. It exists because capture and reveal became separate moments.
  */

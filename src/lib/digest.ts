@@ -5,6 +5,7 @@ import { env } from "./env";
 import { WEEKDAYS, formatDayYear, toWall, wallDate, wallDateRange } from "./format";
 import { tallies } from "./metrics";
 import { prisma } from "./prisma";
+import { openRollWhere } from "./roll-access";
 
 /**
  * Yesterday, in one message you can read at a traffic light.
@@ -39,6 +40,16 @@ function count(n: number, noun: string): string {
   return `${n} ${noun}${n === 1 ? "" : "s"}`;
 }
 
+/** Everything the message says about guests, hosts excluded. See the query that fills it. */
+interface GuestCounts {
+  /** Rows created yesterday: invitations actually accepted. */
+  joined: number;
+  total: number;
+  /** On rolls that have finished shooting — the denominator for the line below. */
+  closed: number;
+  usedItAll: number;
+}
+
 export interface Digest {
   text: string;
   /** Nightly jobs that wrote no heartbeat today. Empty on a healthy morning. */
@@ -55,7 +66,6 @@ export async function buildDigest(now: Date = new Date()): Promise<Digest> {
   const [
     rollsCreated,
     newHosts,
-    joins,
     photos,
     photographers,
     firstOpens,
@@ -65,18 +75,18 @@ export async function buildDigest(now: Date = new Date()): Promise<Digest> {
     revealingToday,
     hosts,
     rolls,
-    guests,
     allPhotos,
-    revealed,
+    open,
     everOpened,
-    closedRollGuests,
+    [guests],
     cost,
   ] = await Promise.all([
     prisma.roll.count({ where: createdYesterday }),
     prisma.user.count({ where: createdYesterday }),
-    prisma.guest.count({ where: createdYesterday }),
     prisma.photo.count({ where: { status: "READY", ...createdYesterday } }),
-    prisma.photo.groupBy({ by: ["guestId"], where: createdYesterday }),
+    // The same rows the line above counts. Without the status these disagree, and the digest
+    // says a number of photographs arrived from more people than took them.
+    prisma.photo.groupBy({ by: ["guestId"], where: { status: "READY", ...createdYesterday } }),
     prisma.roll.count({ where: { albumOpenedAt: { gte: yesterday.from, lt: yesterday.to } } }),
     tallies(day),
     tallies(today),
@@ -86,29 +96,43 @@ export async function buildDigest(now: Date = new Date()): Promise<Digest> {
     prisma.roll.count({ where: { revealAt: { gte: rest.from, lt: rest.to } } }),
     prisma.user.count(),
     prisma.roll.count(),
-    prisma.guest.count(),
     prisma.photo.count({ where: { status: "READY" } }),
-    prisma.roll.count({ where: { revealAt: { lt: now } } }),
-    prisma.roll.count({ where: { revealAt: { lt: now }, albumOpenedAt: { not: null } } }),
+    prisma.roll.count({ where: openRollWhere(now) }),
+    // No clause about the clock beside it: `albumOpenedAt` is only ever written while the
+    // album is open, so the column already carries the condition the denominator applies.
+    prisma.roll.count({ where: { albumOpenedAt: { not: null } } }),
     /*
-      Guests on rolls that have finished, with how much of their film they used.
+      Every guest figure in the message, with the hosts taken out of them.
 
-      ponytail: loaded rather than aggregated, because "used every shot" compares a count
-      against a limit that lives on another table and differs per roll — one pass in SQL, and
-      not expressible in Prisma's `groupBy`. At a few hundred guests it is one page of rows
-      once a morning. If it ever reads slowly it is a raw query away from being one pass.
+      A host is enrolled in their own roll the moment it is created, so a `Guest` row stopped
+      being the same thing as somebody having accepted an invitation. Counted straight, each
+      roll created added a phantom join to a funnel whose top its host never passed through —
+      a day with no invitations shown and three rolls made read "0 shown → 3 joined" — and put
+      the host's own untouched quota into "used their whole film".
+
+      Raw because the rule compares two tables, a guest's `userId` against their roll's
+      `hostId`, which the query API cannot express. One statement rather than three round
+      trips, and it replaces the page of guest rows this used to load to do the arithmetic in
+      JavaScript.
     */
-    prisma.guest.findMany({
-      where: { roll: { finishesAt: { lt: now } } },
-      select: { roll: { select: { photosPerGuest: true } }, _count: { select: { photos: true } } },
-    }),
+    prisma.$queryRaw<[GuestCounts]>`
+      select
+        count(*) filter (
+          where g."createdAt" >= ${yesterday.from} and g."createdAt" < ${yesterday.to}
+        )::int as joined,
+        count(*)::int as total,
+        count(*) filter (where r."finishesAt" < ${now})::int as closed,
+        count(*) filter (
+          where r."finishesAt" < ${now} and shot.n >= r."photosPerGuest"
+        )::int as "usedItAll"
+      from "Guest" g
+      join "Roll" r on r.id = g."rollId"
+      join lateral (select count(*) as n from "Photo" p where p."guestId" = g.id) shot on true
+      where g."userId" is null or g."userId" <> r."hostId"
+    `,
     // Never throws — an unreachable meter comes back as "unreadable" in the line it prints.
     costs(env.cost, now),
   ]);
-
-  const usedItAll = closedRollGuests.filter(
-    (guest) => guest._count.photos >= guest.roll.photosPerGuest,
-  ).length;
 
   const scans = counts.scan ?? 0;
   const heading = `${WEEKDAYS[toWall(yesterday.from).weekday]} ${formatDayYear(yesterday.from)}`;
@@ -130,7 +154,7 @@ export async function buildDigest(now: Date = new Date()): Promise<Digest> {
     "",
     "Yesterday",
     `  ${count(rollsCreated, "roll")} created · ${count(newHosts, "new host")}`,
-    `  ${count(scans, "invitation")} shown → ${joins} joined (${pct(joins, scans)})`,
+    `  ${count(scans, "invitation")} shown → ${guests.joined} joined (${pct(guests.joined, scans)})`,
     `  ${count(photos, "photo")} from ${count(photographers.length, "guest")}`,
     `  ${count(firstOpens, "album")} opened for the first time`,
     "",
@@ -138,9 +162,9 @@ export async function buildDigest(now: Date = new Date()): Promise<Digest> {
     `  ${count(shooting, "roll")} shooting · ${revealingToday} revealing`,
     "",
     "Overall",
-    `  ${count(hosts, "host")} · ${count(rolls, "roll")} · ${count(guests, "guest")} · ${count(allPhotos, "photo")}`,
-    `  ${usedItAll} of ${count(closedRollGuests.length, "guest")} used their whole film (${pct(usedItAll, closedRollGuests.length)})`,
-    `  ${everOpened} of ${count(revealed, "revealed album")} have been opened (${pct(everOpened, revealed)})`,
+    `  ${count(hosts, "host")} · ${count(rolls, "roll")} · ${count(guests.total, "guest")} · ${count(allPhotos, "photo")}`,
+    `  ${guests.usedItAll} of ${count(guests.closed, "guest")} used their whole film (${pct(guests.usedItAll, guests.closed)})`,
+    `  ${everOpened} of ${count(open, "open album")} have been opened (${pct(everOpened, open)})`,
     "",
     "Cost",
     ...costLines(cost),

@@ -221,6 +221,12 @@ quietly stopped being scheduled. That table has three columns, no identifier of 
 nothing joins to it, so no row in it can be turned back into one person's evening. It is the
 strongest instrument that keeps the promise the privacy page makes.
 
+**A host is not one of their own guests, as far as the digest is concerned.** They are enrolled
+in their own roll at creation, so a `Guest` row stopped meaning "somebody accepted an
+invitation" — and counted straight, every roll made added a join to a funnel whose top its host
+never passed through. The one query in the digest that is raw SQL is raw because that exclusion
+compares a guest's `userId` against their roll's `hostId`, across two tables.
+
 The one exception is `Roll.albumOpenedAt`, which is a column rather than a tally because the
 question is per-roll and permanent: how many albums are ever opened at all — which is to say,
 whether sealing them was worth doing.

@@ -4,6 +4,7 @@ import {
   acceptsUploads,
   isCapturing,
   isOpen,
+  openRollWhere,
   rollPhase,
   takenAtWithin,
   computeRevealAt,
@@ -36,6 +37,17 @@ function roll(overrides: Partial<RollTimings & { everyoneCanSee: boolean }> = {}
     everyoneCanSee: false,
     ...overrides,
   };
+}
+
+/** Whether the clause `openRollWhere` builds would return this roll. */
+function matchesOpenWhere(r: RollTimings, at: Date): boolean {
+  return openRollWhere(at).OR.some((arm) =>
+    "revealedEarly" in arm
+      ? r.revealedEarly
+      : "revealMode" in arm
+        ? r.revealMode === arm.revealMode
+        : r.revealAt.getTime() < arm.revealAt.lt.getTime(),
+  );
 }
 
 const host: Viewer = { kind: "host" };
@@ -86,6 +98,24 @@ test.describe("the seal", () => {
     const r = roll();
     expect(isOpen(r, new Date("2026-09-13T22:59:59Z"))).toBe(false);
     expect(isOpen(r, new Date("2026-09-13T23:00:00Z"))).toBe(true);
+  });
+
+  test("the query form agrees with the function, roll for roll", () => {
+    /*
+      The digest counts open albums with a `where` rather than by loading rolls and asking
+      `isOpen`, so the rule is written twice and only this stops the two drifting. It caught
+      the version that was only `revealAt < now`, which silently omitted every DURING roll and
+      every early reveal from the one number that says whether sealing albums was worth doing.
+    */
+    for (const r of [
+      roll(),
+      roll({ revealMode: "DURING" }),
+      roll({ revealedEarly: true }),
+      roll({ revealAt: new Date("2026-09-13T11:59:59Z") }),
+      roll({ revealMode: "DURING", revealAt: new Date("2026-09-14T23:00:00Z") }),
+    ]) {
+      expect(matchesOpenWhere(r, now)).toBe(isOpen(r, now));
+    }
   });
 });
 
