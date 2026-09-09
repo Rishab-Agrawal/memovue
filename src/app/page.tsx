@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { ButtonLink } from "@/components/ui/Button";
+import { PillLink } from "@/components/roll/Chrome";
 import { Logo, Mark } from "@/components/ui/Logo";
 import { cn } from "@/lib/cn";
 
@@ -93,9 +93,9 @@ export default function MarketingHome() {
                 className="animate-rise mt-9 flex flex-wrap items-center justify-center gap-x-6 gap-y-2"
                 style={{ animationDelay: "220ms" }}
               >
-                <ButtonLink href="/welcome" size="lg">
+                <PillLink href="/welcome" variant="flame" className="rounded-none">
                   Get started
-                </ButtonLink>
+                </PillLink>
               </div>
             </div>
 
@@ -176,9 +176,9 @@ export default function MarketingHome() {
             <p className="max-w-sm text-[16px] leading-relaxed text-ash">
               You can&rsquo;t be in every room. Your guests are.
             </p>
-            <ButtonLink href="/welcome" size="lg" className="mt-2">
+            <PillLink href="/welcome" variant="flame" className="mt-2 rounded-none">
               Get started
-            </ButtonLink>
+            </PillLink>
           </div>
         </section>
       </main>

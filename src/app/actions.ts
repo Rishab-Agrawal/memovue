@@ -6,7 +6,7 @@ import { sendBetaRequest } from "@/lib/email";
 import { rateLimit } from "@/lib/ratelimit";
 import { requireHost } from "@/lib/session";
 import { sendBetaRequestToTelegram } from "@/lib/telegram";
-import { betaRequestSchema, fieldErrors } from "@/lib/validation";
+import { type ActionResult, betaRequestSchema, firstError } from "@/lib/validation";
 
 /**
  * Actions that belong to no single screen.
@@ -16,11 +16,9 @@ import { betaRequestSchema, fieldErrors } from "@/lib/validation";
  * so the action sits above both rather than in one of their folders.
  */
 
-export type RequestAccessResult = { ok: true } | { ok: false; error: string };
-
 export async function requestBetaAccessAction(
   input: { name: string; phone?: string; eventType: string; remarks?: string } & BotSignals,
-): Promise<RequestAccessResult> {
+): Promise<ActionResult> {
   const user = await requireHost();
 
   /*
@@ -33,7 +31,7 @@ export async function requestBetaAccessAction(
 
   const parsed = betaRequestSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: Object.values(fieldErrors(parsed.error))[0] ?? "Invalid" };
+    return { ok: false, error: firstError(parsed.error) };
   }
 
   /*

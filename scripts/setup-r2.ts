@@ -13,11 +13,9 @@
  * What this asserts is that they exist and that their TTLs are long, which is the property
  * the bill depends on and the one nothing else would ever notice going missing.
  */
-import { GetBucketCorsCommand, PutBucketCorsCommand, S3Client } from "@aws-sdk/client-s3";
-import { config as loadEnv } from "dotenv";
+import "./load-env";
 
-loadEnv({ path: ".env.local", quiet: true });
-loadEnv({ quiet: true });
+import { GetBucketCorsCommand, PutBucketCorsCommand, S3Client } from "@aws-sdk/client-s3";
 
 const accountId = process.env.R2_ACCOUNT_ID;
 const accessKeyId = process.env.R2_ACCESS_KEY_ID;

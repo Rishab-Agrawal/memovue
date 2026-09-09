@@ -9,7 +9,7 @@ import { Trash } from "@/components/roll/Icons";
 
 import { adjustAccessAction, grantAccessAction, revokeAccessAction } from "./actions";
 
-export interface AccessRow {
+interface AccessRow {
   id: string;
   email: string;
   rollsLeft: number;

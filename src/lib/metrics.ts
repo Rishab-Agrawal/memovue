@@ -22,7 +22,7 @@ import { prisma } from "./prisma";
  * morning, so one evening's scans would land under two dates and every ratio would be wrong
  * by however much of the party ran past midnight. `format.ts` already owns that clock.
  */
-export type MetricName =
+type MetricName =
   /** An invitation screen rendered for somebody not already in that roll. Funnel top. */
   | "scan"
   /** A reservation the upload queue handed back because it gave up on the photograph. */

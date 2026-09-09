@@ -233,3 +233,22 @@ export function fieldErrors(error: z.ZodError): Record<string, string> {
   }
   return out;
 }
+
+/**
+ * The first thing wrong, for a screen with one place to say it.
+ *
+ * Most server actions here answer a form that shows a single line rather than a message per
+ * field, so eight of them had written the same reach-into-the-map-and-take-one by hand — along
+ * with the same "Invalid" for the case Zod cannot happen but TypeScript insists on.
+ */
+export function firstError(error: z.ZodError): string {
+  return Object.values(fieldErrors(error))[0] ?? "Invalid";
+}
+
+/**
+ * What a server action answers when the screen has one line to report it in.
+ *
+ * Four copies of this union had accumulated, one per actions file, each spelt identically and
+ * none of them knowing about the others.
+ */
+export type ActionResult = { ok: true } | { ok: false; error: string };

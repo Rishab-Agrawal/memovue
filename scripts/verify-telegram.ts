@@ -18,27 +18,18 @@
  *
  *   npm run verify:telegram
  */
-import { config as loadEnv } from "dotenv";
+import "./load-env";
 
-loadEnv({ path: ".env.local", quiet: true });
-loadEnv({ quiet: true });
-
-let failures = 0;
-
-function check(name: string, ok: boolean, detail?: string) {
-  if (!ok) failures += 1;
-  console.log(`  ${ok ? "OK  " : "FAIL"} ${name}${ok || !detail ? "" : `  (${detail})`}`);
-}
+import { check, verdict } from "./checks";
 
 async function main() {
   // Imported here rather than at the top, because `env.ts` reads the variables the moment it
-  // loads and a static import would hoist above dotenv. It also throws outside production on
+  // loads and a static import would hoist above it. It also throws outside production on
   // exactly the misconfiguration this script is about, which is a report, not a stack trace.
   const env = await import("../src/lib/env")
     .then((module) => module.env)
     .catch((error: unknown) => {
-      console.log(`  FAIL ${error instanceof Error ? error.message : String(error)}`);
-      failures += 1;
+      check(error instanceof Error ? error.message : String(error), false);
       return null;
     });
 
@@ -107,15 +98,9 @@ async function main() {
   }
 }
 
-// The verdict is printed here rather than at the end of `main`, because most of the ways this
-// fails are ways that return early — and a check that reports a failure while exiting 0 is a
-// check nothing downstream can act on.
 main()
   .catch((error) => {
     console.error(error);
-    failures += 1;
+    check("the run finished", false);
   })
-  .finally(() => {
-    console.log(`\n${failures === 0 ? "PASS — three messages are waiting in the group" : `FAIL — ${failures} check(s)`}`);
-    if (failures > 0) process.exitCode = 1;
-  });
+  .finally(() => verdict("three messages are waiting in the group"));

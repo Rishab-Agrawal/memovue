@@ -1,7 +1,4 @@
-import { config as loadEnv } from "dotenv";
-
-loadEnv({ path: ".env.local", quiet: true });
-loadEnv({ quiet: true });
+import "./load-env";
 
 /**
  * The nightly pass. Deployed as a Railway cron service off this same repo, so it runs with
@@ -20,8 +17,8 @@ loadEnv({ quiet: true });
  * nothing, which is the sensible way to meet it for the first time against a real database.
  */
 async function main() {
-  // Imported after dotenv, because `env.ts` reads process.env at module scope and throws on
-  // anything missing.
+  // Imported here rather than at the top: `env.ts` reads process.env the moment it loads
+  // and throws on anything missing, so nothing may be imported before `load-env`.
   const { runRetention } = await import("../src/lib/retention");
   const { ABANDONED_UPLOAD_DAYS, retentionAction, WARN_BEFORE_DAYS } =
     await import("../src/lib/roll-access");

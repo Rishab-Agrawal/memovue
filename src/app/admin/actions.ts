@@ -6,13 +6,12 @@ import { adjustAccess, grantAccess, revokeAccess } from "@/lib/beta";
 import { rateLimit } from "@/lib/ratelimit";
 import { requireAdmin } from "@/lib/session";
 import {
+  type ActionResult,
   adjustAccessSchema,
-  fieldErrors,
+  firstError,
   grantAccessSchema,
   revokeAccessSchema,
 } from "@/lib/validation";
-
-export type AdminResult = { ok: true } | { ok: false; error: string };
 
 /**
  * `requireAdmin`, with a ceiling on how fast the queue can be worked through.
@@ -22,20 +21,20 @@ export type AdminResult = { ok: true } | { ok: false; error: string };
  * counter, one tap is one write, and a held finger or a stuck retry is an unbounded number of
  * them. Every action goes through here so a new one cannot forget it.
  */
-async function withinAdminBudget(): Promise<AdminResult | null> {
+async function withinAdminBudget(): Promise<ActionResult | null> {
   const user = await requireAdmin();
   if (rateLimit(`admin:${user.id}`, 120, 60).ok) return null;
   return { ok: false, error: "Too fast — give that a second." };
 }
 
 /** Adds an address to the beta list with one roll on it, or leaves an existing one alone. */
-export async function grantAccessAction(input: { email: string }): Promise<AdminResult> {
+export async function grantAccessAction(input: { email: string }): Promise<ActionResult> {
   const over = await withinAdminBudget();
   if (over) return over;
 
   const parsed = grantAccessSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: Object.values(fieldErrors(parsed.error))[0] ?? "Invalid" };
+    return { ok: false, error: firstError(parsed.error) };
   }
 
   await grantAccess(parsed.data.email);
@@ -47,7 +46,7 @@ export async function grantAccessAction(input: { email: string }): Promise<Admin
 export async function adjustAccessAction(input: {
   id: string;
   delta: 1 | -1;
-}): Promise<AdminResult> {
+}): Promise<ActionResult> {
   const over = await withinAdminBudget();
   if (over) return over;
 
@@ -60,7 +59,7 @@ export async function adjustAccessAction(input: {
 }
 
 /** Drops an address off the list. Rolls they already created are untouched. */
-export async function revokeAccessAction(input: { id: string }): Promise<AdminResult> {
+export async function revokeAccessAction(input: { id: string }): Promise<ActionResult> {
   const over = await withinAdminBudget();
   if (over) return over;
 

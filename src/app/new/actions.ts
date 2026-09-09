@@ -9,7 +9,7 @@ import { requireHost } from "@/lib/session";
 import { notify } from "@/lib/telegram";
 import { createRollSchema, fieldErrors } from "@/lib/validation";
 
-export type CreateRollResult =
+type CreateRollResult =
   | { ok: true; rollId: string; code: string; name: string }
   /** `noAccess` is what the wizard opens the request form on, rather than matching a string. */
   | { ok: false; error: string; noAccess?: boolean; fields?: Record<string, string> };

@@ -6,7 +6,7 @@ import { prisma } from "./prisma";
 import { type RollPhase, acceptsUploads, isCapturing, isOpen, rollPhase } from "./roll-access";
 import { getCurrentUser } from "./session";
 
-export interface GuestContext {
+interface GuestContext {
   roll: NonNullable<Awaited<ReturnType<typeof findRoll>>>;
   guest: { id: string; name: string; userId: string | null };
   phase: RollPhase;

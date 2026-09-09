@@ -23,7 +23,7 @@ import { shouldAlert } from "./ratelimit";
  * Railway's log all outlive whatever was sent here, and nothing in the app waits on a send.
  */
 
-export type Topic = "alerts" | "signals" | "daily";
+type Topic = "alerts" | "signals" | "daily";
 
 /**
  * Capped, because some of these run inline in a request somebody is watching a spinner for.

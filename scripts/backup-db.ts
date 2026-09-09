@@ -1,7 +1,4 @@
-import { config as loadEnv } from "dotenv";
-
-loadEnv({ path: ".env.local", quiet: true });
-loadEnv({ quiet: true });
+import "./load-env";
 
 /**
  * The nightly database copy. Deployed as a Railway cron service off this same repo, so it
@@ -15,8 +12,8 @@ loadEnv({ quiet: true });
  * Run it by hand with `npm run backup`. Restore with `npm run restore -- <key>`.
  */
 async function main() {
-  // After dotenv, because `env.ts` reads process.env at module scope and throws on anything
-  // missing.
+  // Imported here rather than at the top: `env.ts` reads process.env the moment it loads
+  // and throws on anything missing, so nothing may be imported before `load-env`.
   const { runBackup } = await import("../src/lib/backup");
   const { record } = await import("../src/lib/metrics");
 
@@ -41,7 +38,7 @@ async function main() {
 main().catch(async (error) => {
   console.error(error);
   // Imported here rather than at the top, like everything else in this file: `env.ts` reads
-  // its configuration at module scope, so nothing may be imported before dotenv has run.
+  // its configuration at module scope, so nothing may be imported before `load-env` has run.
   const { alert } = await import("../src/lib/telegram");
   await alert(
     "backup",

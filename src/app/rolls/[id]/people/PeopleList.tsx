@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { Pill } from "@/components/roll/Chrome";
 import { Dialog } from "@/components/roll/Dialog";
 import { Trash } from "@/components/roll/Icons";
+import { PersonRow } from "@/components/roll/PersonRow";
 import { PARTICIPANT_TIERS } from "@/lib/roll-config";
 
 import { removeGuestAction, setSizeAction } from "../actions";
@@ -66,27 +67,27 @@ export function PeopleList({
     <>
       <ul className="mt-5 divide-y divide-hair border-t border-hair">
         {people.map((person) => (
-          <li key={person.id} className="flex items-center gap-3 py-4">
-            <span className="flex-1 truncate text-[15px] text-chalk">
-              {person.name}
-              {person.isHost ? <span className="text-dust"> · you</span> : null}
-            </span>
-            <span className="tabular text-[13px] text-dust">{person.shotsUsed} shots used</span>
-            {/* The host's own row keeps the list honest about who holds film, and offers
-                nothing: removing yourself from your own roll deletes your photographs and
-                hands your slot back to an event you own. */}
-            {person.isHost ? null : (
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() => setConfirming(person)}
-                aria-label={`Remove ${person.name}`}
-                className="tap shrink-0 text-dust transition-colors hover:text-danger disabled:opacity-40"
-              >
-                <Trash className="h-4 w-4" />
-              </button>
-            )}
-          </li>
+          <PersonRow
+            key={person.id}
+            person={person}
+            hostSuffix="you"
+            /* The host's own row keeps the list honest about who holds film, and offers
+               nothing: removing yourself from your own roll deletes your photographs and
+               hands your slot back to an event you own. */
+            action={
+              person.isHost ? null : (
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => setConfirming(person)}
+                  aria-label={`Remove ${person.name}`}
+                  className="tap shrink-0 text-dust transition-colors hover:text-danger disabled:opacity-40"
+                >
+                  <Trash className="h-4 w-4" />
+                </button>
+              )
+            }
+          />
         ))}
       </ul>
 

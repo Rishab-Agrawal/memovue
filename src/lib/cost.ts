@@ -91,7 +91,7 @@ export function requestClass(actionType: string): "A" | "B" | "free" {
   return "A";
 }
 
-export interface R2Usage {
+interface R2Usage {
   /** Gigabytes stored across every bucket in the account, at the most recent sample. */
   gb: number;
   /** Writes and listings so far this calendar month, account-wide. */
@@ -123,7 +123,7 @@ export function r2Bill(usage: R2Usage): number {
 
 /* ------------------------------------------------------------------ reading the meters */
 
-export interface Credentials {
+interface Credentials {
   /** An account or workspace token from railway.com/account/tokens, and the workspace it reads. */
   railway: { token: string; workspaceId: string } | null;
   /** A Cloudflare token with Account Analytics:Read, and the account R2 lives in. */
@@ -161,7 +161,7 @@ async function graphql<T>(
   return body.data;
 }
 
-export interface RailwaySpend {
+interface RailwaySpend {
   /** Dollars used this billing cycle, across every project in the workspace. */
   usd: number;
   /**
@@ -184,7 +184,7 @@ export interface RailwaySpend {
  * over: the workspace holds several projects and the hard limit stops all of them together,
  * so the workspace total is both the honest number and the actionable one.
  */
-export async function railwaySpend(
+async function railwaySpend(
   credentials: NonNullable<Credentials["railway"]>,
 ): Promise<RailwaySpend> {
   const data = await graphql<{
@@ -230,7 +230,7 @@ export async function railwaySpend(
  * Three days of window because the dataset samples periodically and a fresh account can have
  * a gap; ordered newest-first, one row taken per bucket.
  */
-export async function r2Usage(
+async function r2Usage(
   credentials: NonNullable<Credentials["cloudflare"]>,
   now: Date,
 ): Promise<R2Usage> {

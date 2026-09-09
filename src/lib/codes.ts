@@ -15,7 +15,7 @@ export function normalizeCode(input: string): string {
   return input.toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
-export const CODE_LENGTH = 6;
+const CODE_LENGTH = 6;
 
 /**
  * Pulls a roll code out of whatever a guest arrived with — a scanned QR, a pasted link, or

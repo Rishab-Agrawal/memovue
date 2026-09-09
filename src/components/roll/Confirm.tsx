@@ -20,7 +20,7 @@ import { Dialog } from "@/components/roll/Dialog";
  * `dialog` wherever it likes. Two of the call sites are `onNavigate` handlers that cancel a
  * link and re-issue it on confirmation, which is exactly this shape.
  */
-export interface Question {
+interface Question {
   title: string;
   /** The consequence, when it is worth spelling out. */
   body?: ReactNode;

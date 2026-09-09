@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { cn } from "@/lib/cn";
+import { PhotoTile } from "@/components/roll/PhotoGrid";
 import { RollHeader } from "@/components/roll/RollHeader";
 import { RollControls, VisibilityNotice } from "@/components/roll/RollParts";
 import { formatDay, formatDuration } from "@/lib/format";
@@ -13,7 +13,7 @@ import { useNow } from "@/lib/useNow";
 import { PhotoViewer, type ViewerPhoto } from "@/components/roll/PhotoViewer";
 import { GhostTile, LostShots, useUploadQueue } from "@/components/roll/QueueParts";
 
-export interface FeedPhoto {
+interface FeedPhoto {
   id: string;
   blurData: string;
   by: string | null;
@@ -25,7 +25,7 @@ export interface FeedPhoto {
   fullUrl?: string;
 }
 
-export interface Feed {
+interface Feed {
   phase: "scheduled" | "capturing" | "closed" | "revealed";
   open: boolean;
   capturing: boolean;
@@ -339,38 +339,14 @@ export function AlbumView({
             ))}
 
             {photos.map((photo, index) => (
-              <button
+              <PhotoTile
                 key={photo.id}
-                type="button"
-                disabled={!feed.open}
-                aria-label={photo.by ? `Photo by ${photo.by}` : "Hidden photo"}
-                onClick={() => feed.open && setViewing(index)}
-                className="relative block aspect-[4/5] overflow-hidden rounded-2xl bg-void"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={
-                    feed.open
-                      ? (photo.previewUrl ?? photo.blurData ?? undefined)
-                      : (photo.blurData || undefined)
-                  }
-                  alt=""
-                  className={cn("h-full w-full object-cover", feed.open && "animate-develop")}
-                  style={feed.open ? undefined : { filter: "blur(14px) saturate(0.6)" }}
-                />
-
-                {!feed.open ? (
-                  <span className="tabular absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-void/60 px-3 py-1.5 text-[13px] whitespace-nowrap text-chalk">
-                    Reveals in {revealsIn}
-                  </span>
-                ) : null}
-
-                {photo.by ? (
-                  <span className="marking absolute bottom-3 left-3 text-chalk/90 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">
-                    {photo.by}
-                  </span>
-                ) : null}
-              </button>
+                src={feed.open ? (photo.previewUrl ?? photo.blurData) : photo.blurData}
+                by={photo.by}
+                sealed={!feed.open}
+                revealsIn={revealsIn}
+                onOpen={() => setViewing(index)}
+              />
             ))}
           </div>
         )}

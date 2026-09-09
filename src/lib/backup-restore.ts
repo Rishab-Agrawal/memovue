@@ -17,7 +17,7 @@ import { backupKey, getObjectStream, storageConfigured } from "./storage";
  * lose something.
  */
 
-export interface RestoreReport {
+interface RestoreReport {
   key: string;
   rows: Record<string, number>;
   total: number;

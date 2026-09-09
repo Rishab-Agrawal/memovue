@@ -1,7 +1,4 @@
-import { config as loadEnv } from "dotenv";
-
-loadEnv({ path: ".env.local", quiet: true });
-loadEnv({ quiet: true });
+import "./load-env";
 
 /**
  * The morning digest. Deployed as a third Railway cron service off this same repo, scheduled
@@ -21,8 +18,8 @@ loadEnv({ quiet: true });
  * Run it by hand with `npm run digest`, which prints the same message it sends.
  */
 async function main() {
-  // After dotenv, because `env.ts` reads process.env at module scope and throws on anything
-  // missing.
+  // Imported here rather than at the top: `env.ts` reads process.env the moment it loads
+  // and throws on anything missing, so nothing may be imported before `load-env`.
   const { buildDigest } = await import("../src/lib/digest");
   const { alert, notify } = await import("../src/lib/telegram");
 

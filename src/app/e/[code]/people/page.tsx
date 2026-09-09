@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { BackButton } from "@/components/roll/Chrome";
+import { PersonRow } from "@/components/roll/PersonRow";
 import { getGuestContext } from "@/lib/guest-context";
 import { listParticipants } from "@/lib/rolls";
 
@@ -35,13 +36,7 @@ export default async function GuestPeoplePage({ params }: PageProps<"/e/[code]/p
 
         <ul className="mt-5 divide-y divide-hair border-t border-hair">
           {people.map((person) => (
-            <li key={person.id} className="flex items-center gap-3 py-4">
-              <span className="flex-1 truncate text-[15px] text-chalk">
-                {person.name}
-                {person.isHost ? <span className="text-dust"> · host</span> : null}
-              </span>
-              <span className="tabular text-[13px] text-dust">{person.shotsUsed} shots used</span>
-            </li>
+            <PersonRow key={person.id} person={person} hostSuffix="host" />
           ))}
         </ul>
       </div>

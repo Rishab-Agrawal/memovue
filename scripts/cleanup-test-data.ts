@@ -7,15 +7,13 @@
  *
  *   npx tsx scripts/cleanup-test-data.ts
  */
+import "./load-env";
+
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
-import { config as loadEnv } from "dotenv";
 
 import { TEST_HOST } from "../tests/global-setup";
 import { purgeTestRolls } from "../tests/purge-test-rolls";
-
-loadEnv({ path: ".env.local", quiet: true });
-loadEnv({ quiet: true });
 
 async function main() {
   const prisma = new PrismaClient({

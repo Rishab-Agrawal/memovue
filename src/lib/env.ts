@@ -48,7 +48,7 @@ const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
  * the nightly backup. `RAILWAY_ENVIRONMENT` is injected into every deployed service, web and
  * cron alike, and exists nowhere else.
  */
-export function telegramGroupChatId(): string | undefined {
+function telegramGroupChatId(): string | undefined {
   const id = process.env.TELEGRAM_CHAT_ID?.trim();
   if (!id || id.startsWith("-")) return id || undefined;
 
@@ -178,5 +178,3 @@ export const env = {
 
   isProduction: process.env.NODE_ENV === "production",
 } as const;
-
-export { UPLOAD_LIMITS } from "./constants";

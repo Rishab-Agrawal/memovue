@@ -72,7 +72,7 @@ export async function connect(): Promise<Client> {
 }
 
 /** How many nights are kept. A week is long enough to notice damage before it ages out. */
-export const KEEP_DAYS = 7;
+const KEEP_DAYS = 7;
 
 /**
  * Rows per round trip.
@@ -83,14 +83,14 @@ export const KEEP_DAYS = 7;
  */
 const PAGE = 2_000;
 
-export interface BackupReport {
+interface BackupReport {
   key: string;
   rows: Record<string, number>;
   total: number;
 }
 
 /** `2026-09-05`, which is both the file name and the thing rotation counts back from. */
-export function backupDay(now: Date): string {
+function backupDay(now: Date): string {
   return now.toISOString().slice(0, 10);
 }
 

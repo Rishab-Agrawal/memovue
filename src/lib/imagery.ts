@@ -23,9 +23,11 @@ export interface Stock {
   src: string;
   /** Painted underneath, and left showing if the file is absent. */
   wash: string;
-  /** Human-readable, for the cover picker's accessible names. */
-  label: string;
 }
+
+/** A cover carries a name too, because the picker needs something to announce. Frames don't:
+    nothing lets you choose one, so a name on them would be a caption nobody ever reads. */
+type Cover = Stock & { label: string };
 
 /**
  * Order is load-bearing at index 0: `coverPreset` defaults to it in the schema, so it is the
@@ -37,7 +39,7 @@ export interface Stock {
  * Inserting here renumbers everything after it, so a change to this order needs a migration
  * shifting `Roll.coverPreset` to match — see `20260905193000_default_cover_nature`.
  */
-export const COVERS: Stock[] = [
+export const COVERS: Cover[] = [
   {
     src: "/covers/nature-ghibli.jpg",
     wash: "radial-gradient(120% 100% at 50% 20%, #2f9ade, #cbb98a 78%)",
@@ -89,26 +91,22 @@ export const FRAMES: Stock[] = [
   {
     src: "/frames/wedding-toast.jpg",
     wash: "radial-gradient(120% 110% at 50% 35%, #5c4326, #16110b 70%)",
-    label: "A toast",
   },
   {
     src: "/frames/wedding-walk.jpg",
     wash: "radial-gradient(120% 100% at 35% 75%, #7d4a1a, #1d1409 68%)",
-    label: "Walking out",
   },
   {
     src: "/frames/wedding-dance.jpg",
     wash: "radial-gradient(110% 100% at 75% 65%, #45392f, #14100c 72%)",
-    label: "The dance floor",
   },
   {
     src: "/frames/birthday-candles.jpg",
     wash: "radial-gradient(110% 100% at 65% 30%, #3b3630, #100f0d 72%)",
-    label: "Candles",
   },
 ];
 
 /** Wraps, so a `coverPreset` from a roll created under a different set still resolves. */
-export function cover(index: number): Stock {
+export function cover(index: number): Cover {
   return COVERS[((index % COVERS.length) + COVERS.length) % COVERS.length];
 }

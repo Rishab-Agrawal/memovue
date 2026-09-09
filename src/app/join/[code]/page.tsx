@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 
+import { Notice } from "@/components/roll/Chrome";
 import { formatCountdown } from "@/lib/format";
 import { getGuestContext, getRollByJoinCode } from "@/lib/guest-context";
 import { record } from "@/lib/metrics";
@@ -27,12 +28,9 @@ export async function generateMetadata({ params }: PageProps<"/join/[code]">) {
 
 function NotFound() {
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center gap-3 px-6 text-center">
-      <h1 className="display text-[28px] text-chalk">We couldn&rsquo;t find that roll</h1>
-      <p className="text-[15px] text-ash">
-        Check the link, or ask whoever invited you for a fresh one.
-      </p>
-    </div>
+    <Notice title={<>We couldn&rsquo;t find that roll</>}>
+      Check the link, or ask whoever invited you for a fresh one.
+    </Notice>
   );
 }
 

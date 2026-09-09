@@ -7,7 +7,7 @@ import { BackButton, Pill, PillLink } from "@/components/roll/Chrome";
 import { useConfirm } from "@/components/roll/Confirm";
 import { forgetDraft } from "@/app/new/DraftContext";
 
-export const WIZARD_STEPS = 5;
+const WIZARD_STEPS = 5;
 
 /**
  * Every step of the create-roll wizard shares this frame, so it is written once.

@@ -48,7 +48,7 @@ export async function consumeOAuthState(returned: string | null): Promise<boolea
 
 /* ------------------------------------------------------------------ host session */
 
-export interface HostClaims {
+interface HostClaims {
   userId: string;
   tokenVersion: number;
 }
@@ -91,7 +91,7 @@ export async function readHostClaims(): Promise<HostClaims | null> {
 
 /* ------------------------------------------------------------------ guest session */
 
-export interface GuestClaims {
+interface GuestClaims {
   guestId: string;
   eventId: string;
 }
@@ -102,7 +102,7 @@ export interface GuestClaims {
  */
 export const GUEST_COOKIE_PREFIX = "mv_g_";
 
-export function guestCookieName(eventCode: string): string {
+function guestCookieName(eventCode: string): string {
   return `${GUEST_COOKIE_PREFIX}${eventCode.toUpperCase()}`;
 }
 

@@ -20,11 +20,11 @@ import { prisma } from "./prisma";
 export class BetaAccessError extends Error {}
 
 /** What every refusal says. Shown in the dialog that offers the request form. */
-export const NO_ACCESS =
+const NO_ACCESS =
   "MemoVue is invite-only while we're in beta, and this account isn't on the list yet.";
 
 /** Only ever compared against a lower-cased `BetaAccess.email`. */
-export function normalizeEmail(email: string): string {
+function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
@@ -47,7 +47,7 @@ function unlimited(user: Account): boolean {
 }
 
 /** How many rolls are left to this account, or null when it is not limited at all. */
-export async function rollsLeftFor(user: Account): Promise<number | null> {
+async function rollsLeftFor(user: Account): Promise<number | null> {
   if (unlimited(user)) return null;
 
   const access = await prisma.betaAccess.findUnique({

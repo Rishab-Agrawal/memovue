@@ -12,29 +12,22 @@
  *
  *   npx tsx --conditions=react-server scripts/verify-guest-link.ts
  */
+import "./load-env";
+
+import { checkEqual as check, verdict } from "./checks";
+
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
-import { config as loadEnv } from "dotenv";
-
-loadEnv({ path: ".env.local", quiet: true });
-loadEnv({ quiet: true });
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
 });
 
 const TAG = "guest-link-check";
-let failures = 0;
-
-function check(name: string, actual: unknown, expected: unknown) {
-  const ok = JSON.stringify(actual) === JSON.stringify(expected);
-  if (!ok) failures += 1;
-  console.log(`  ${ok ? "OK  " : "FAIL"} ${name}${ok ? "" : `  (got ${JSON.stringify(actual)}, wanted ${JSON.stringify(expected)})`}`);
-}
 
 async function main() {
   // Imported here rather than at the top: `src/lib/prisma` reads DATABASE_URL the moment it
-  // loads, and a static import would hoist above dotenv.
+  // loads, and a static import would hoist above the variables it needs.
   const { linkGuestSessions } = await import("../src/lib/guest-link");
   const { signGuestToken } = await import("../src/lib/auth");
 
@@ -136,9 +129,6 @@ async function main() {
   // Tidy up.
   await prisma.roll.deleteMany({ where: { name: TAG } });
   await prisma.user.deleteMany({ where: { email: { endsWith: "@memovue.test" }, name: { startsWith: "Link " } } });
-
-  console.log(`\n${failures === 0 ? "PASS" : `FAIL — ${failures} check(s)`}`);
-  if (failures > 0) process.exitCode = 1;
 }
 
 main()
@@ -146,4 +136,7 @@ main()
     console.error(error);
     process.exitCode = 1;
   })
-  .finally(() => prisma.$disconnect());
+  .finally(async () => {
+    verdict();
+    await prisma.$disconnect();
+  });

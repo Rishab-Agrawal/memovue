@@ -8,11 +8,9 @@ import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/ratelimit";
 import { purgeRollsOfHost } from "@/lib/retention";
 import { requireHost } from "@/lib/session";
-import { fieldErrors, updateNameSchema } from "@/lib/validation";
+import { type ActionResult, firstError, updateNameSchema } from "@/lib/validation";
 
-export async function updateNameAction(
-  input: { name: string },
-): Promise<{ ok: true } | { ok: false; error: string }> {
+export async function updateNameAction(input: { name: string }): Promise<ActionResult> {
   const user = await requireHost();
 
   if (!rateLimit(`rename:${user.id}`, 20, 60).ok) {
@@ -21,7 +19,7 @@ export async function updateNameAction(
 
   const parsed = updateNameSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: Object.values(fieldErrors(parsed.error))[0] ?? "Invalid" };
+    return { ok: false, error: firstError(parsed.error) };
   }
 
   await prisma.user.update({ where: { id: user.id }, data: { name: parsed.data.name } });

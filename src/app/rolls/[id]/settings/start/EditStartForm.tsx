@@ -3,9 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { Pill } from "@/components/roll/Chrome";
-import { EditBackButton } from "@/components/roll/Confirm";
 import { DatePick } from "@/components/roll/DatePick";
+import { EditScreen } from "@/components/roll/EditScreen";
 import { formatDateTime } from "@/lib/format";
 import { movedStart, startDateRange } from "@/lib/roll-config";
 import { useNow } from "@/lib/useNow";
@@ -67,15 +66,15 @@ export function EditStartForm({
   };
 
   return (
-    <div className="pad-safe-top flex min-h-dvh flex-col px-5 pb-[calc(var(--safe-bottom)+1.5rem)]">
-      <EditBackButton href={`/rolls/${rollId}/settings`} dirty={dirty} />
-
-      <h1 className="display mt-5 text-center text-[30px] text-chalk">When does it start?</h1>
-      <p className="mt-3 text-center text-[15px] text-ash">
-        Guests can shoot from this moment. Nobody has taken a photograph yet, so this can still
-        move.
-      </p>
-
+    <EditScreen
+      rollId={rollId}
+      title="When does it start?"
+      blurb="Guests can shoot from this moment. Nobody has taken a photograph yet, so this can still move."
+      dirty={dirty}
+      saving={pending}
+      error={error}
+      onSave={save}
+    >
       <div className="mt-8">
         {/* The range starts at the floor, not at today, so a day already gone renders as dead
             text rather than as a tap that silently jumps to now. */}
@@ -92,14 +91,6 @@ export function EditStartForm({
           ? `Finishes ${formatDateTime(finishesAt)}`
           : `The close moves with it, to ${formatDateTime(closes)}`}
       </p>
-
-      {error ? <p className="mt-4 text-center text-[14px] text-danger">{error}</p> : null}
-
-      <div className="flex-1" />
-
-      <Pill variant="light" full className="mt-8" disabled={pending || !dirty} onClick={save}>
-        {pending ? "Saving…" : "Save"}
-      </Pill>
-    </div>
+    </EditScreen>
   );
 }

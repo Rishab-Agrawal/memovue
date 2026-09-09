@@ -3,9 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 
-import { Pill } from "@/components/roll/Chrome";
-import { EditBackButton } from "@/components/roll/Confirm";
 import { CoverChoice } from "@/components/roll/CoverChoice";
+import { EditScreen } from "@/components/roll/EditScreen";
 import { Pencil } from "@/components/roll/Icons";
 import { CoverError, prepareCover, removeCover, uploadCover } from "@/lib/cover-upload";
 
@@ -99,14 +98,18 @@ export function EditInfoForm({
   const dirty = name !== initialName || cover !== initialCover || picked !== null || removed;
 
   return (
-    <div className="pad-safe-top flex min-h-dvh flex-col px-5 pb-[calc(var(--safe-bottom)+1.5rem)]">
-      <EditBackButton href={`/rolls/${rollId}/settings`} dirty={dirty} />
-
-      <h1 className="display mt-5 text-center text-[30px] text-chalk">Edit your roll info</h1>
-      <p className="mt-3 text-center text-[15px] text-ash">
-        Update your roll&rsquo;s title and cover image.
-      </p>
-
+    <EditScreen
+      rollId={rollId}
+      title="Edit your roll info"
+      blurb={<>Update your roll&rsquo;s title and cover image.</>}
+      dirty={dirty}
+      saving={pending}
+      // Also dead while a picked cover is being resized, which is neither a transition nor a
+      // change to save. The error goes to the cover picker rather than the shell, beside the
+      // thing it is about.
+      disabled={working}
+      onSave={save}
+    >
       <div className="mt-8">
         <p className="marking">Roll title</p>
         <label className="mt-3 flex h-16 items-center gap-3 rounded-2xl bg-surface px-4 focus-within:ring-1 focus-within:ring-flame">
@@ -139,12 +142,6 @@ export function EditInfoForm({
           />
         </div>
       </div>
-
-      <div className="flex-1" />
-
-      <Pill variant="light" full className="mt-8" disabled={working} onClick={save}>
-        {pending ? "Saving…" : "Save"}
-      </Pill>
-    </div>
+    </EditScreen>
   );
 }

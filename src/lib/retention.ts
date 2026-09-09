@@ -101,7 +101,7 @@ async function purgeAbandonedUploads(now: Date): Promise<number> {
   return stale.length;
 }
 
-export interface RetentionReport {
+interface RetentionReport {
   purged: string[];
   warned: string[];
   /** Abandoned reservations released, which is a count of shots handed back. */

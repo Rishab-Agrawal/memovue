@@ -1,7 +1,4 @@
-import { config as loadEnv } from "dotenv";
-
-loadEnv({ path: ".env.local", quiet: true });
-loadEnv({ quiet: true });
+import "./load-env";
 
 /**
  * The cost watch. A fourth Railway cron service off this same repo, every four hours.
@@ -43,8 +40,8 @@ loadEnv({ quiet: true });
  * *raise* a limit somebody had tightened on purpose.
  */
 async function main() {
-  // After dotenv, because `env.ts` reads process.env at module scope and throws on anything
-  // missing.
+  // Imported here rather than at the top: `env.ts` reads process.env the moment it loads
+  // and throws on anything missing, so nothing may be imported before `load-env`.
   const { env } = await import("../src/lib/env");
   const { R2_ALERT_USD, costLines, costs } = await import("../src/lib/cost");
   const { record } = await import("../src/lib/metrics");

@@ -11,7 +11,7 @@
  * threw something; a panel that simply appeared has no momentum to express.
  */
 
-export interface SpringHandle {
+interface SpringHandle {
   /** Value right now, mid-flight. Read this to start a new spring from where you are. */
   value(): number;
   /** Speed right now, in units per second. Hand it to the next spring on an interrupt. */
@@ -94,7 +94,7 @@ export function spring({
  * told you where they were going. Projecting first is what makes a short, fast flick throw
  * something all the way out, and a long slow drag let it fall back.
  */
-export function projectMomentum(velocity: number, decelerationRate = 0.998): number {
+function projectMomentum(velocity: number, decelerationRate = 0.998): number {
   return ((velocity / 1000) * decelerationRate) / (1 - decelerationRate);
 }
 

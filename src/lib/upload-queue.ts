@@ -14,7 +14,7 @@ import type { ProcessedPhoto } from "./image";
 const DB_NAME = "memovue";
 const STORE = "uploads";
 
-export interface QueuedPhoto {
+interface QueuedPhoto {
   localId: string;
   code: string;
   full: Blob;

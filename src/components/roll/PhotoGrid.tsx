@@ -22,6 +22,71 @@ export interface GridPhoto {
 }
 
 /**
+ * One frame on a wall, wherever the wall is.
+ *
+ * The host's grid and the guest's album had each written this out, and they had already begun
+ * to disagree — one positioned the image absolutely and the other did not, one gave the byline
+ * unconditionally and the other guarded it. They show the same photograph to the same people
+ * on the same evening, so there is one of them now.
+ *
+ * `src` is the caller's to work out, because what a sealed tile shows differs: the host's wall
+ * always has an inlined blur to fall back on, and a guest's may have nothing at all.
+ */
+export function PhotoTile({
+  src,
+  by,
+  sealed,
+  revealsIn,
+  onOpen,
+}: {
+  src: string | undefined;
+  /** Null where the roll is not showing whose photograph this is. */
+  by: string | null;
+  sealed: boolean;
+  revealsIn: string;
+  onOpen: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={sealed}
+      onClick={onOpen}
+      aria-label={by && !sealed ? `Photo by ${by}` : "Hidden photo"}
+      className="relative block aspect-[4/5] overflow-hidden rounded-2xl bg-void"
+    >
+      {/*
+        The guest's own photograph, blurred, exactly as the guest album shows it. This grid
+        used to draw a generated wash while sealed, so a host watching their roll fill up was
+        shown abstract art bearing no relation to anything anyone had shot.
+
+        Not next/image: these are already cached at the edge, and the optimiser would proxy
+        every frame through our own server to no benefit. An empty string is turned back into
+        nothing, because `src=""` is a browser re-requesting the page as an image.
+      */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src || undefined}
+        alt=""
+        className={cn("absolute inset-0 h-full w-full object-cover", !sealed && "animate-develop")}
+        style={sealed ? { filter: "blur(14px) saturate(0.6)" } : undefined}
+      />
+
+      {sealed ? (
+        <span className="tabular absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-void/60 px-3 py-1.5 text-[13px] whitespace-nowrap text-chalk">
+          Reveals in {revealsIn}
+        </span>
+      ) : null}
+
+      {by ? (
+        <span className="marking absolute bottom-3 left-3 text-chalk/90 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">
+          {by}
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
+/**
  * The host's wall of frames.
  *
  * Client-side because it owns the viewer now. Each tile used to be a `Link` pointing at the
@@ -94,40 +159,14 @@ export function PhotoGrid({
         ))}
 
         {photos.map((photo, index) => (
-          <button
+          <PhotoTile
             key={photo.id}
-            type="button"
-            disabled={sealed}
-            onClick={() => setViewing(index)}
-            aria-label={sealed ? "Hidden photo" : `Photo by ${photo.by}`}
-            className="relative block aspect-[4/5] overflow-hidden rounded-2xl bg-void"
-          >
-            {/*
-              The guest's own photograph, blurred, exactly as the guest album shows it. This
-              grid used to draw a generated wash while sealed, so a host watching their roll
-              fill up was shown abstract art bearing no relation to anything anyone had shot.
-
-              Not next/image: these are already cached at the edge, and the optimiser would
-              proxy every frame through our own server to no benefit.
-            */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={photo.url ?? photo.blurData}
-              alt=""
-              className={cn("absolute inset-0 h-full w-full object-cover", !sealed && "animate-develop")}
-              style={sealed ? { filter: "blur(14px) saturate(0.6)" } : undefined}
-            />
-
-            {sealed ? (
-              <span className="tabular absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-void/60 px-3 py-1.5 text-[13px] whitespace-nowrap text-chalk">
-                Reveals in {revealsIn}
-              </span>
-            ) : null}
-
-            <span className="marking absolute bottom-3 left-3 text-chalk/90 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">
-              {photo.by}
-            </span>
-          </button>
+            src={photo.url ?? photo.blurData}
+            by={photo.by}
+            sealed={sealed}
+            revealsIn={revealsIn}
+            onOpen={() => setViewing(index)}
+          />
         ))}
       </div>
 

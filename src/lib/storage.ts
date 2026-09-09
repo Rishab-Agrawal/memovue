@@ -48,7 +48,7 @@ function bucket(): string {
 
 const prefix = env.isProduction ? "events" : "dev";
 
-export type PhotoVariant = "full" | "preview";
+type PhotoVariant = "full" | "preview";
 
 /**
  * Where one photograph lives, and — since the bucket went behind a public cached domain —

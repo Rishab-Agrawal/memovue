@@ -1,4 +1,4 @@
-import { PillLink } from "@/components/roll/Chrome";
+import { Notice, PillLink } from "@/components/roll/Chrome";
 
 export const metadata = { title: "Not found" };
 
@@ -12,14 +12,15 @@ export const metadata = { title: "Not found" };
  */
 export default function NotFound() {
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center gap-3 px-6 text-center">
-      <h1 className="display text-[28px] text-chalk">That page isn&rsquo;t here</h1>
-      <p className="max-w-xs text-[15px] text-ash">
-        The link may be old, or the roll it pointed at has since been deleted.
-      </p>
-      <PillLink href="/" className="mt-4">
-        Go home
-      </PillLink>
-    </div>
+    <Notice
+      title={<>That page isn&rsquo;t here</>}
+      actions={
+        <PillLink href="/" className="mt-4">
+          Go home
+        </PillLink>
+      }
+    >
+      The link may be old, or the roll it pointed at has since been deleted.
+    </Notice>
   );
 }

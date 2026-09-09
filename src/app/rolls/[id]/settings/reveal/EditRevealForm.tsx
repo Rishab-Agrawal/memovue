@@ -3,8 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { Pill } from "@/components/roll/Chrome";
-import { EditBackButton, useConfirm } from "@/components/roll/Confirm";
+import { useConfirm } from "@/components/roll/Confirm";
+import { EditScreen } from "@/components/roll/EditScreen";
 import { RevealPicker, type RevealMode } from "@/components/roll/RevealPicker";
 
 import { updateRevealAction } from "../../actions";
@@ -72,13 +72,14 @@ export function EditRevealForm({
   };
 
   return (
-    <div className="pad-safe-top flex min-h-dvh flex-col px-5 pb-[calc(var(--safe-bottom)+1.5rem)]">
-      <EditBackButton href={`/rolls/${rollId}/settings`} dirty={dirty} />
-
-      <h1 className="display mt-5 text-center text-[30px] text-chalk">
-        When should we reveal your photos?
-      </h1>
-
+    <EditScreen
+      rollId={rollId}
+      title="When should we reveal your photos?"
+      dirty={dirty}
+      saving={pending}
+      error={error}
+      onSave={save}
+    >
       <div className="mt-8">
         <RevealPicker
           finishesAt={finishesAt}
@@ -91,15 +92,8 @@ export function EditRevealForm({
         />
       </div>
 
-      {error ? <p className="mt-4 text-center text-[14px] text-danger">{error}</p> : null}
-
-      <div className="flex-1" />
-
-      <Pill variant="light" full className="mt-8" disabled={pending || !dirty} onClick={save}>
-        {pending ? "Saving…" : "Save"}
-      </Pill>
-
+      {/* Fixed to the viewport when it opens, so it costs nothing to leave in the flow. */}
       {confirmDialog}
-    </div>
+    </EditScreen>
   );
 }

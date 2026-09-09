@@ -29,7 +29,7 @@ const photoCount = { where: { status: "READY" } } as const;
  * editing a screen.
  */
 
-export interface CreateRollInput {
+interface CreateRollInput {
   name: string;
   startsAt: Date;
   finishesAt: Date;
@@ -112,8 +112,6 @@ const rollSummary = {
   keptUntil: true,
   downloads: true,
 } as const;
-
-export type RollSummary = Awaited<ReturnType<typeof getRollForHost>>;
 
 export interface RollCard {
   id: string;
@@ -421,7 +419,7 @@ export async function updateRollStart(
 
 /* ------------------------------------------------------------------ how big a roll is */
 
-export type SizeResult = "ok" | "not-found" | "below-joined";
+type SizeResult = "ok" | "not-found" | "below-joined";
 
 /**
  * How many people a roll holds, and how much film each of them gets.

@@ -7,7 +7,7 @@ import { Photo, Trash } from "@/components/roll/Icons";
 import { COVERS } from "@/lib/imagery";
 
 /** The shipped covers, by index — which is what `Roll.coverPreset` stores. */
-export const COVER_PRESETS = COVERS.map((_, index) => index);
+const COVER_PRESETS = COVERS.map((_, index) => index);
 
 /**
  * Choosing what stands behind a roll's title: a photo of your own, or one of the presets.

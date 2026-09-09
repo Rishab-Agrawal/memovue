@@ -159,7 +159,7 @@ export function computeRevealAt(
 }
 
 /** Photos live 30 days past the close, then the retention job removes them. */
-export const RETENTION_DAYS = 30;
+const RETENTION_DAYS = 30;
 
 export function computeKeptUntil(finishesAt: Date): Date {
   return new Date(finishesAt.getTime() + RETENTION_DAYS * 24 * 3_600_000);
@@ -168,7 +168,7 @@ export function computeKeptUntil(finishesAt: Date): Date {
 /** How long before a roll's `keptUntil` its host is emailed about it. */
 export const WARN_BEFORE_DAYS = 7;
 
-export type RetentionAction = "purge" | "warn" | "leave";
+type RetentionAction = "purge" | "warn" | "leave";
 
 /**
  * What the nightly sweep should do with one roll.

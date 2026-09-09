@@ -1,15 +1,13 @@
+import "../scripts/load-env";
+
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
-import { config as loadEnv } from "dotenv";
 import { SignJWT } from "jose";
 
 import { purgeTestRolls } from "./purge-test-rolls";
-
-loadEnv({ path: ".env.local", quiet: true });
-loadEnv({ quiet: true });
 
 export const TEST_HOST = {
   email: "playwright-host@memovue.test",
@@ -33,7 +31,7 @@ export const TEST_GUEST = {
  * one for the roll every other test shoots on, and one for the test that spends the last,
  * gets refused, and deletes an unstarted roll to get it back.
  */
-export const TEST_ROLL_ALLOWANCE = 2;
+const TEST_ROLL_ALLOWANCE = 2;
 
 export const STORAGE_STATE = path.join("tests", ".auth", "host.json");
 export const GUEST_STORAGE_STATE = path.join("tests", ".auth", "invited.json");

@@ -21,6 +21,28 @@ const chromeButton =
   "active:scale-[0.94] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 " +
   "focus-visible:outline-flame";
 
+function ChromeLink({
+  href,
+  label,
+  icon,
+  onNavigate,
+}: {
+  href: string;
+  label: string;
+  icon: ReactNode;
+  /** Runs on a client-side navigation; `preventDefault()` inside it cancels the departure. */
+  onNavigate?: ComponentPropsWithoutRef<typeof Link>["onNavigate"];
+}) {
+  return (
+    <Link href={href} onNavigate={onNavigate} aria-label={label} className={chromeButton}>
+      {icon}
+    </Link>
+  );
+}
+
+/* Three names rather than one, because the icon is the whole meaning of these and a call site
+   passing its own would be free to draw a gear on the way back. */
+
 export function BackButton({
   href,
   label = "Back",
@@ -28,40 +50,25 @@ export function BackButton({
 }: {
   href: string;
   label?: string;
-  /** Runs on a client-side navigation; `preventDefault()` inside it cancels the departure. */
   onNavigate?: ComponentPropsWithoutRef<typeof Link>["onNavigate"];
 }) {
   return (
-    <Link
+    <ChromeLink
       href={href}
+      label={label}
       onNavigate={onNavigate}
-      aria-label={label}
-      className={chromeButton}
-    >
-      <ArrowLeft className="h-[18px] w-[18px]" />
-    </Link>
+      icon={<ArrowLeft className="h-[18px] w-[18px]" />}
+    />
   );
 }
 
 export function CloseButton({ href, label = "Close" }: { href: string; label?: string }) {
-  return (
-    <Link
-      href={href}
-      aria-label={label}
-      className={chromeButton}
-    >
-      <Close className="h-4 w-4" />
-    </Link>
-  );
+  return <ChromeLink href={href} label={label} icon={<Close className="h-4 w-4" />} />;
 }
 
 /** The other half of a roll's top row, so it matches the back button rather than resembling it. */
 export function SettingsButton({ href, label = "Roll settings" }: { href: string; label?: string }) {
-  return (
-    <Link href={href} aria-label={label} className={chromeButton}>
-      <Gear className="h-[18px] w-[18px]" />
-    </Link>
-  );
+  return <ChromeLink href={href} label={label} icon={<Gear className="h-[18px] w-[18px]" />} />;
 }
 
 /**
@@ -139,6 +146,34 @@ export function Pill({
     >
       {children}
     </button>
+  );
+}
+
+/**
+ * A screen that is only a sentence: the crash boundary, both kinds of 404, and a roll code
+ * that names nothing. Three of them had written the same centred column out by hand, and the
+ * one on the join screen had drifted — its prose ran the full width of a desktop window while
+ * the other two were capped.
+ *
+ * `actions` is free-form rather than a row of pills, because these do not agree on what goes
+ * under the sentence: one offers nothing, one offers a link home, and the crash screen offers
+ * two buttons and then prints the digest under them.
+ */
+export function Notice({
+  title,
+  children,
+  actions,
+}: {
+  title: ReactNode;
+  children?: ReactNode;
+  actions?: ReactNode;
+}) {
+  return (
+    <div className="flex min-h-dvh flex-col items-center justify-center gap-3 px-6 text-center">
+      <h1 className="display text-[28px] text-chalk">{title}</h1>
+      {children ? <p className="max-w-xs text-[15px] text-ash">{children}</p> : null}
+      {actions}
+    </div>
   );
 }
 

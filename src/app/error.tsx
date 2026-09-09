@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-import { Pill, PillLink } from "@/components/roll/Chrome";
+import { Notice, Pill, PillLink } from "@/components/roll/Chrome";
 import { reportClientError } from "@/lib/report";
 
 /**
@@ -41,20 +41,21 @@ export default function ErrorScreen({
   }, [error]);
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center gap-3 px-6 text-center">
-      <h1 className="display text-[28px] text-chalk">Something went wrong</h1>
-      <p className="max-w-xs text-[15px] text-ash">
-        Nothing you shot is lost — photos wait on your phone until they can be sent.
-      </p>
-
-      <div className="mt-4 flex items-center gap-2">
-        <Pill variant="light" onClick={() => unstable_retry()}>
-          Try again
-        </Pill>
-        <PillLink href="/">Home</PillLink>
-      </div>
-
-      {error.digest ? <p className="marking mt-6 text-dust">{error.digest}</p> : null}
-    </div>
+    <Notice
+      title="Something went wrong"
+      actions={
+        <>
+          <div className="mt-4 flex items-center gap-2">
+            <Pill variant="light" onClick={() => unstable_retry()}>
+              Try again
+            </Pill>
+            <PillLink href="/">Home</PillLink>
+          </div>
+          {error.digest ? <p className="marking mt-6 text-dust">{error.digest}</p> : null}
+        </>
+      }
+    >
+      Nothing you shot is lost — photos wait on your phone until they can be sent.
+    </Notice>
   );
 }

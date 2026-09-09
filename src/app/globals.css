@@ -51,10 +51,8 @@
 
   --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
 
-  /* Square by default. Anything that needs curvature asks for it explicitly — and the two
-     steps below are the only ones anything asks for; `rounded-2xl`, `-3xl` and `-full` carry
-     their own values and are what the app actually reaches for. */
-  --radius-lg: 0px;
+  /* Square by default. Anything that needs curvature asks for it explicitly — `rounded-2xl`,
+     `-3xl` and `-full` carry their own values and are what the app actually reaches for. */
   --radius-xl: 0px;
 
   /*
@@ -284,19 +282,6 @@ body {
   background: radial-gradient(70% 55% at 50% 0%, rgba(255, 140, 0, 0.13), transparent 68%);
 }
 
-/* ------------------------------------------------------------------ rules */
-
-/* A hairline that fades out, so sections separate without looking like table borders. */
-.rule-fade {
-  height: 1px;
-  background: linear-gradient(
-    to right,
-    var(--color-hair-bright),
-    var(--color-hair) 55%,
-    transparent
-  );
-}
-
 /* ------------------------------------------------------------------ slider */
 
 /*
@@ -386,18 +371,6 @@ body {
     opacity: 1;
     filter: blur(0) saturate(1);
     transform: none;
-  }
-}
-
-@keyframes mv-shutter {
-  0% {
-    opacity: 0;
-  }
-  8% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
   }
 }
 

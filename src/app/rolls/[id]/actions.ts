@@ -17,15 +17,14 @@ import {
 import { rateLimit } from "@/lib/ratelimit";
 import { requireHost } from "@/lib/session";
 import {
+  type ActionResult,
   editFinishSchema,
   editRevealSchema,
   editRollSchema,
   editSizeSchema,
   editStartSchema,
-  fieldErrors,
+  firstError,
 } from "@/lib/validation";
-
-export type ActionResult = { ok: true } | { ok: false; error: string };
 
 /**
  * One budget for every edit a host can make to their own rolls.
@@ -63,7 +62,7 @@ export async function updateInfoAction(
 
   const parsed = editRollSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: Object.values(fieldErrors(parsed.error))[0] ?? "Invalid" };
+    return { ok: false, error: firstError(parsed.error) };
   }
 
   await updateRollInfo(rollId, user.id, parsed.data);
@@ -82,7 +81,7 @@ export async function updateFinishAction(
 
   const parsed = editFinishSchema.safeParse({ finishesAt });
   if (!parsed.success) {
-    return { ok: false, error: Object.values(fieldErrors(parsed.error))[0] ?? "Invalid" };
+    return { ok: false, error: firstError(parsed.error) };
   }
 
   const moved = await updateRollFinish(rollId, user.id, new Date(parsed.data.finishesAt));
@@ -100,7 +99,7 @@ export async function updateStartAction(rollId: string, startsAt: string): Promi
 
   const parsed = editStartSchema.safeParse({ startsAt });
   if (!parsed.success) {
-    return { ok: false, error: Object.values(fieldErrors(parsed.error))[0] ?? "Invalid" };
+    return { ok: false, error: firstError(parsed.error) };
   }
 
   const moved = await updateRollStart(rollId, user.id, new Date(parsed.data.startsAt));
@@ -124,7 +123,7 @@ export async function setSizeAction(
 
   const parsed = editSizeSchema.safeParse(next);
   if (!parsed.success) {
-    return { ok: false, error: Object.values(fieldErrors(parsed.error))[0] ?? "Invalid" };
+    return { ok: false, error: firstError(parsed.error) };
   }
 
   const result = await setRollSize(rollId, user.id, parsed.data);
@@ -187,7 +186,7 @@ export async function updateRevealAction(
 
   const parsed = editRevealSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: Object.values(fieldErrors(parsed.error))[0] ?? "Invalid" };
+    return { ok: false, error: firstError(parsed.error) };
   }
 
   const moved = await updateRollReveal(

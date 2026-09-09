@@ -20,7 +20,7 @@ const JWKS = createRemoteJWKSet(new URL("https://www.googleapis.com/oauth2/v3/ce
 /** Google issues `iss` in both forms depending on the flow; both are legitimate. */
 const ISSUERS = ["https://accounts.google.com", "accounts.google.com"];
 
-export interface GoogleIdentity {
+interface GoogleIdentity {
   googleId: string;
   email: string;
   name: string;

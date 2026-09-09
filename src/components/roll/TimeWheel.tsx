@@ -13,7 +13,7 @@ const MINUTES = Array.from({ length: 60 }, (_, i) => i);
 const pad = (n: number) => String(n).padStart(2, "0");
 
 /** The earliest time this wheel may return, when the day it sits on has a floor. */
-export interface TimeFloor {
+interface TimeFloor {
   hour: number;
   minute: number;
 }
