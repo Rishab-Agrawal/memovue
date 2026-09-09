@@ -37,7 +37,7 @@ export default async function AlbumsPage() {
         <h1 className="display text-[30px] text-chalk">Albums</h1>
         <p className="mt-2 text-[14px] text-dust">
           {albums.length === 0
-            ? "Nothing of yours has closed yet. A roll becomes an album the moment it stops shooting — here is one to look through."
+            ? "Completed rolls show up here"
             : `${albums.length} ${albums.length === 1 ? "roll" : "rolls"}, finished`}
         </p>
 
