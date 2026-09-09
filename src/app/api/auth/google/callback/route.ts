@@ -1,7 +1,8 @@
 import { cookies } from "next/headers";
 import { after } from "next/server";
 
-import { GUEST_COOKIE_PREFIX, consumeOAuthState, createHostSession } from "@/lib/auth";
+import { consumeOAuthState, createHostSession } from "@/lib/auth";
+import { GUEST_COOKIE_PREFIX } from "@/lib/guest-cookies";
 import { env } from "@/lib/env";
 import { exchangeCode, verifyIdToken } from "@/lib/google";
 import { linkGuestSessions } from "@/lib/guest-link";

@@ -2,6 +2,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 
 import { env } from "./env";
+import { guestCookieName, staleGuestCookies } from "./guest-cookies";
 
 const secret = new TextEncoder().encode(env.authSecret);
 
@@ -96,16 +97,6 @@ interface GuestClaims {
   eventId: string;
 }
 
-/**
- * One cookie per event, so a guest can be in two events at once (a wedding and the
- * reception afterparty) without the sessions clobbering each other.
- */
-export const GUEST_COOKIE_PREFIX = "mv_g_";
-
-function guestCookieName(eventCode: string): string {
-  return `${GUEST_COOKIE_PREFIX}${eventCode.toUpperCase()}`;
-}
-
 export async function signGuestToken(guest: { id: string; eventId: string }): Promise<string> {
   return new SignJWT({ ev: guest.eventId })
     .setProtectedHeader({ alg: "HS256" })
@@ -127,7 +118,10 @@ export async function verifyGuestToken(token: string): Promise<GuestClaims | nul
 
 export async function setGuestCookie(eventCode: string, token: string) {
   const jar = await cookies();
-  jar.set(guestCookieName(eventCode), token, { ...cookieBase, maxAge: GUEST_MAX_AGE });
+  const name = guestCookieName(eventCode);
+
+  jar.set(name, token, { ...cookieBase, maxAge: GUEST_MAX_AGE });
+  for (const stale of staleGuestCookies(jar.getAll(), name)) jar.delete(stale);
 }
 
 export async function readGuestClaims(eventCode: string): Promise<GuestClaims | null> {

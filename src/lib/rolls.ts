@@ -42,13 +42,49 @@ interface CreateRollInput {
 }
 
 /**
- * Creation and spending the beta allowance are one transaction on purpose. Taking a roll off
- * somebody's allowance and then failing to insert it would charge them for nothing, and there
- * is no self-serve way to hand it back.
+ * Postgres refusing a duplicate roll code, and nothing else.
+ *
+ * Narrow on purpose: `spendRoll` throws its own `BetaAccessError` inside the same transaction,
+ * and retrying that would spend a second roll off somebody's allowance to tell them the same
+ * thing twice.
+ */
+function isCodeTaken(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  if ((error as { code?: unknown }).code !== "P2002") return false;
+  const target = (error as { meta?: { target?: unknown } }).meta?.target;
+  return Array.isArray(target) ? target.includes("code") : target === "code";
+}
+
+/**
+ * A roll, and the allowance it is created against.
+ *
+ * Three attempts, because `code` is six characters from an alphabet of 31 and the column is
+ * unique. Any one insert collides with vanishing probability; across the life of the product
+ * it happens, and what it cost was a host being told their roll could not be created — for a
+ * reason that was nobody's fault and that trying again would have fixed.
+ *
+ * The whole transaction is retried rather than the insert. A constraint violation aborts the
+ * transaction it happened in, so there is nothing left to retry inside one — and the rollback
+ * is what hands the allowance back before the next attempt spends it again.
  */
 export async function createRoll(host: Account & { name: string }, input: CreateRollInput) {
   const revealAt = computeRevealAt(input.finishesAt, input.revealMode, input.revealDelayHours);
 
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await writeRoll(host, input, revealAt);
+    } catch (error) {
+      if (attempt >= 2 || !isCodeTaken(error)) throw error;
+    }
+  }
+}
+
+/**
+ * Creation and spending the beta allowance are one transaction on purpose. Taking a roll off
+ * somebody's allowance and then failing to insert it would charge them for nothing, and there
+ * is no self-serve way to hand it back.
+ */
+function writeRoll(host: Account & { name: string }, input: CreateRollInput, revealAt: Date) {
   // A `BetaAccessError` from `spendRoll` travels straight out to the server action, which
   // turns it into the dialog offering to request access.
   return prisma.$transaction(async (tx) => {

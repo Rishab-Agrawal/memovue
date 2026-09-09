@@ -398,6 +398,30 @@ A host can take one photograph out of the album, or one guest out with everythin
 Guests can do neither: un-taking a shot would hand the quota back and make the roll endless,
 and the host is the person a subject actually asks.
 
+## One container, and the five things that assume it
+
+MemoVue runs as a single Railway instance in `us-west2`, and that is a fine choice at this
+size. What is not fine is that the assumption was written down five separate times, in five
+files, each explaining itself locally — so "can we run two?" had no answer short of reading
+all of them. Here is the list. Adding a replica means doing something about every row.
+
+| Where | What it holds | What two replicas would do |
+|---|---|---|
+| `lib/ratelimit.ts` | every budget, in a `Map` | each limit becomes N times weaker |
+| `lib/ratelimit.ts` — `outOfGuesses` | wrong roll codes per IP | a code-guesser gets N times the attempts |
+| `lib/ratelimit.ts` — `shouldAlert` | which faults were announced | one fault pages N times |
+| `api/r/[code]/feed` — `rollTotals` | a roll's counts, 10s | N times the aggregate queries; still correct |
+| `api/rolls/[id]/download` — `buildOnce` | the in-flight archive build | one roll's ZIP built N times at once |
+
+Two properties they share. None of them is a correctness guard — the seal, ownership and
+quota are all decided per request against the database, so a second replica would make the
+app wasteful and its limits leaky, not wrong. And none of them survives a restart: a deploy
+mid-event resets every budget and every alert cooldown, which is worth remembering when
+reading a quiet alerts channel just after a deploy.
+
+The fix, when it is needed, is one shared store — Redis, or Postgres rows — behind
+`ratelimit.ts` and `rollTotals`. `buildOnce` wants a row on `Roll` instead.
+
 ## Known and left alone
 
 Short notes so none of this gets re-investigated.
@@ -416,6 +440,21 @@ Buy the add-on if the app ever serves anything cheap to guess.
 
 **No staging.** `main` deploys straight to production, on purpose — a second environment
 costs another container and another database, and there are no other users yet.
+
+**But local development and the tests must not share production's database.** That is a
+different thing from staging, and it was not deliberate. `.env.local` pointed at the same
+Postgres the site runs on, so `npm run dev` wrote production rows and `npm test` ran
+`prisma migrate deploy` against it — which meant every migration reached production having
+never run anywhere, and the suite was too dangerous to run, so it did not get run.
+
+It also produced a bug that outlived every roll it touched. `storage.ts` picks its key prefix
+from `NODE_ENV` — `events` in production, `dev` everywhere else — which is only safe while one
+database is reached by one of them. A roll created from a laptop stored its cover under
+`dev/covers/…`, and the production sweep, which recomputed the key rather than reading it,
+asked the bucket to delete `events/covers/…`. The object survived its own roll's deletion,
+unreachable by anything that could have found it again. `purgeRoll` now deletes the
+`coverKey` recorded on the row. Point `DATABASE_URL` in `.env.local` at a database that is
+not this one.
 
 **The Postgres TCP proxy is open to the internet.** That is how local development and the
 Playwright suite reach the database; the password is the only thing in front of it.

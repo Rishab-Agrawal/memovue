@@ -6,6 +6,50 @@ import { coverUrlFor } from "@/lib/rolls";
 export const dynamic = "force-dynamic";
 
 /**
+ * The two numbers on this response that are the same for everybody, worked out once.
+ *
+ * Everything else here is already cheap — one roll, one guest row, one count over the asking
+ * guest's own hundred frames at most. These two are not: they are aggregates over the whole
+ * roll, and they were being computed separately for every phone at the event. Five hundred
+ * guests polling three times a minute is a thousand scans a minute of the same rows for the
+ * same two integers.
+ *
+ * Ten seconds against a twenty-second poll, so the count in the album header still moves
+ * while somebody watches it. Nothing here is a permission — the seal, the visibility rule and
+ * the guest's own quota are all decided per request above, from `getGuestContext`. Only the
+ * two totals are shared, and they are shown to everybody in the roll regardless.
+ *
+ * ponytail: an in-process Map, which is the fifth thing in this app that assumes one
+ * container — see the ledger in README.md. Deliberately not `use cache`: that needs
+ * `cacheComponents` turned on for the whole app, and this app is twenty-six cookie-reading
+ * dynamic routes that would all have to be re-audited for it. Move this to the same store as
+ * the rate limiter on the day a second replica exists.
+ */
+const TOTALS_TTL_MS = 10_000;
+const totals = new Map<string, { at: number; totalPhotos: number; guestCount: number }>();
+
+async function rollTotals(rollId: string) {
+  const now = Date.now();
+  const cached = totals.get(rollId);
+  if (cached && now - cached.at < TOTALS_TTL_MS) return cached;
+
+  const [totalPhotos, guestCount] = await Promise.all([
+    prisma.photo.count({ where: { rollId, status: "READY" } }),
+    prisma.guest.count({ where: { rollId } }),
+  ]);
+
+  // Swept rather than left to grow: one entry per roll polled, and a roll stops being polled
+  // the night its event ends.
+  for (const [key, value] of totals) {
+    if (now - value.at > TOTALS_TTL_MS) totals.delete(key);
+  }
+
+  const fresh = { at: now, totalPhotos, guestCount };
+  totals.set(rollId, fresh);
+  return fresh;
+}
+
+/**
  * The state of a roll, right now. Status only — no photographs.
  *
  * This is polled every twenty seconds by every open album, so its size is multiplied by
@@ -34,10 +78,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
 
   const { roll, guest, phase, open, capturing, shotsLeft, shotsUsed } = context;
 
-  const [totalPhotos, guestCount] = await Promise.all([
-    prisma.photo.count({ where: { rollId: roll.id, status: "READY" } }),
-    prisma.guest.count({ where: { rollId: roll.id } }),
-  ]);
+  const { totalPhotos, guestCount } = await rollTotals(roll.id);
 
   return Response.json({
     phase,

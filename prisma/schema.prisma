@@ -190,7 +190,13 @@ model Photo {
   takenAt   DateTime @default(now())
   createdAt DateTime @default(now())
 
-  @@index([rollId, takenAt])
+  /// Every hot read of this table asks for one roll's READY frames, newest first: the wall,
+  /// the guest album's pages, the archive, and — three times a minute for every phone at the
+  /// event — the feed's count of them. `status` sits in the middle so the count is answered
+  /// from the index alone; with `(rollId, takenAt)` it had to read every row in the roll off
+  /// the heap to find out. This replaces that index rather than joining it, so an insert
+  /// during a party still maintains two.
+  @@index([rollId, status, takenAt])
   @@index([guestId])
   @@index([status, createdAt])
 }

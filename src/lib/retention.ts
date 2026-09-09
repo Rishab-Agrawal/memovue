@@ -3,7 +3,7 @@ import "server-only";
 import { sendDeletionNotice } from "./email";
 import { prisma } from "./prisma";
 import { ABANDONED_UPLOAD_DAYS, retentionAction, WARN_BEFORE_DAYS } from "./roll-access";
-import { coverKey, deleteObjects, legacyZipKey, storageConfigured, zipKey } from "./storage";
+import { deleteObjects, legacyZipKey, storageConfigured, zipKey } from "./storage";
 
 /**
  * Making the date on a roll mean something.
@@ -39,21 +39,31 @@ const DAY = 86_400_000;
  */
 export async function purgeRoll(rollId: string): Promise<void> {
   if (storageConfigured) {
-    const photos = await prisma.photo.findMany({
-      where: { rollId },
-      select: { fullKey: true, previewKey: true },
-    });
+    const [photos, roll] = await Promise.all([
+      prisma.photo.findMany({ where: { rollId }, select: { fullKey: true, previewKey: true } }),
+      prisma.roll.findUnique({ where: { id: rollId }, select: { coverKey: true } }),
+    ]);
 
     const keys = [
       ...photos.flatMap((photo) => [photo.fullKey, photo.previewKey]),
-      // Recomputed rather than read: `coverKey` is null for a roll on a preset, and deleting
-      // a key that was never written is free. The archive is the same — most rolls are never
-      // downloaded and have no ZIP, and the one that does must not outlive the photographs
-      // it is a copy of.
-      coverKey(rollId),
+      /*
+        The cover as it was actually written, not as this process would write it.
+
+        It used to be recomputed from the roll id, and `storage.ts` builds every key under a
+        prefix chosen by NODE_ENV — `events` in production, `dev` everywhere else. That is
+        only safe while one database is only ever reached by one of those, which was not
+        true: a roll created against the shared database from a laptop stored its cover at
+        `dev/covers/…`, and the production sweep asked the bucket to delete
+        `events/covers/…`. The object survived its own roll's deletion, invisible to
+        everything that could have found it again, and billed for as long as the bucket
+        lives. The column has been there since the first migration.
+      */
+      ...(roll?.coverKey ? [roll.coverKey] : []),
+      // The archive stays derived — it is a pure function of the roll, most rolls never have
+      // one, and deleting a key that was never written is free. Both spellings, because a
+      // roll may carry one built before the key became a capability, and photographs must not
+      // outlive the roll they were taken on.
       zipKey(rollId),
-      // An archive built before the key carried a capability. Deleting a key that was never
-      // written is free, and leaving one behind would be photographs outliving their roll.
       legacyZipKey(rollId),
     ];
 
