@@ -220,7 +220,7 @@ export default function StepGuests() {
           <>
             {/* The link was printed and nothing could pick it up. This is the same control
                 the invite sheet uses — the phone's own share sheet, clipboard behind it. */}
-            <ShareLink url={joinLink} rollName={created?.name ?? ""} />
+            <ShareLink url={joinLink} />
             <Pill variant="quiet" full onClick={() => router.push(`/rolls/${created?.id}`)}>
               OK
             </Pill>

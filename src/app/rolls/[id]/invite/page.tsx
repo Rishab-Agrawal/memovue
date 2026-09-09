@@ -45,7 +45,7 @@ export default async function InvitePage({ params }: PageProps<"/rolls/[id]/invi
         </div>
 
         <div className="mt-6 flex gap-3">
-          <ShareLink url={link} rollName={roll.name} />
+          <ShareLink url={link} />
           <PillLink
             href={qr}
             download={`memovue-${roll.code}.png`}

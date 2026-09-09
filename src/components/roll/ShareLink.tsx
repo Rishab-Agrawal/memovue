@@ -17,12 +17,15 @@ import { shareOrCopy } from "@/lib/share";
  * invitation was always going to be sent through. Where there is no share sheet — a desktop
  * browser, mostly — the link goes to the clipboard instead and the button says so, because a
  * control that silently did something is indistinguishable from one that did nothing.
+ *
+ * Only the URL goes across. A title or text alongside it comes back out of the share sheet's
+ * own copy option glued in front of the link, and what anybody wants to paste is the link.
  */
-export function ShareLink({ url, rollName }: { url: string; rollName: string }) {
+export function ShareLink({ url }: { url: string }) {
   const [done, setDone] = useState<"copied" | null>(null);
 
   async function share() {
-    const how = await shareOrCopy({ url, title: rollName, text: `Join ${rollName} on MemoVue` });
+    const how = await shareOrCopy({ url });
     if (how !== "copied") return;
     setDone("copied");
     setTimeout(() => setDone(null), 2000);
