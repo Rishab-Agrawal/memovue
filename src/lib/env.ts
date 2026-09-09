@@ -177,4 +177,11 @@ export const env = {
   },
 
   isProduction: process.env.NODE_ENV === "production",
+
+  /**
+   * The bucket prefix every key is built under. See `storage.ts` for why this is stated
+   * rather than inferred; the inference is kept as the default so no deployed service needs
+   * to set it, and anything running against a database that is not production's should.
+   */
+  r2Prefix: process.env.R2_PREFIX?.trim() || (process.env.NODE_ENV === "production" ? "events" : "dev"),
 } as const;

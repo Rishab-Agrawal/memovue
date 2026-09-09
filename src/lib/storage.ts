@@ -46,7 +46,20 @@ function bucket(): string {
   return env.r2.bucket;
 }
 
-const prefix = env.isProduction ? "events" : "dev";
+/**
+ * Which half of the bucket this process writes to.
+ *
+ * It used to be `NODE_ENV === "production" ? "events" : "dev"` and nothing else, which is a
+ * guess rather than a statement — and it guessed wrong in the one case that mattered. The
+ * Playwright suite starts the app with `next start`, so NODE_ENV is `production` on a laptop,
+ * so a test run uploaded real photographs into the prefix holding real weddings. The same
+ * inference is what let a roll created locally store a `dev/` cover that the deployed sweep
+ * then tried to delete from `events/`, leaving the object behind forever.
+ *
+ * `R2_PREFIX` says it outright. Unset, the old inference stands, so every deployed service
+ * keeps writing to `events` with nothing to configure; `.env.local` pins `dev`.
+ */
+const prefix = env.r2Prefix;
 
 type PhotoVariant = "full" | "preview";
 

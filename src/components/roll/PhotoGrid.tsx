@@ -51,7 +51,14 @@ export function PhotoTile({
       type="button"
       disabled={sealed}
       onClick={onOpen}
-      aria-label={by && !sealed ? `Photo by ${by}` : "Hidden photo"}
+      /*
+        The name, not the seal, decides this. A guest's own frame is labelled "Photo by You"
+        on both sides of the reveal — that is how somebody picks their own out of a wall of
+        blurred tiles — while everybody else's is nameless until it opens. The host's wall
+        sends an empty name while sealed and gets "Hidden photo" from the same expression.
+        Reading `sealed` here instead cost the guest the one label that was theirs.
+      */
+      aria-label={by ? `Photo by ${by}` : "Hidden photo"}
       className="relative block aspect-[4/5] overflow-hidden rounded-2xl bg-void"
     >
       {/*
