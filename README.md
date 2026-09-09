@@ -447,6 +447,11 @@ Postgres the site runs on, so `npm run dev` wrote production rows and `npm test`
 `prisma migrate deploy` against it — which meant every migration reached production having
 never run anywhere, and the suite was too dangerous to run, so it did not get run.
 
+There is a second Postgres for that now — `Postgres-dev`, in the same project, reached over
+its own TCP proxy. It is what `.env.local` points at, and `R2_PREFIX=dev` beside it keeps the
+suite's uploads out of the live album's half of the bucket. The end-to-end suite is safe to
+run and passes 26/26.
+
 It also produced a bug that outlived every roll it touched. `storage.ts` picks its key prefix
 from `NODE_ENV` — `events` in production, `dev` everywhere else — which is only safe while one
 database is reached by one of them. A roll created from a laptop stored its cover under
