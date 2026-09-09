@@ -112,15 +112,3 @@ export const FRAMES: Stock[] = [
 export function cover(index: number): Stock {
   return COVERS[((index % COVERS.length) + COVERS.length) % COVERS.length];
 }
-
-/**
- * The marketing page's sealed grid: nine tiles, so nine pictures.
- *
- * Interleaved rather than concatenated. The frames are dark night-time photographs and the
- * covers are pale watercolours, so running one pool then the other banded the grid — a dark
- * top row above six washed-out ones. Alternating spreads the two tones across all three rows,
- * which is also what a real roll looks like: nobody shoots a whole evening at one exposure.
- */
-export const WALL: Stock[] = Array.from({ length: 9 }, (_, i) =>
-  i % 2 === 0 ? COVERS[i >> 1] : FRAMES[i >> 1],
-);
