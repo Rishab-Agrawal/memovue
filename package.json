@@ -5,8 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
-    "start": "prisma migrate deploy && next start",
+    "start": "next start",
     "lint": "eslint",
+    "pretest": "prisma migrate deploy",
     "test": "playwright test",
     "test:headed": "playwright test --headed",
     "test:unit": "playwright test -c playwright.unit.config.ts",

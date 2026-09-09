@@ -46,6 +46,13 @@ so photos are genuinely encoded, uploaded to R2 and confirmed. It also asserts t
 that matters most — that before the reveal, the only image data reaching the browser is an
 inlined ~32px blur placeholder, and the photo API returns 403.
 
+It writes to whatever `DATABASE_URL` names and creates real rolls there, so that had better
+not be production's — see "No staging" below for how that went. `npm test` migrates first
+via `pretest`, because the server it starts no longer does: `npm start` is `next start`
+alone, and `prisma migrate deploy` is the web service's pre-deploy command on Railway. A
+migration that fails now fails the deploy, with the previous version still serving, instead
+of crash-looping the container that was about to serve it.
+
 ## Design decisions worth knowing
 
 **Capture and reveal are separate moments.** Shooting runs `startsAt`..`finishesAt`; the
