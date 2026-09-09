@@ -103,13 +103,13 @@ function Actions({
   hostName: string;
   compact?: boolean;
 }) {
-  const pill = compact ? "h-10 px-3.5 text-[13px]" : "h-14 flex-1";
+  const pill = compact ? "h-10 px-3.5 text-[13px]" : "h-14 w-full";
 
   return (
     <div
       className={cn(
         "flex shrink-0",
-        compact ? "gap-2" : "mx-auto w-full max-w-[22rem] gap-3",
+        compact ? "gap-2" : "mx-auto w-full max-w-[22rem] flex-col gap-3",
       )}
     >
       <NewRollButton canCreate={canCreate} hostName={hostName} variant="flame" className={pill}>
@@ -117,7 +117,7 @@ function Actions({
       </NewRollButton>
       <PillLink href="/join" variant="quiet" className={pill}>
         <Qr className="h-4 w-4" />
-        Join
+        Join a roll
       </PillLink>
     </div>
   );
