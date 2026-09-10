@@ -4,13 +4,15 @@ import { wallDate } from "./format";
 import { prisma } from "./prisma";
 
 /**
- * The four things worth counting that leave no row behind, plus three heartbeats.
+ * The five things worth counting that leave no row behind, plus three heartbeats.
  *
- * Almost nothing belongs here. Rolls, hosts, guests and photographs are already rows with a
+ * Almost nothing belongs here. Hosts, guests and photographs are already rows with a
  * `createdAt`, so the digest counts *those* — a derived number survives a deploy, a restore
  * and a backfill, and can be asked about last March. A counter can do none of that, so it is
  * reserved for what would otherwise be unknowable: an invitation shown to somebody who never
- * joined, an upload the queue gave up on, and a crash.
+ * joined, an upload the queue gave up on, a crash — and, the one that had to be learned the
+ * hard way, a roll, whose row is deleted often enough that counting the rows answers a
+ * different question from the one the digest is asking.
  *
  * What is deliberately absent is any identifier at all. This table has three columns and
  * nothing joins to it, so no row here can be turned back into one person's evening. That is
@@ -27,6 +29,17 @@ type MetricName =
   | "scan"
   /** A reservation the upload queue handed back because it gave up on the photograph. */
   | "upload_dropped"
+  /**
+   * A roll made.
+   *
+   * The one name here that is also a row, and the exception to everything said above. `Roll`
+   * carries a `createdAt` and the digest counted it straight, until a host who made a roll
+   * and deleted it the same evening turned yesterday into a day on which nobody made
+   * anything — and the retention pass does the same to every roll thirty days after it
+   * finishes, so every past day's figure decays as well. Creating is an event; the row is
+   * only what happens to be left of it afterwards.
+   */
+  | "roll_created"
   /** An exception that reached a browser. */
   | "client_error"
   /** An exception that reached `onRequestError`. */

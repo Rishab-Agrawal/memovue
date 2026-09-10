@@ -194,6 +194,27 @@ hour across everything, because an alarm channel that floods during an outage is
 The cron jobs alert here too, when they fail, and the cost watch when the bill is over the line
 or the limit that stops it has gone missing.
 
+**Nothing is sent from a laptop.** `.env.local` carries the same bot token, chat id and topic
+ids as the deployment, deliberately: a notification channel that cannot be exercised before it
+ships is one nobody finds out is broken until the night it matters. What that cost, until
+`env.isDeployed` was put in front of `notify`, is that development wrote into the live group —
+the end-to-end suite announced a new host and a new roll for every fixture it made, and a dev
+server whose compile worker died sent *Jest worker encountered 2 child process exceptions,
+exceeding retry limit*, a sentence about Next's own build tooling on somebody's laptop, to the
+one topic allowed to wake anybody up. `RAILWAY_ENVIRONMENT` is the test, because `NODE_ENV`
+cannot be: `next start` says production on a laptop too, and the cron services run plain `tsx`
+with no `NODE_ENV` at all. Off a deployment the message is printed instead, so `npm run digest`
+still shows exactly what it would have sent. `npm run verify:telegram` is the one thing that
+still posts from anywhere, because proving the send works from where you are standing is its
+whole job.
+
+**And only our own scripts are reported.** A guest's phone is not a clean room. An extension
+throws with a `chrome-extension://` filename, a script from another origin is blanked by the
+browser before we see it, and a synthesised event names no source at all — so `report.ts` asks
+where the code came from and reports nothing else. A positive test rather than a list of the
+junk seen so far, because such a list only ever grows and every entry on it is written the
+morning after a message nobody could read.
+
 **Signals** is the pulse: a host signed up, a roll was created, somebody asked to be let in. One
 line each, never urgent, and none of them a record — the rows behind them all outlive the message.
 
@@ -219,12 +240,20 @@ be able to take the site down mid-party. `npm run verify:telegram` checks the re
 message to each topic and reading back the thread it actually landed in, which is the only thing
 that catches a deleted topic, a demoted bot, or a thread id copied from the wrong place.
 
-**Almost nothing is counted.** Rolls, hosts, guests and photographs are already rows with a
+**Almost nothing is counted.** Hosts, guests and photographs are already rows with a
 `createdAt`, so the digest counts *those* — which stays correct through a deploy, survives a
 restore, and can still be asked about last March. What gets a `Metric` row is only what leaves
 nothing behind: an invitation shown to somebody who never joined, an upload the queue gave up
 on, a crash, and a tick from each scheduled job so that the digest can notice one having
-quietly stopped being scheduled. That table has three columns, no identifier of any kind, and
+quietly stopped being scheduled.
+
+Rolls are the exception, and were the exception before anybody noticed. A roll has a `createdAt`
+like everything else, but rows are deleted — a host changing their mind an hour later, an
+evening spent testing, and eventually the retention pass, which takes every roll thirty days
+after it finished. Counted straight, a day somebody used the product read as a day nobody did,
+and every figure from last March shrank a little each time the sweep ran. So creation is tallied
+too, and the digest takes whichever of the tally and the rows is larger: neither can count a
+roll that was never made, and the days before the tally existed stay right without a backfill. That table has three columns, no identifier of any kind, and
 nothing joins to it, so no row in it can be turned back into one person's evening. It is the
 strongest instrument that keeps the promise the privacy page makes.
 

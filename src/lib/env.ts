@@ -179,6 +179,22 @@ export const env = {
   isProduction: process.env.NODE_ENV === "production",
 
   /**
+   * Whether this is a deployed service or somebody's laptop.
+   *
+   * `NODE_ENV` cannot answer that: `next start` says production on a laptop too, and the four
+   * cron services run plain `tsx` with no NODE_ENV at all. `RAILWAY_ENVIRONMENT` is injected
+   * into every deployed service, web and cron alike, and exists nowhere else — the same
+   * discriminator `telegramGroupChatId` above already leans on.
+   *
+   * What it is for is `telegram.ts`. The bot token, the chat id and the three topic ids here
+   * are the same ones the deployment posts with, deliberately — a notification channel that
+   * cannot be exercised before it ships is one nobody discovers is broken until the night it
+   * matters. What that costs is that every development machine is also configured to write
+   * into the live group, and this is the line that stops it doing so.
+   */
+  isDeployed: Boolean(process.env.RAILWAY_ENVIRONMENT),
+
+  /**
    * The bucket prefix every key is built under. See `storage.ts` for why this is stated
    * rather than inferred; the inference is kept as the default so no deployed service needs
    * to set it, and anything running against a database that is not production's should.

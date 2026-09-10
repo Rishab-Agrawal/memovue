@@ -21,6 +21,8 @@ import { shouldAlert } from "./ratelimit";
  *
  * A message is never a record. The `BetaRequest` row, the `Metric` tally and the exception in
  * Railway's log all outlive whatever was sent here, and nothing in the app waits on a send.
+ *
+ * And none of it is ever sent from a laptop — see `notify`, which is the only sender.
  */
 
 type Topic = "alerts" | "signals" | "daily";
@@ -34,6 +36,32 @@ const TIMEOUT_MS = 5_000;
 export async function notify(topic: Topic, text: string): Promise<void> {
   if (!env.telegram) {
     console.info(`[telegram skipped: not configured] ${topic}: ${text}`);
+    return;
+  }
+
+  /*
+    Nothing is sent from a development machine.
+
+    `.env.local` holds the same token, the same chat id and the same three topic ids as the
+    deployment, because a notification channel that cannot be exercised before it ships is one
+    nobody finds out is broken until the night it matters. What that costs, until this line,
+    is that `npm run dev` and `npm test` wrote into the live group: the end-to-end suite
+    announced a new host and a new roll for every fixture it made, and a dev server whose
+    compile worker died sent “Jest worker encountered 2 child process exceptions, exceeding
+    retry limit” — a sentence about Next's own build tooling on a laptop — to the one topic
+    that is allowed to wake somebody up.
+
+    That is worse than noise. Alerts is read on the assumption that everything in it is real
+    and is about the deployed site, so a message that is neither does not merely waste a
+    glance; it teaches the reader to skim, and the next one is a wedding going wrong.
+
+    A console line rather than silence, so `npm run digest` and the other scripts still show
+    locally exactly what they would have sent. `npm run verify:telegram` is deliberately not
+    routed through here — proving a send works from wherever you are standing is its entire
+    job, so it posts to the Telegram API itself.
+  */
+  if (!env.isDeployed) {
+    console.info(`[telegram skipped: not a deployment] ${topic}: ${text}`);
     return;
   }
 

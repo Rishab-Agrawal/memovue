@@ -3,6 +3,7 @@
 import { after } from "next/server";
 
 import { BetaAccessError } from "@/lib/beta";
+import { record } from "@/lib/metrics";
 import { rateLimit } from "@/lib/ratelimit";
 import { createRoll } from "@/lib/rolls";
 import { requireHost } from "@/lib/session";
@@ -58,15 +59,25 @@ export async function createRollAction(
     });
 
     /*
-      Announced, not counted: `Roll` rows carry a `createdAt`, so the digest can count these
-      to the day forever. What a message adds is the one thing a query never will — knowing on
+      Announced and counted, which it did not used to be.
+
+      `Roll` rows carry a `createdAt`, so counting the rows looked like counting the creations
+      — and it is not, because rows are deleted. A host who makes a roll and deletes it the
+      same evening leaves the digest saying nobody made anything yesterday, and the retention
+      pass eventually does that to every roll ever made. The tally is what the day actually
+      held; `digest.ts` says how the two are put back together.
+
+      The message is separate from either, and adds the one thing no query will — knowing on
       the evening it happens that somebody is setting up a party.
     */
     after(() =>
-      notify(
-        "signals",
-        `New roll — “${roll.name}” · ${user.name} · ${data.maxGuests} guests × ${data.photosPerGuest} shots`,
-      ),
+      Promise.all([
+        record("roll_created"),
+        notify(
+          "signals",
+          `New roll — “${roll.name}” · ${user.name} · ${data.maxGuests} guests × ${data.photosPerGuest} shots`,
+        ),
+      ]),
     );
 
     return { ok: true, rollId: roll.id, code: roll.code, name: roll.name };

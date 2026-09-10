@@ -22,8 +22,9 @@ import { openRollWhere } from "./roll-access";
  *
  * Almost every figure is a query over rows that already existed rather than a counter. That is
  * what makes this safe to change: a line added here months from now will be correct about last
- * March too. The four tallies are the exceptions, and they are exceptions only because the
- * thing they count leaves nothing behind — see `metrics.ts`.
+ * March too. The tallies are the exceptions, and they are exceptions only because the thing
+ * they count leaves nothing behind — or, in a roll's case, stops leaving anything behind the
+ * moment somebody deletes it. See `metrics.ts`.
  *
  * The one thing in here that is an alarm rather than a number comes back separately, in
  * `missing`. Everything else in this message is worth reading and none of it is urgent, so the
@@ -134,6 +135,21 @@ export async function buildDigest(now: Date = new Date()): Promise<Digest> {
     costs(env.cost, now),
   ]);
 
+  /*
+    Rolls made yesterday, from whichever of the two sources says more.
+
+    Neither alone is right. The rows lose a roll the moment it is deleted — a host changing
+    their mind an hour later, an evening spent testing, and eventually the retention pass,
+    which takes every roll thirty days after it finished — so counted straight, a day somebody
+    used the product can read as a day nobody did, and a figure from last March quietly shrinks
+    every time the sweep runs. The tally has no such hole, but it knows only about days since
+    it was added, and a `Metric` write that fails is swallowed on purpose.
+
+    Neither can count a roll that was never made, so the larger of the two is the nearer to the
+    truth — and the days before the tally existed need no backfill to stay right.
+  */
+  const rollsMade = Math.max(counts.roll_created ?? 0, rollsCreated);
+
   const scans = counts.scan ?? 0;
   const heading = `${WEEKDAYS[toWall(yesterday.from).weekday]} ${formatDayYear(yesterday.from)}`;
 
@@ -153,7 +169,7 @@ export async function buildDigest(now: Date = new Date()): Promise<Digest> {
     `MemoVue — ${heading}`,
     "",
     "Yesterday",
-    `  ${count(rollsCreated, "roll")} created · ${count(newHosts, "new host")}`,
+    `  ${count(rollsMade, "roll")} created · ${count(newHosts, "new host")}`,
     `  ${count(scans, "invitation")} shown → ${guests.joined} joined (${pct(guests.joined, scans)})`,
     `  ${count(photos, "photo")} from ${count(photographers.length, "guest")}`,
     `  ${count(firstOpens, "album")} opened for the first time`,

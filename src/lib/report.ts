@@ -11,6 +11,24 @@
  */
 
 /**
+ * Whether the script that threw is one of ours.
+ *
+ * A guest's phone runs a great deal more code than this app ships. An extension throws with a
+ * `chrome-extension://` filename; a script from another origin is blanked by the browser
+ * before we see it — no error object, no filename, no line, and the literal message "Script
+ * error."; a synthesised `ErrorEvent` names no source at all. None of those is anything
+ * anybody here can fix, and none can be read by somebody woken at midnight by it.
+ *
+ * A positive test rather than a list of the junk seen so far, because such a list only ever
+ * grows and every entry on it is written the morning after a message nobody could make sense
+ * of. Our own chunks are served from the origin the page was, and so is the document an
+ * inline script lives in. Anything else is not ours to report.
+ */
+export function isOurScript(filename: string): boolean {
+  return filename.startsWith(`${location.origin}/`);
+}
+
+/**
  * A render loop throws continuously. Five is enough to know what broke, and the sixth would
  * only be helping a broken page attack our own alerts.
  */

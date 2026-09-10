@@ -1,4 +1,4 @@
-import { reportClientError } from "@/lib/report";
+import { isOurScript, reportClientError } from "@/lib/report";
 
 /**
  * The net under the browser half of the app.
@@ -9,19 +9,18 @@ import { reportClientError } from "@/lib/report";
  * React error boundary never sees any of it, and until now neither did we.
  */
 
-/**
- * Somebody else's script, thrown over the same wall.
- *
- * A script from another origin — an extension on a guest's phone, most of them — is blanked
- * by the browser before we see it: no error object, no filename, no line, and the literal
- * message "Script error.". There is nothing there to fix and nothing there of ours, so it is
- * the one thing that reaches this listener and must not reach the alerts channel. The empty
- * `filename` is the browser saying so, which is sturdier than matching on the string.
- */
-const isOpaque = (event: ErrorEvent): boolean => !event.error && !event.filename;
+/*
+  Only what our own scripts threw.
 
+  This listener hears everything the page hears, and a guest's phone is not a clean room: an
+  extension, an injected script, a browser's own tooling. Asking where the code came from —
+  `isOurScript`, in `report.ts`, where it is testable — is the whole filter, and it is a
+  positive test on purpose. The alerts topic is the only one that interrupts anybody, so the
+  question worth asking of anything headed there is "is this ours to fix", not "have we seen
+  this particular nonsense before".
+*/
 window.addEventListener("error", (event) => {
-  if (isOpaque(event)) return;
+  if (!isOurScript(event.filename)) return;
   reportClientError(event.error ?? event.message, "window");
 });
 
