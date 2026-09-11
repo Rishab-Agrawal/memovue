@@ -7,6 +7,7 @@ import { notify } from "@/lib/telegram";
  * The query topic, answered.
  *
  *   /rolls                    every host with a roll, and how many they have
+ *   /rolls all                everyone who has signed in, rolls or not
  *   /rolls someone@gmail.com  each of that host's rolls, one message apiece
  *
  * Telegram posts every message the bot can see here (see `setWebhook` in `.env.example`),
@@ -23,7 +24,7 @@ export async function POST(request: Request) {
   }
 
   const { message } = await request.json();
-  const [command, email] = String(message?.text ?? "").trim().split(/\s+/);
+  const [command, arg] = String(message?.text ?? "").trim().split(/\s+/);
   if (
     String(message?.chat?.id) !== telegram.chatId ||
     message.message_thread_id !== telegram.topics.query ||
@@ -33,20 +34,21 @@ export async function POST(request: Request) {
     return new Response(null);
   }
 
-  for (const text of await answer(email?.toLowerCase())) {
+  for (const text of await answer(arg?.toLowerCase())) {
     for (const part of chunk(text)) await notify("query", part);
   }
   return new Response(null);
 }
 
-async function answer(email: string | undefined): Promise<string[]> {
-  if (!email) {
+async function answer(arg: string | undefined): Promise<string[]> {
+  if (!arg || arg === "all") {
     const hosts = await prisma.user.findMany({
-      where: { rolls: { some: {} } },
+      // A row can exist before its first sign-in (the admin, fixtures); `googleId` is the sign-in.
+      where: arg ? { googleId: { not: null } } : { rolls: { some: {} } },
       orderBy: { email: "asc" },
       select: { email: true, _count: { select: { rolls: true } } },
     });
-    if (hosts.length === 0) return ["Nobody has a roll right now."];
+    if (hosts.length === 0) return [arg ? "Nobody has signed in yet." : "Nobody has a roll right now."];
     return [
       [
         ...hosts.map((host) => `${host.email} — ${host._count.rolls}`),
@@ -58,7 +60,7 @@ async function answer(email: string | undefined): Promise<string[]> {
   }
 
   const rolls = await prisma.roll.findMany({
-    where: { host: { email } },
+    where: { host: { email: arg } },
     orderBy: { startsAt: "asc" },
     select: {
       name: true,
@@ -80,7 +82,7 @@ async function answer(email: string | undefined): Promise<string[]> {
       },
     },
   });
-  if (rolls.length === 0) return [`${email} has no rolls.`];
+  if (rolls.length === 0) return [`${arg} has no rolls.`];
 
   const now = new Date();
   return rolls.map((roll) => describeRoll(roll, now));

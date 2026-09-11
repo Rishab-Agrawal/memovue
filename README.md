@@ -240,7 +240,7 @@ bottom of a message full of pleasant statistics is evidence nobody reads. Everyt
 digest is worth reading and none of it is urgent, which is what makes it safe to skip.
 
 **Query** is the one that answers. `/rolls` lists every host with a roll and how many they
-have; `/rolls someone@gmail.com` sends each of that host's rolls — dates, reveal, size, and once
+have, `/rolls all` everyone who has signed in, zero included; `/rolls someone@gmail.com` sends each of that host's rolls — dates, reveal, size, and once
 it has started, shots per person. Telegram posts to `/api/telegram`, signed with
 `TELEGRAM_WEBHOOK_SECRET`, and anything outside that topic is ignored.
 
