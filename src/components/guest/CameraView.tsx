@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/cn";
-import { type ProcessedPhoto, processCapture } from "@/lib/image";
+import { type ProcessedPhoto, decode, processCapture } from "@/lib/image";
 
 import { Pill } from "@/components/roll/Chrome";
 import { Flash, FlashOff, Flip } from "@/components/roll/Icons";
@@ -15,6 +15,29 @@ type Phase = "idle" | "flash" | "hold" | "fly";
 const FLASH_MS = 55;
 const HOLD_MS = 600;
 const FLIGHT_MS = 420;
+const PHOTO_TIMEOUT_MS = 3000;
+
+/**
+ * A still from the camera's photo pipeline rather than a frame of video: the phone denoises
+ * and sharpens a photo in ways it never does a frame. Only Android Chrome has `ImageCapture`,
+ * and some phones answer smaller than the stream, so anything short of the frame's size comes
+ * back null and the caller takes the frame instead.
+ */
+async function takePhoto(track: MediaStreamTrack | undefined, video: HTMLVideoElement) {
+  if (!track || typeof ImageCapture === "undefined") return null;
+  try {
+    const photo = await decode(
+      await Promise.race([
+        new ImageCapture(track).takePhoto(),
+        // Some camera stacks never answer, and a shutter that hangs is worse than a frame.
+        new Promise<never>((_, reject) => setTimeout(reject, PHOTO_TIMEOUT_MS)),
+      ]),
+    );
+    return photo.width >= video.videoWidth && photo.height >= video.videoHeight ? photo : null;
+  } catch {
+    return null;
+  }
+}
 
 interface CameraViewProps {
   shotsLeft: number;
@@ -89,7 +112,9 @@ export function CameraView({
 
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: facing, width: { ideal: 2560 }, height: { ideal: 1440 } },
+          // 4:3 is the whole sensor. Asking for 16:9 gets a cropped video mode, often only
+          // 1080p, and the viewfinder shows it stretched.
+          video: { facingMode: facing, width: { ideal: 4096 }, height: { ideal: 3072 } },
           audio: false,
         });
         if (cancelled) {
@@ -135,7 +160,7 @@ export function CameraView({
     }
   }
 
-  function runFlight(preview: string) {
+  function runFlight(preview: Blob) {
     const frame = frameRef.current?.getBoundingClientRect();
     const thumb = thumbRef.current?.getBoundingClientRect();
 
@@ -151,12 +176,14 @@ export function CameraView({
       y: thumb.top + thumb.height / 2 - (frame.top + frame.height / 2),
       scale: thumb.width / frame.width,
     });
-    setFrozen(preview);
+    const url = URL.createObjectURL(preview);
+    setFrozen(url);
     setPhase("hold");
 
     timers.current.push(
       setTimeout(() => setPhase("fly"), HOLD_MS),
       setTimeout(() => {
+        URL.revokeObjectURL(url);
         setPhase("idle");
         setFrozen(null);
         setFlight(null);
@@ -173,8 +200,12 @@ export function CameraView({
     navigator.vibrate?.(12);
 
     try {
-      const vw = video.videoWidth;
-      const vh = video.videoHeight;
+      // Not with the torch on: taking a still can drop the torch on some Android phones,
+      // which would leave the shot dark. The frame is lit.
+      const photo = torchOn ? null : await takePhoto(streamRef.current?.getVideoTracks()[0], video);
+      const source = photo ?? video;
+      const vw = photo?.width ?? video.videoWidth;
+      const vh = photo?.height ?? video.videoHeight;
       const cw = frame.clientWidth;
       const ch = frame.clientHeight;
 
@@ -196,13 +227,14 @@ export function CameraView({
         context.translate(canvas.width, 0);
         context.scale(-1, 1);
       }
-      context.drawImage(video, (vw - sw) / 2, (vh - sh) / 2, sw, sh, 0, 0, canvas.width, canvas.height);
+      context.drawImage(source, (vw - sw) / 2, (vh - sh) / 2, sw, sh, 0, 0, canvas.width, canvas.height);
 
       const processed = await processCapture(canvas);
       onCaptured(processed);
 
       timers.current.push(
-        setTimeout(() => runFlight(canvas.toDataURL("image/jpeg", 0.6)), FLASH_MS),
+        // The preview is already encoded; re-encoding the full canvas here stalled the shutter.
+        setTimeout(() => runFlight(processed.preview), FLASH_MS),
       );
     } catch {
       setPhase("idle");

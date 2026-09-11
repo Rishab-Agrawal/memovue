@@ -19,11 +19,14 @@ export const ZIP_DOWNLOAD_SPENT =
   "You have already downloaded this roll multiple times. In case of any issues, please contact hello@memovue.com";
 
 export const UPLOAD_LIMITS = {
-  /** Long edge of the archived original. */
-  fullMaxEdge: 2048,
+  /**
+   * Long edge of the archived original. Keeps most of a 12MP phone's 4:5 crop (~3000×3750),
+   * and at 1 byte a pixel — a noisy night shot — still lands under `maxBytes`.
+   */
+  fullMaxEdge: 3264,
   /** Long edge of the grid image guests actually scroll through after the reveal. */
   previewMaxEdge: 1080,
-  fullQuality: 0.85,
+  fullQuality: 0.9,
   previewQuality: 0.7,
   /** Hard server-side ceiling per object; the client targets well under this. */
   maxBytes: 12 * 1024 * 1024,
