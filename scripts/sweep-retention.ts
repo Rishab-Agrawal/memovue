@@ -74,11 +74,14 @@ async function main() {
 
   if (report.failed.length > 0) {
     for (const failure of report.failed) console.error(`FAILED ${failure.id}: ${failure.error}`);
-    await alert(
-      "sweep-partial",
-      `Sweep could not finish ${report.failed.length} roll(s)\n\n` +
-        report.failed.map((failure) => `${failure.id}: ${failure.error}`).join("\n"),
-    );
+    await alert("sweep-partial", {
+      what: `The nightly cleanup could not finish ${report.failed.length} roll(s).`,
+      meaning:
+        "Those rolls are past their deletion date and are still stored. Everything else was"
+        + " cleaned up, and they will be tried again tonight.",
+      action: "Nothing yet. If the same rolls fail again tomorrow, send this to Claude.",
+      detail: report.failed.map((failure) => `${failure.id}: ${failure.error}`).join("\n"),
+    });
     // A non-zero exit is how Railway surfaces this as a failed cron run rather than a silent
     // one. The rolls it could not finish are simply still there tomorrow.
     process.exitCode = 1;
@@ -90,6 +93,14 @@ main().catch(async (error) => {
   // Imported here too, because this runs outside `main` and therefore outside its imports —
   // and because the thing most likely to have thrown is one of them.
   const { alert } = await import("../src/lib/telegram");
-  await alert("sweep", `Sweep failed\n\n${error instanceof Error ? error.message : String(error)}`);
+  const { messageOf } = await import("../src/lib/alert-text");
+  await alert("sweep", {
+    what: "The nightly cleanup job failed.",
+    meaning:
+      "Rolls past their deletion date were not deleted, and shots held by uploads that never"
+      + " finished were not given back to guests. The site itself is unaffected.",
+    action: "Nothing yet; it runs again tonight. If this arrives two nights running, send it to Claude.",
+    detail: messageOf(error),
+  });
   process.exit(1);
 });

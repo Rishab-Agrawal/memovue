@@ -1,5 +1,6 @@
 import { after } from "next/server";
 
+import { browserFault } from "@/lib/alert-text";
 import { record } from "@/lib/metrics";
 import { clientIp, limited } from "@/lib/ratelimit";
 import { alert } from "@/lib/telegram";
@@ -39,10 +40,7 @@ export async function POST(request: Request) {
   after(async () => {
     await Promise.all([
       record("client_error"),
-      alert(
-        `client|${where}|${text.slice(0, 120)}`,
-        [`Client error — ${where || "unknown page"}`, `via ${how || "unknown"}`, "", text].join("\n"),
-      ),
+      alert(`client|${where}|${text.slice(0, 120)}`, browserFault(where, how, text)),
     ]);
   });
 

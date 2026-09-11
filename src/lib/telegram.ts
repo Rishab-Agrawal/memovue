@@ -1,5 +1,6 @@
 import "server-only";
 
+import { type Alert, renderAlert } from "./alert-text";
 import { env } from "./env";
 import { shouldAlert } from "./ratelimit";
 
@@ -22,7 +23,7 @@ import { shouldAlert } from "./ratelimit";
  * A message is never a record. The `BetaRequest` row, the `Metric` tally and the exception in
  * Railway's log all outlive whatever was sent here, and nothing in the app waits on a send.
  *
- * And none of it is ever sent from a laptop — see `notify`, which is the only sender.
+ * And none of it is ever sent from a laptop — see `post`, which is the only sender.
  */
 
 type Topic = "alerts" | "signals" | "daily";
@@ -33,7 +34,7 @@ type Topic = "alerts" | "signals" | "daily";
  */
 const TIMEOUT_MS = 5_000;
 
-export async function notify(topic: Topic, text: string): Promise<void> {
+async function post(topic: Topic, text: string): Promise<void> {
   if (!env.telegram) {
     console.info(`[telegram skipped: not configured] ${topic}: ${text}`);
     return;
@@ -106,10 +107,22 @@ export async function notify(topic: Topic, text: string): Promise<void> {
  * Something is broken. `key` is what makes two of these the same fault — a route and a
  * message, a script's name — so that a loop is announced once rather than a thousand times.
  * The budget itself lives with every other budget in the app, in `ratelimit.ts`.
+ *
+ * It takes an `Alert`, not text, and that is the whole of the rule in `alert-text.ts`: the
+ * only way into this topic is sentences written in this repo — what happened, what it means,
+ * what to do — with whatever a machine said kept below them, labelled.
  */
-export async function alert(key: string, text: string): Promise<void> {
+export async function alert(key: string, message: Alert): Promise<void> {
   if (!shouldAlert(key)) return;
-  await notify("alerts", text);
+  await post("alerts", renderAlert(message));
+}
+
+/**
+ * Signals and the digest. Never alerts: `alert` is the only way in there, so nothing can put a
+ * bare line out of a stack trace into the one topic that is allowed to wake anybody up.
+ */
+export function notify(topic: Exclude<Topic, "alerts">, text: string): Promise<void> {
+  return post(topic, text);
 }
 
 /* ------------------------------------------------------------------ signals */

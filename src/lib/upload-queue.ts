@@ -73,6 +73,31 @@ function db(): Promise<IDBPDatabase> {
   return dbPromise;
 }
 
+/**
+ * One IndexedDB call, reopening the connection once if the browser has closed it.
+ *
+ * A phone may close this connection whenever it likes — iOS does it to a page left in the
+ * background, and any browser short of memory may — and it says so only by failing the next
+ * call with "The database connection is closing". The connection used to be opened once and
+ * kept for the life of the page, so from that moment every call failed: photographs already
+ * queued stopped being sent until the page was reloaded, and a shot taken in the meantime was
+ * never written down at all, which is the one thing this file exists to promise cannot happen.
+ * Coming back to the tab is exactly when the queue retries, so it was exactly when the dead
+ * connection got found.
+ *
+ * Every call made through here is one get, put or delete, so making it twice is harmless.
+ * Anything other than a closed connection is thrown exactly as before.
+ */
+async function withDb<T>(run: (database: IDBPDatabase) => Promise<T>): Promise<T> {
+  try {
+    return await run(await db());
+  } catch (error) {
+    if (!(error instanceof DOMException && error.name === "InvalidStateError")) throw error;
+    dbPromise = null;
+    return run(await db());
+  }
+}
+
 /* ------------------------------------------------------------------ subscriptions */
 
 const listeners = new Set<(status: QueueStatus) => void>();
@@ -96,7 +121,7 @@ export function subscribeQueue(listener: (status: QueueStatus) => void): () => v
 }
 
 async function refreshPending(code: string) {
-  const items = (await (await db()).getAllFromIndex(STORE, "code", code)) as QueuedPhoto[];
+  const items = (await withDb((d) => d.getAllFromIndex(STORE, "code", code))) as QueuedPhoto[];
   publish({
     code,
     pending: items.map(({ localId, blurData }) => ({ localId, blurData })),
@@ -136,7 +161,7 @@ export async function enqueuePhoto(code: string, photo: ProcessedPhoto): Promise
     createdAt: Date.now(),
   };
 
-  await (await db()).put(STORE, item);
+  await withDb((d) => d.put(STORE, item));
   await refreshPending(code);
   void drainQueue(code);
 }
@@ -180,10 +205,8 @@ export async function drainQueue(code: string): Promise<void> {
   publish({ uploading: true });
 
   try {
-    const database = await db();
-
     for (;;) {
-      const items = (await database.getAllFromIndex(STORE, "code", code)) as QueuedPhoto[];
+      const items = (await withDb((d) => d.getAllFromIndex(STORE, "code", code))) as QueuedPhoto[];
       const item = items.sort((a, b) => a.createdAt - b.createdAt)[0];
       if (!item) break;
 
@@ -211,7 +234,7 @@ export async function drainQueue(code: string): Promise<void> {
           fullUrl = data.fullUrl;
           previewUrl = data.previewUrl;
           // Persist the reservation before uploading a single byte.
-          await database.put(STORE, { ...item, photoId });
+          await withDb((d) => d.put(STORE, { ...item, photoId }));
         } else {
           const response = await fetch(`/api/r/${code}/photos/${photoId}`, {
             method: "PUT",
@@ -225,7 +248,7 @@ export async function drainQueue(code: string): Promise<void> {
           if (!response.ok) throw Object.assign(new Error(data.error ?? "resign_failed"), data);
 
           if (data.alreadyConfirmed) {
-            await database.delete(STORE, item.localId);
+            await withDb((d) => d.delete(STORE, item.localId));
             continue;
           }
           fullUrl = data.fullUrl;
@@ -249,7 +272,7 @@ export async function drainQueue(code: string): Promise<void> {
         });
         if (!confirm.ok) throw new Error("confirm_failed");
 
-        await database.delete(STORE, item.localId);
+        await withDb((d) => d.delete(STORE, item.localId));
       } catch (error) {
         const reason = (error as { error?: string; message?: string }).error ?? "";
 
@@ -257,14 +280,14 @@ export async function drainQueue(code: string): Promise<void> {
           // The reservation outlives the local copy unless it is given back here, and a shot
           // held by a photograph that will never arrive is a shot the guest simply loses.
           if (item.photoId) await releaseShot(code, item.photoId);
-          await database.delete(STORE, item.localId);
+          await withDb((d) => d.delete(STORE, item.localId));
           publish({ dropped: status.dropped + 1 });
           continue;
         }
 
         // Transient: leave it queued and stop for now. The next app open, the `online`
         // event, or the next capture will pick it back up.
-        await database.put(STORE, { ...item, attempts: item.attempts + 1 });
+        await withDb((d) => d.put(STORE, { ...item, attempts: item.attempts + 1 }));
         break;
       } finally {
         await refreshPending(code);

@@ -40,9 +40,15 @@ main().catch(async (error) => {
   // Imported here rather than at the top, like everything else in this file: `env.ts` reads
   // its configuration at module scope, so nothing may be imported before `load-env` has run.
   const { alert } = await import("../src/lib/telegram");
-  await alert(
-    "backup",
-    `Backup failed\n\n${error instanceof Error ? error.message : String(error)}`,
-  );
+  const { messageOf } = await import("../src/lib/alert-text");
+  await alert("backup", {
+    what: "Last night's database backup failed.",
+    meaning:
+      "Nothing is lost and the site is unaffected — but there is no fresh copy of the database,"
+      + " so if it were lost before the next good backup, the newest copy would be older than"
+      + " it should be.",
+    action: "Nothing yet; it runs again tonight. If this arrives two nights running, send it to Claude.",
+    detail: messageOf(error),
+  });
   process.exit(1);
 });

@@ -78,35 +78,34 @@ async function main() {
     otherwise the failure below already says so.
   */
   if (cost.railway !== null && (cost.limits?.hard == null || cost.limits?.soft == null)) {
-    await alert(
-      "cost-limits",
-      [
-        cost.limits?.hard == null
-          ? "Railway has no hard limit — nothing will stop the bill"
-          : "Railway has no email alert set",
-        "",
-        `  stops everything at  ${dollars(cost.limits?.hard)}`,
-        `  emails at            ${dollars(cost.limits?.soft)}`,
-        "",
-        "The hard limit is the only thing that actually stops the spend; nothing in this repo",
-        "can, by design. Set it — any amount, $10 minimum — at:",
-        usagePage,
-      ].join("\n"),
-    );
+    const noStop = cost.limits?.hard == null;
+    await alert("cost-limits", {
+      what: noStop
+        ? "Railway has no spending limit set, so nothing will stop the bill."
+        : "Railway has no billing email alert set.",
+      meaning: noStop
+        ? "If usage ran away, nothing would stop it. That limit is the only thing that actually"
+          + " stops spending — nothing in the app can."
+        : "Railway will not email you before the spending limit is reached, so the first sign of"
+          + " a large bill would be the site going offline.",
+      action: `Set it on Railway's usage page — any amount, $10 minimum: ${usagePage}`,
+      detail:
+        `stops everything at ${dollars(cost.limits?.hard)}`
+        + ` · emails at ${dollars(cost.limits?.soft)}`,
+    });
   }
 
   if (cost.failed.length > 0) {
-    await alert(
-      "cost-blind",
-      [
-        `The cost watch could not read ${cost.failed.length === 1 ? "a meter" : "either meter"}`,
-        "",
-        ...cost.failed.map((failure) => `  ${failure}`),
-        "",
-        `$${cost.total.toFixed(2)} from whatever did answer, which is a floor and not the bill.`,
-        "A cost alarm that has gone blind reads exactly like a cheap month.",
-      ].join("\n"),
-    );
+    await alert("cost-blind", {
+      what: `The cost watch could not read ${cost.failed.length === 1 ? "one of the two bills" : "either bill"}.`,
+      meaning:
+        `The $${cost.total.toFixed(2)} it could see is only part of the bill, so until this is`
+        + " fixed a large bill would look like a small one.",
+      action:
+        "If the next check (in four hours) says the same, send this to Claude — it is usually"
+        + " an API token that has expired or been removed.",
+      detail: cost.failed.join("\n"),
+    });
     // Non-zero so Railway marks the run red as well, rather than this being the only trace.
     process.exitCode = 1;
   }
@@ -121,18 +120,16 @@ async function main() {
     and no usage notification for R2, so this message is the only warning there is.
   */
   if (cost.r2 !== null && cost.r2 >= R2_ALERT_USD) {
-    await alert(
-      "cost-r2",
-      [
-        `R2 alone is over $${R2_ALERT_USD}`,
-        "",
-        ...costLines(cost).map((line) => line.trim()),
-        "",
-        "This one has no hard stop behind it — Cloudflare sells no spend cap for R2, and the",
-        "images are served from its edge whether or not anything of ours is running. Storage",
-        "is the slow half; requests are the half that can climb.",
-      ].join("\n"),
-    );
+    await alert("cost-r2", {
+      what: `Photo storage (Cloudflare R2) has cost over $${R2_ALERT_USD} this month.`,
+      meaning:
+        "Nothing stops this bill automatically: Cloudflare has no spending cap, and the photos"
+        + " are served whether or not the site is running.",
+      action:
+        "Send this to Claude to find out which rolls are using the space, and whether anything"
+        + " should be deleted early.",
+      detail: costLines(cost).map((line) => line.trim()).join("\n"),
+    });
   }
 
   /*
@@ -142,18 +139,14 @@ async function main() {
     alerted about above, and inventing a number here would be the drift this design removes.
   */
   if (cost.limits?.soft != null && cost.total >= cost.limits.soft) {
-    await alert(
-      "cost-over",
-      [
-        `Cost is over $${cost.limits.soft}`,
-        "",
-        ...costLines(cost).map((line) => line.trim()),
-        "",
-        `Railway takes every workload in the workspace offline at ${dollars(cost.limits.hard)}`,
-        "— every project in it, not only MemoVue. Change either number at:",
-        usagePage,
-      ].join("\n"),
-    );
+    await alert("cost-over", {
+      what: `Hosting has cost over $${cost.limits.soft} this billing cycle.`,
+      meaning:
+        `At ${dollars(cost.limits.hard)} Railway takes everything offline — every project in the`
+        + " workspace, not only MemoVue. This repeats every four hours while it stays over.",
+      action: `Reduce usage, or raise the limits on Railway's usage page: ${usagePage}`,
+      detail: costLines(cost).map((line) => line.trim()).join("\n"),
+    });
   }
 }
 
@@ -162,9 +155,14 @@ main().catch(async (error) => {
   // Imported here too, because this runs outside `main` and therefore outside its imports —
   // and because the thing most likely to have thrown is one of them.
   const { alert } = await import("../src/lib/telegram");
-  await alert(
-    "cost",
-    `Cost watch failed\n\n${error instanceof Error ? error.message : String(error)}`,
-  );
+  const { messageOf } = await import("../src/lib/alert-text");
+  await alert("cost", {
+    what: "The cost watch crashed.",
+    meaning:
+      "Nothing checked the bill this time. Railway's own spending limit still applies, so the"
+      + " spend is still capped. It runs again in four hours.",
+    action: "Nothing yet. If this keeps arriving, send it to Claude.",
+    detail: messageOf(error),
+  });
   process.exit(1);
 });

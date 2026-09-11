@@ -32,37 +32,47 @@ async function main() {
   await notify("daily", text);
 
   if (missing.length > 0) {
-    await alert(
-      "heartbeat",
-      [
-        `${missing.join(" and ")} did not run last night`,
-        "",
+    const named: Record<string, string> = {
+      backup: "the database backup",
+      sweep: "the nightly cleanup",
+      "cost watch": "the cost watch",
+    };
+    await alert("heartbeat", {
+      what: `Last night, ${missing.map((name) => named[name] ?? name).join(" and ")} did not run.`,
+      meaning: [
         missing.includes("backup")
-          ? "Nothing has been copied out of Postgres. If the database is lost today, the"
-            + " most recent copy is from whenever it last succeeded."
+          ? "No copy of the database was made. If it were lost today, the newest copy would be"
+            + " from the last night this worked."
           : null,
         missing.includes("sweep")
-          ? "Nothing was purged or released. Photographs past their deletion date are still"
-            + " stored, and abandoned reservations are still spending guests' shots."
+          ? "Photos past their deletion date are still stored, and uploads that never finished"
+            + " are still holding guests' shots."
           : null,
         missing.includes("cost watch")
-          ? "Nothing is reading the bill or checking that Railway's hard limit is still set."
-            + " The limit itself is enforced by Railway and still stands, so the spend is"
-            + " still capped — but nothing will now say so before it stops everything."
+          ? "Nothing is checking the bill. Railway's own spending limit still applies, so the"
+            + " spend is still capped — but nothing will warn you before that limit takes the"
+            + " site offline."
           : null,
-        "",
-        "Check the Railway cron service is still scheduled — a job that is no longer scheduled",
-        "fails nothing and reports nothing.",
       ]
         .filter((line) => line !== null)
-        .join("\n"),
-    );
+        .join(" "),
+      action:
+        "Open Railway and check that the job is still scheduled and its last run did not fail —"
+        + " a job that stops being scheduled reports nothing on its own. If it is scheduled and"
+        + " still not running, send this to Claude.",
+    });
   }
 }
 
 main().catch(async (error) => {
   console.error(error);
   const { alert } = await import("../src/lib/telegram");
-  await alert("digest", `Digest failed\n\n${error instanceof Error ? error.message : String(error)}`);
+  const { messageOf } = await import("../src/lib/alert-text");
+  await alert("digest", {
+    what: "This morning's daily summary could not be put together.",
+    meaning: "Only the summary is missing. The site is unaffected.",
+    action: "Nothing yet; it runs again tomorrow morning. If it fails again, send this to Claude.",
+    detail: messageOf(error),
+  });
   process.exit(1);
 });

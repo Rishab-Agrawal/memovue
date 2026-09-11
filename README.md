@@ -194,10 +194,21 @@ hour across everything, because an alarm channel that floods during an outage is
 The cron jobs alert here too, when they fail, and the cost watch when the bill is over the line
 or the limit that stops it has gone missing.
 
+**Every alert is written here, not by the error.** Three times a line reached Alerts that its
+reader could not understand — `NEXT_REDIRECT`, a Jest worker, *The database connection is
+closing* — and each time the fix was to recognise that one sentence, which can never be
+finished: browsers, libraries and servers can say anything. So `alert()` no longer takes text.
+It takes an `Alert` from `src/lib/alert-text.ts` — *what happened*, *what it means*, *what to
+do* — written in this repo and chosen by the *kind* of fault (a phone, a page, a button, a
+nightly job: a short list we own) rather than by its wording (an endless one nobody does).
+Whatever the machine said still goes along, last, under *Technical detail*, because that is
+where a fix starts. `notify` cannot reach the alerts topic at all, so there is no other way in,
+and `tests/unit/alert-text.spec.ts` feeds the rule errors nobody has written a word about.
+
 **Nothing is sent from a laptop.** `.env.local` carries the same bot token, chat id and topic
 ids as the deployment, deliberately: a notification channel that cannot be exercised before it
 ships is one nobody finds out is broken until the night it matters. What that cost, until
-`env.isDeployed` was put in front of `notify`, is that development wrote into the live group —
+`env.isDeployed` was put in front of every send, is that development wrote into the live group —
 the end-to-end suite announced a new host and a new roll for every fixture it made, and a dev
 server whose compile worker died sent *Jest worker encountered 2 child process exceptions,
 exceeding retry limit*, a sentence about Next's own build tooling on somebody's laptop, to the

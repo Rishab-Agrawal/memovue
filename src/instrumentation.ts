@@ -1,5 +1,7 @@
 import type { Instrumentation } from "next";
 
+import { serverFault } from "./lib/alert-text";
+
 /**
  * Every server exception in the application, in one place.
  *
@@ -63,15 +65,13 @@ export const onRequestError: Instrumentation.onRequestError = async (
     record("server_error"),
     alert(
       fingerprint(context.routePath, message),
-      [
-        `Server error — ${context.routePath || request.path}`,
-        `${request.method} ${request.path} · ${context.routeType}`,
-        "",
+      serverFault({
+        route: context.routePath || request.path,
+        routeType: context.routeType,
+        request: `${request.method} ${request.path}`,
         message,
-        digest ? `digest ${digest}` : null,
-      ]
-        .filter((line) => line !== null)
-        .join("\n"),
+        digest,
+      }),
     ),
   ]);
 };

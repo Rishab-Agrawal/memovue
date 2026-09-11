@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 
+import { messageOf } from "./alert-text";
 import { env } from "./env";
 import { alert } from "./telegram";
 
@@ -45,20 +46,17 @@ async function send(to: string, subject: string, text: string): Promise<void> {
       one fault rather than one per host.
     */
     console.error("Failed to send email", error);
-    await alert(
-      "email",
-      [
-        "An email could not be sent",
-        "",
-        `  to       ${to}`,
-        `  subject  ${subject}`,
-        `  error    ${error instanceof Error ? error.message : String(error)}`,
-        "",
-        "Nobody was told. If this says the quota is exhausted, the free plan is 3,000 a month",
-        "and 100 a day — it refuses rather than charging, so this costs nothing and silently",
-        "stops hosts hearing that their photographs are about to be deleted.",
-      ].join("\n"),
-    );
+    await alert("email", {
+      what: "An email the site tried to send did not go out.",
+      meaning:
+        `Someone was not told “${subject}”. The site itself is fine, but for as long as this`
+        + " goes on, hosts stop hearing things like their photos being about to be deleted.",
+      action:
+        "If the detail below mentions a quota, a limit or 429, the free email plan (100 a day,"
+        + " 3,000 a month) has run out — nothing is charged and it resets on its own. Anything"
+        + " else: send this whole message to Claude.",
+      detail: `to: ${to}\n${messageOf(error)}`,
+    });
   }
 }
 
