@@ -1,10 +1,11 @@
 import { expect, test } from "@playwright/test";
 
 import { fromWall } from "@/lib/format";
-import { chunk, describeRoll, type RollReport } from "@/lib/roll-report";
+import { chunk, describeDeleted, describeHosts, describeRoll, type RollReport } from "@/lib/roll-report";
 
 const roll: RollReport = {
-  name: "Riya's wedding",
+  name: "Sunday lunch",
+  createdAt: fromWall(2026, 8, 10, 9, 30),
   startsAt: fromWall(2026, 8, 19, 18, 0),
   finishesAt: fromWall(2026, 8, 20, 2, 0),
   revealMode: "DELAY",
@@ -18,11 +19,13 @@ const roll: RollReport = {
     { name: "Kabir", userId: null, _count: { photos: 10 } },
   ],
 };
+const during = fromWall(2026, 8, 19, 20, 0);
 
 test("a started roll counts the host's shots but not the host as a guest", () => {
-  expect(describeRoll(roll, fromWall(2026, 8, 19, 20, 0))).toBe(
+  expect(describeRoll(roll, during)).toBe(
     [
-      "Riya's wedding",
+      "Sunday lunch",
+      "Created 10 Sep 2026 at 9:30 am",
       "Starts 19 Sep 2026 at 6:00 pm",
       "Ends 20 Sep 2026 at 2:00 am",
       "Reveals 6h after the event",
@@ -35,8 +38,34 @@ test("a started roll counts the host's shots but not the host as a guest", () =>
   );
 });
 
+test("the copy kept after deletion names nobody", () => {
+  const kept = describeRoll(roll, during, false);
+
+  expect(kept).toContain("  Host — 3\n  Guest 1 — 10");
+  expect(kept).not.toMatch(/Riya|Kabir/);
+  expect(describeDeleted({ summary: kept, deletedAt: during, deletedBy: "EXPIRY" })).toMatch(
+    /^DELETED 19 Sep 2026 at 8:00 pm, expired, 30 days after it ended\n\nSunday lunch\n/,
+  );
+});
+
 test("an unstarted roll says so instead of counting", () => {
-  expect(describeRoll(roll, fromWall(2026, 8, 1)).endsWith("\n\nNot started yet.")).toBe(true);
+  expect(describeRoll(roll, fromWall(2026, 8, 12)).endsWith("\n\nNot started yet.")).toBe(true);
+});
+
+test("hosts are listed latest roll first, and people with none last as new", () => {
+  expect(
+    describeHosts([
+      { email: "never@x.com", rolls: 0, latest: null },
+      { email: "old@x.com", rolls: 0, latest: fromWall(2026, 7, 1, 10, 0) },
+      { email: "recent@x.com", rolls: 2, latest: fromWall(2026, 8, 10, 9, 30) },
+    ]),
+  ).toBe(
+    [
+      "recent@x.com — 2 (10 Sep 2026 at 9:30 am)",
+      "old@x.com — 0 (1 Aug 2026 at 10:00 am)",
+      "never@x.com — 0 (new)",
+    ].join("\n"),
+  );
 });
 
 test("a long reply splits on line breaks, under Telegram's limit", () => {

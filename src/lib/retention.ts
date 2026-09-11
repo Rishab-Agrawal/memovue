@@ -1,7 +1,10 @@
 import "server-only";
 
+import type { DeletedBy } from "@prisma/client";
+
 import { sendDeletionNotice } from "./email";
 import { prisma } from "./prisma";
+import { describeRoll, rollReportSelect } from "./roll-report";
 import { ABANDONED_UPLOAD_DAYS, retentionAction, WARN_BEFORE_DAYS } from "./roll-access";
 import { deleteObjects, legacyZipKey, storageConfigured, zipKey } from "./storage";
 
@@ -35,14 +38,20 @@ const DAY = 86_400_000;
  * at all — while both documents told people we remove the image files. Every path that
  * destroys a roll goes through here now.
  *
- * Cascades take care of guests and photos once the roll goes.
+ * Cascades take care of guests and photos once the roll goes. What stays is a `DeletedRoll`,
+ * written in the same transaction as the delete so a roll can never go without one.
  */
-export async function purgeRoll(rollId: string): Promise<void> {
+export async function purgeRoll(rollId: string, deletedBy: DeletedBy): Promise<void> {
+  const roll = await prisma.roll.findUniqueOrThrow({
+    where: { id: rollId },
+    select: { ...rollReportSelect, coverKey: true },
+  });
+
   if (storageConfigured) {
-    const [photos, roll] = await Promise.all([
-      prisma.photo.findMany({ where: { rollId }, select: { fullKey: true, previewKey: true } }),
-      prisma.roll.findUnique({ where: { id: rollId }, select: { coverKey: true } }),
-    ]);
+    const photos = await prisma.photo.findMany({
+      where: { rollId },
+      select: { fullKey: true, previewKey: true },
+    });
 
     const keys = [
       ...photos.flatMap((photo) => [photo.fullKey, photo.previewKey]),
@@ -58,7 +67,7 @@ export async function purgeRoll(rollId: string): Promise<void> {
         everything that could have found it again, and billed for as long as the bucket
         lives. The column has been there since the first migration.
       */
-      ...(roll?.coverKey ? [roll.coverKey] : []),
+      ...(roll.coverKey ? [roll.coverKey] : []),
       // The archive stays derived — it is a pure function of the roll, most rolls never have
       // one, and deleting a key that was never written is free. Both spellings, because a
       // roll may carry one built before the key became a capability, and photographs must not
@@ -72,13 +81,27 @@ export async function purgeRoll(rollId: string): Promise<void> {
     await deleteObjects(keys);
   }
 
-  await prisma.roll.delete({ where: { id: rollId } });
+  await prisma.$transaction([
+    prisma.deletedRoll.create({
+      data: {
+        id: rollId,
+        hostId: roll.hostId,
+        deletedBy,
+        createdAt: roll.createdAt,
+        summary: describeRoll(roll, new Date(), false),
+      },
+    }),
+    prisma.roll.delete({ where: { id: rollId } }),
+  ]);
 }
 
-/** Every roll the given account owns, bytes included. Used when an account is deleted. */
+/**
+ * Every roll the given account owns, bytes included. Used when an account is deleted — whose
+ * user row goes a line later and takes these `DeletedRoll`s with it, by cascade.
+ */
 export async function purgeRollsOfHost(hostId: string): Promise<void> {
   const rolls = await prisma.roll.findMany({ where: { hostId }, select: { id: true } });
-  for (const roll of rolls) await purgeRoll(roll.id);
+  for (const roll of rolls) await purgeRoll(roll.id, "HOST");
 }
 
 /**
@@ -155,7 +178,7 @@ export async function runRetention(now: Date = new Date()): Promise<RetentionRep
     try {
       switch (retentionAction(roll, now)) {
         case "purge":
-          await purgeRoll(roll.id);
+          await purgeRoll(roll.id, "EXPIRY");
           report.purged.push(roll.id);
           break;
 

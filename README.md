@@ -242,7 +242,10 @@ digest is worth reading and none of it is urgent, which is what makes it safe to
 **Query** is the one that answers. `/rolls` lists every host with a roll and how many they
 have, `/rolls all` everyone who has signed in, zero included; `/rolls someone@gmail.com` sends each of that host's rolls — dates, reveal, size, and once
 it has started, shots per person. Telegram posts to `/api/telegram`, signed with
-`TELEGRAM_WEBHOOK_SECRET`, and anything outside that topic is ignored.
+`TELEGRAM_WEBHOOK_SECRET`, and anything outside that topic is ignored. Deleted rolls show up
+too: `purgeRoll` writes a `DeletedRoll` in the same transaction as the delete — who deleted it,
+when, and the roll's settings and counts with every guest unnamed — and it goes with the host's
+account.
 
 **Every topic is the group, and none of them is a DM.** `TELEGRAM_CHAT_ID` is read out of
 `getUpdates`, which lists every chat the bot has seen — and the bot has always been opened

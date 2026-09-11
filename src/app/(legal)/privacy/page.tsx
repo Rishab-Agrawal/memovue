@@ -13,7 +13,7 @@ export default function PrivacyPage() {
   return (
     <>
       <h1>Privacy Policy</h1>
-      <p className="marking !mt-6">Last updated 6 September 2026</p>
+      <p className="marking !mt-6">Last updated 11 September 2026</p>
 
       <p>
         This explains what MemoVue collects, why, and what you can do about it. It covers{" "}
@@ -161,8 +161,11 @@ export default function PrivacyPage() {
         <strong>Account data.</strong> Kept while your account exists.
       </p>
       <p>
-        <strong>Deletion.</strong> When a host deletes a roll or their account, we remove the
-        database records and the stored image files. Backup copies age out within 30 days.
+        <strong>Deletion.</strong> When a roll is deleted — by its host, or 30 days after it
+        closes — we remove its photos, its guest list and the stored image files. What stays is
+        a short note of the roll itself: its name, dates, settings and how many photos were
+        taken, never a photo or a guest&rsquo;s name. When a host deletes their account, those
+        notes go with it. Backup copies age out within 30 days.
       </p>
       <p>
         <strong>Logs.</strong> Ordinary server logs are short-lived. Rate-limit records live

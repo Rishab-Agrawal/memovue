@@ -1,14 +1,14 @@
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
-import { chunk, describeRoll } from "@/lib/roll-report";
+import { chunk, describeDeleted, describeHosts, describeRoll, rollReportSelect } from "@/lib/roll-report";
 import { notify } from "@/lib/telegram";
 
 /**
  * The query topic, answered.
  *
- *   /rolls                    every host with a roll, and how many they have
+ *   /rolls                    every host, with how many rolls they have and their latest one
  *   /rolls all                everyone who has signed in, rolls or not
- *   /rolls someone@gmail.com  each of that host's rolls, one message apiece
+ *   /rolls someone@gmail.com  each of that host's rolls, deleted ones included, newest first
  *
  * Telegram posts every message the bot can see here (see `setWebhook` in `.env.example`),
  * signed with TELEGRAM_WEBHOOK_SECRET. Another chat, another topic or another command gets a
@@ -40,50 +40,58 @@ export async function POST(request: Request) {
   return new Response(null);
 }
 
+/** The day `DeletedRoll` started being written. Nothing deleted before it left a trace. */
+const TRACKED_SINCE = "11 Sep 2026";
+
 async function answer(arg: string | undefined): Promise<string[]> {
   if (!arg || arg === "all") {
-    const hosts = await prisma.user.findMany({
+    const users = await prisma.user.findMany({
       // A row can exist before its first sign-in (the admin, fixtures); `googleId` is the sign-in.
-      where: arg ? { googleId: { not: null } } : { rolls: { some: {} } },
-      orderBy: { email: "asc" },
-      select: { email: true, _count: { select: { rolls: true } } },
+      where: arg
+        ? { googleId: { not: null } }
+        : { OR: [{ rolls: { some: {} } }, { deletedRolls: { some: {} } }] },
+      select: {
+        email: true,
+        _count: { select: { rolls: true } },
+        rolls: { select: { createdAt: true }, orderBy: { createdAt: "desc" }, take: 1 },
+        deletedRolls: { select: { createdAt: true }, orderBy: { createdAt: "desc" }, take: 1 },
+      },
     });
-    if (hosts.length === 0) return [arg ? "Nobody has signed in yet." : "Nobody has a roll right now."];
+    if (users.length === 0) return [arg ? "Nobody has signed in yet." : "Nobody has made a roll yet."];
+
+    const hosts = users.map((user) => ({
+      email: user.email,
+      rolls: user._count.rolls,
+      latest: [...user.rolls, ...user.deletedRolls].reduce<Date | null>(
+        (latest, roll) => (latest && latest > roll.createdAt ? latest : roll.createdAt),
+        null,
+      ),
+    }));
     return [
       [
-        ...hosts.map((host) => `${host.email} — ${host._count.rolls}`),
+        describeHosts(hosts),
         "",
-        // ponytail: rows only. A per-host lifetime count needs a tally keyed on the host.
-        "Rolls that still exist. Deleted ones, and ones the sweep took 30 days after they ended, are not counted.",
+        "Number: rolls that still exist. Brackets: the latest roll created, deleted ones included.",
+        `Deletions before ${TRACKED_SINCE} left no trace, so "new" can hide them.`,
       ].join("\n"),
     ];
   }
 
-  const rolls = await prisma.roll.findMany({
-    where: { host: { email: arg } },
-    orderBy: { startsAt: "asc" },
+  const host = await prisma.user.findUnique({
+    where: { email: arg },
     select: {
-      name: true,
-      startsAt: true,
-      finishesAt: true,
-      revealMode: true,
-      revealDelayHours: true,
-      revealedEarly: true,
-      maxGuests: true,
-      photosPerGuest: true,
-      hostId: true,
-      guests: {
-        orderBy: { createdAt: "asc" },
-        select: {
-          name: true,
-          userId: true,
-          _count: { select: { photos: { where: { status: "READY" } } } },
-        },
-      },
+      rolls: { select: rollReportSelect },
+      deletedRolls: { select: { createdAt: true, deletedAt: true, deletedBy: true, summary: true } },
     },
   });
-  if (rolls.length === 0) return [`${arg} has no rolls.`];
+  if (!host) return [`${arg} has never signed in.`];
 
   const now = new Date();
-  return rolls.map((roll) => describeRoll(roll, now));
+  const rolls = [
+    ...host.rolls.map((roll) => ({ createdAt: roll.createdAt, text: describeRoll(roll, now) })),
+    ...host.deletedRolls.map((roll) => ({ createdAt: roll.createdAt, text: describeDeleted(roll) })),
+  ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  if (rolls.length === 0) return [`${arg} has no rolls, and has deleted none since ${TRACKED_SINCE}.`];
+
+  return rolls.map((roll) => roll.text);
 }

@@ -1,27 +1,39 @@
-import type { RevealMode } from "@prisma/client";
+import type { DeletedBy, Prisma } from "@prisma/client";
 
 import { formatDateTime } from "./format";
 
 /**
- * What the query topic says about one roll. Pure, so it is tested without a database — the
- * reading happens in `app/api/telegram/route.ts`.
+ * What the query topic says about a roll. Pure, so it is tested without a database — the
+ * reading happens in `app/api/telegram/route.ts`, and in `purgeRoll`, which records the last
+ * one a roll will ever get.
  */
 
-export interface RollReport {
-  name: string;
-  startsAt: Date;
-  finishesAt: Date;
-  revealMode: RevealMode;
-  revealDelayHours: number;
-  revealedEarly: boolean;
-  maxGuests: number;
-  photosPerGuest: number;
-  hostId: string;
+export const rollReportSelect = {
+  name: true,
+  createdAt: true,
+  startsAt: true,
+  finishesAt: true,
+  revealMode: true,
+  revealDelayHours: true,
+  revealedEarly: true,
+  maxGuests: true,
+  photosPerGuest: true,
+  hostId: true,
   /** Host included — they are enrolled at creation. Counts are READY photos only. */
-  guests: { name: string; userId: string | null; _count: { photos: number } }[];
-}
+  guests: {
+    orderBy: { createdAt: "asc" },
+    select: {
+      name: true,
+      userId: true,
+      _count: { select: { photos: { where: { status: "READY" } } } },
+    },
+  },
+} satisfies Prisma.RollSelect;
 
-export function describeRoll(roll: RollReport, now: Date): string {
+export type RollReport = Prisma.RollGetPayload<{ select: typeof rollReportSelect }>;
+
+/** `named: false` is the version kept after deletion, which must not hold anybody's name. */
+export function describeRoll(roll: RollReport, now: Date, named = true): string {
   const reveal =
     roll.revealMode === "DELAY"
       ? `${roll.revealDelayHours}h after the event`
@@ -31,6 +43,7 @@ export function describeRoll(roll: RollReport, now: Date): string {
 
   const lines = [
     roll.name,
+    `Created ${formatDateTime(roll.createdAt)}`,
     `Starts ${formatDateTime(roll.startsAt)}`,
     `Ends ${formatDateTime(roll.finishesAt)}`,
     `Reveals ${reveal}${roll.revealedEarly ? " (revealed early)" : ""}`,
@@ -41,13 +54,30 @@ export function describeRoll(roll: RollReport, now: Date): string {
 
   const shots = roll.guests.reduce((sum, guest) => sum + guest._count.photos, 0);
   const joined = roll.guests.filter((guest) => guest.userId !== roll.hostId).length;
+  let n = 0;
   return [
     ...lines,
     `${shots} shots · ${joined} guests joined`,
-    ...roll.guests.map(
-      (guest) => `  ${guest.name}${guest.userId === roll.hostId ? " (host)" : ""} — ${guest._count.photos}`,
-    ),
+    ...roll.guests.map((guest) => {
+      const host = guest.userId === roll.hostId;
+      const name = named ? `${guest.name}${host ? " (host)" : ""}` : host ? "Host" : `Guest ${++n}`;
+      return `  ${name} — ${guest._count.photos}`;
+    }),
   ].join("\n");
+}
+
+/** A `DeletedRoll`: how it went first, then what it was. */
+export function describeDeleted(roll: { summary: string; deletedAt: Date; deletedBy: DeletedBy }): string {
+  const how = roll.deletedBy === "HOST" ? "by the host" : "expired, 30 days after it ended";
+  return `DELETED ${formatDateTime(roll.deletedAt)}, ${how}\n\n${roll.summary}`;
+}
+
+/** `/rolls`: the most recent roll first, and people who never made one last. */
+export function describeHosts(hosts: { email: string; rolls: number; latest: Date | null }[]): string {
+  return [...hosts]
+    .sort((a, b) => (b.latest?.getTime() ?? 0) - (a.latest?.getTime() ?? 0))
+    .map((host) => `${host.email} — ${host.rolls} (${host.latest ? formatDateTime(host.latest) : "new"})`)
+    .join("\n");
 }
 
 /** Telegram refuses a message over 4096 characters, and a 500-guest roll runs past that. */

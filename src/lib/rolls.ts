@@ -707,7 +707,7 @@ export async function deleteRoll(id: string, hostId: string) {
   // Through the retention module, so a host deleting a roll by hand and the nightly sweep
   // destroy exactly the same things. This used to take back the cover and orphan every
   // photograph in the roll, while both legal documents said we delete the image files.
-  await purgeRoll(id);
+  await purgeRoll(id, "HOST");
 
   /*
     The allowance comes back only for a roll whose event never began, and only once the purge

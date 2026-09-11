@@ -36,7 +36,7 @@ import { backupKey, deleteObjects, putStream, storageConfigured } from "./storag
  * see the count check in `runBackup`, which is what turns that into an error rather than a
  * backup that is quietly incomplete.
  */
-export const TABLES = ["User", "BetaAccess", "BetaRequest", "Roll", "Guest", "Photo"] as const;
+export const TABLES = ["User", "BetaAccess", "BetaRequest", "Roll", "Guest", "Photo", "DeletedRoll"] as const;
 
 /*
   Dates are transcribed, never interpreted.
