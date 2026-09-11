@@ -17,6 +17,10 @@ const HOLD_MS = 600;
 const FLIGHT_MS = 420;
 const PHOTO_TIMEOUT_MS = 3000;
 
+/** `torch` and `focusMode` are real constraints on Android Chrome but not in the DOM typings yet. */
+const advanced = (set: { torch?: boolean; focusMode?: string }) =>
+  ({ advanced: [set] }) as unknown as MediaTrackConstraints;
+
 /**
  * A still from the camera's photo pipeline rather than a frame of video: the phone denoises
  * and sharpens a photo in ways it never does a frame. Only Android Chrome has `ImageCapture`,
@@ -111,12 +115,24 @@ export function CameraView({
       stop();
 
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          // 4:3 is the whole sensor. Asking for 16:9 gets a cropped video mode, often only
-          // 1080p, and the viewfinder shows it stretched.
-          video: { facingMode: facing, width: { ideal: 4096 }, height: { ideal: 3072 } },
-          audio: false,
-        });
+        // 4:3 is the whole sensor. Asking for 16:9 gets a cropped video mode, often only
+        // 1080p, and the viewfinder shows it stretched.
+        const size = { width: { ideal: 4096 }, height: { ideal: 3072 } };
+        const wanted = { video: { ...size, facingMode: facing }, audio: false };
+        let stream = await navigator.mediaDevices.getUserMedia(wanted);
+
+        // Some browsers ignore `facingMode` and open the wrong camera; ask for the back one by name.
+        if (facing === "environment" && stream.getVideoTracks()[0].getSettings().facingMode !== "environment") {
+          const back = (await navigator.mediaDevices.enumerateDevices()).find(
+            (device) => device.kind === "videoinput" && /back|rear|environment/i.test(device.label),
+          );
+          if (back) {
+            stream.getTracks().forEach((track) => track.stop());
+            stream = await navigator.mediaDevices
+              .getUserMedia({ video: { ...size, deviceId: { exact: back.deviceId } }, audio: false })
+              .catch(() => navigator.mediaDevices.getUserMedia(wanted));
+          }
+        }
         if (cancelled) {
           stream.getTracks().forEach((track) => track.stop());
           return;
@@ -150,14 +166,19 @@ export function CameraView({
     if (!track) return;
     const next = !torchOn;
     try {
-      // `torch` is a real constraint on Android Chrome but isn't in the DOM typings yet.
-      await track.applyConstraints({
-        advanced: [{ torch: next }],
-      } as unknown as MediaTrackConstraints);
+      await track.applyConstraints(advanced({ torch: next }));
       setTorchOn(next);
     } catch {
       setHasTorch(false);
     }
+  }
+
+  /** Tap the viewfinder to refocus, where the camera allows it; elsewhere a tap does nothing. */
+  function refocus() {
+    const track = streamRef.current?.getVideoTracks()[0];
+    const capabilities = track?.getCapabilities?.();
+    if (!track || !capabilities || !("focusMode" in capabilities)) return;
+    void track.applyConstraints(advanced({ focusMode: "single-shot" })).catch(() => {});
   }
 
   function runFlight(preview: Blob) {
@@ -200,9 +221,10 @@ export function CameraView({
     navigator.vibrate?.(12);
 
     try {
-      // Not with the torch on: taking a still can drop the torch on some Android phones,
-      // which would leave the shot dark. The frame is lit.
-      const photo = torchOn ? null : await takePhoto(streamRef.current?.getVideoTracks()[0], video);
+      const track = streamRef.current?.getVideoTracks()[0];
+      const photo = await takePhoto(track, video);
+      // Taking a still switches the torch off on some Android phones; put it back.
+      if (torchOn) void track?.applyConstraints(advanced({ torch: true })).catch(() => {});
       const source = photo ?? video;
       const vw = photo?.width ?? video.videoWidth;
       const vh = photo?.height ?? video.videoHeight;
@@ -259,6 +281,7 @@ export function CameraView({
             playsInline
             muted
             autoPlay
+            onClick={refocus}
             className={cn(
               "h-full w-full object-cover",
               facing === "user" && "-scale-x-100",
