@@ -148,7 +148,10 @@ export const env = {
             alerts: topicId("TELEGRAM_TOPIC_ALERTS"),
             signals: topicId("TELEGRAM_TOPIC_SIGNALS"),
             daily: topicId("TELEGRAM_TOPIC_DAILY"),
+            query: topicId("TELEGRAM_TOPIC_QUERY"),
           },
+          /** What Telegram signs its webhook calls with. Unset, `/api/telegram` answers nothing. */
+          webhookSecret: process.env.TELEGRAM_WEBHOOK_SECRET || null,
         }
       : null,
 

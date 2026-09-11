@@ -19,6 +19,7 @@ import { shouldAlert } from "./ratelimit";
  * - `signals` is the pulse: a person signed up, a roll was created, somebody asked to be let
  *   in. Pleasant to read, never urgent, and each message is one line.
  * - `daily` is the digest, once a morning.
+ * - `query` is the one that talks back: the answers to `/rolls`, see `app/api/telegram`.
  *
  * A message is never a record. The `BetaRequest` row, the `Metric` tally and the exception in
  * Railway's log all outlive whatever was sent here, and nothing in the app waits on a send.
@@ -26,7 +27,7 @@ import { shouldAlert } from "./ratelimit";
  * And none of it is ever sent from a laptop — see `post`, which is the only sender.
  */
 
-type Topic = "alerts" | "signals" | "daily";
+type Topic = "alerts" | "signals" | "daily" | "query";
 
 /**
  * Capped, because some of these run inline in a request somebody is watching a spinner for.

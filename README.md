@@ -239,7 +239,12 @@ deployment, so absence is the only evidence there will ever be — and evidence 
 bottom of a message full of pleasant statistics is evidence nobody reads. Everything left in the
 digest is worth reading and none of it is urgent, which is what makes it safe to skip.
 
-**All three are the group, and none of them is a DM.** `TELEGRAM_CHAT_ID` is read out of
+**Query** is the one that answers. `/rolls` lists every host with a roll and how many they
+have; `/rolls someone@gmail.com` sends each of that host's rolls — dates, reveal, size, and once
+it has started, shots per person. Telegram posts to `/api/telegram`, signed with
+`TELEGRAM_WEBHOOK_SECRET`, and anything outside that topic is ignored.
+
+**Every topic is the group, and none of them is a DM.** `TELEGRAM_CHAT_ID` is read out of
 `getUpdates`, which lists every chat the bot has seen — and the bot has always been opened
 privately before the group was made, so the natural thing to copy is your own user id. Telegram
 then accepts every message, answers `ok`, logs nothing, and ignores `message_thread_id`, because

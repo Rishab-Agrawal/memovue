@@ -12,7 +12,7 @@
  * a topic deleted in Telegram, a bot demoted out of the group, or a thread number copied from
  * the wrong topic — and each of those fails the same silent way.
  *
- * Three messages are posted, one per topic, and each reply is read back for the thread it
+ * Four messages are posted, one per topic, and each reply is read back for the thread it
  * actually landed in. Run it after touching any `TELEGRAM_*` variable, in whichever
  * environment you touched.
  *
@@ -62,7 +62,7 @@ async function main() {
 
   console.log("\nwhere each kind of message lands");
   const stamp = new Date().toISOString().slice(11, 19);
-  for (const topic of ["alerts", "signals", "daily"] as const) {
+  for (const topic of ["alerts", "signals", "daily", "query"] as const) {
     const thread = env.telegram.topics[topic];
     if (thread === undefined) {
       check(`${topic} has a topic id`, false, `TELEGRAM_TOPIC_${topic.toUpperCase()} is unset, so it would land in General`);
@@ -103,4 +103,4 @@ main()
     console.error(error);
     check("the run finished", false);
   })
-  .finally(() => verdict("three messages are waiting in the group"));
+  .finally(() => verdict("four messages are waiting in the group"));
