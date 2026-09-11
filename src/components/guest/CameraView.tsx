@@ -17,9 +17,8 @@ const HOLD_MS = 600;
 const FLIGHT_MS = 420;
 const PHOTO_TIMEOUT_MS = 3000;
 
-/** `torch` and `focusMode` are real constraints on Android Chrome but not in the DOM typings yet. */
-const advanced = (set: { torch?: boolean; focusMode?: string }) =>
-  ({ advanced: [set] }) as unknown as MediaTrackConstraints;
+/** `torch` is a real constraint on Android Chrome but isn't in the DOM typings yet. */
+const torch = (on: boolean) => ({ advanced: [{ torch: on }] }) as unknown as MediaTrackConstraints;
 
 /**
  * A still from the camera's photo pipeline rather than a frame of video: the phone denoises
@@ -166,19 +165,11 @@ export function CameraView({
     if (!track) return;
     const next = !torchOn;
     try {
-      await track.applyConstraints(advanced({ torch: next }));
+      await track.applyConstraints(torch(next));
       setTorchOn(next);
     } catch {
       setHasTorch(false);
     }
-  }
-
-  /** Tap the viewfinder to refocus, where the camera allows it; elsewhere a tap does nothing. */
-  function refocus() {
-    const track = streamRef.current?.getVideoTracks()[0];
-    const capabilities = track?.getCapabilities?.();
-    if (!track || !capabilities || !("focusMode" in capabilities)) return;
-    void track.applyConstraints(advanced({ focusMode: "single-shot" })).catch(() => {});
   }
 
   function runFlight(preview: Blob) {
@@ -224,7 +215,7 @@ export function CameraView({
       const track = streamRef.current?.getVideoTracks()[0];
       const photo = await takePhoto(track, video);
       // Taking a still switches the torch off on some Android phones; put it back.
-      if (torchOn) void track?.applyConstraints(advanced({ torch: true })).catch(() => {});
+      if (torchOn) void track?.applyConstraints(torch(true)).catch(() => {});
       const source = photo ?? video;
       const vw = photo?.width ?? video.videoWidth;
       const vh = photo?.height ?? video.videoHeight;
@@ -281,7 +272,6 @@ export function CameraView({
             playsInline
             muted
             autoPlay
-            onClick={refocus}
             className={cn(
               "h-full w-full object-cover",
               facing === "user" && "-scale-x-100",
