@@ -106,9 +106,10 @@ export function sendAccessGranted(to: string): Promise<void> {
   return send(
     to,
     "You're in: MemoVue beta access",
-    `Good news — you've been given beta access to MemoVue, so you can now create a roll ` +
-      `for your event.\n\nSign in with Google using this address (${to}) and start one here:\n` +
-      `${env.appUrl}/rolls\n\n— MemoVue`,
+    `Hi,\n\nYou've been given beta access to MemoVue, so you can now create a roll for your ` +
+      `event.\n\nSign in with Google using this email address and start one here:\n` +
+      `${env.appUrl}/rolls\n\nIf you want to share any feedback, kindly write back to us: ` +
+      `hello@memovue.com\n\nSincerely,\nMemoVue`,
   );
 }
 
