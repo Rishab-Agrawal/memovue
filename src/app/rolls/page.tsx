@@ -121,7 +121,7 @@ function Actions({
       </NewRollButton>
       <PillLink href="/join" variant="quiet" className={pill}>
         <Qr className="h-4 w-4" />
-        Join a roll
+        {compact ? "Join" : "Join a roll"}
       </PillLink>
     </div>
   );
@@ -131,8 +131,7 @@ function Actions({
  * One running roll.
  *
  * Portrait at the covers' own proportions, so the picture a host chose is the picture they
- * see. The perforated left edge is the strip's own: nothing else in the app carries it, so it
- * means "this is a roll, and it is still running".
+ * see.
  */
 function ActiveCard({
   roll,
@@ -150,17 +149,14 @@ function ActiveCard({
     >
       <Cover url={coverUrl} preset={roll.coverPreset} className="absolute inset-0" />
       <div className="absolute inset-0 bg-gradient-to-t from-void via-void/40 to-transparent" />
-      {/* A dark band under the holes, not bare holes on the picture. Floating over a bright
-          cover they read as damage; over the strip they read as the edge of film. */}
-      <span aria-hidden="true" className="perf absolute inset-y-0 left-0 w-4 bg-void/55" />
 
-      <div className="absolute inset-x-0 bottom-0 pr-3 pb-3 pl-6">
+      <div className="absolute inset-x-0 bottom-0 px-3 pb-3 text-center">
         <p className="display-sm line-clamp-2 text-[15px] text-chalk">{roll.name}</p>
         <p className="tabular mt-1 text-[12px] text-chalk/75">
           {formatDuration(roll.finishesAt.getTime() - now.getTime())} left
         </p>
         {roll.invitedBy ? (
-          <p className="mt-0.5 flex items-center gap-1 text-[11px] text-chalk/55">
+          <p className="mt-0.5 flex items-center justify-center gap-1 text-[11px] text-chalk/55">
             <Person className="h-3 w-3 shrink-0" />
             <span className="truncate">{roll.invitedBy}</span>
           </p>

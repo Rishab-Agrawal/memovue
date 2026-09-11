@@ -249,24 +249,6 @@ body {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
-/*
-  35mm perforations, down the edge of anything that is a roll.
-
-  One repeating gradient rather than a run of elements: the strip is decoration, and a dozen
-  spans per card is a dozen things the browser has to lay out for a picture of a hole.
-*/
-.perf {
-  background-image: repeating-linear-gradient(
-    to bottom,
-    transparent 0 7px,
-    rgba(244, 241, 236, 0.3) 7px 17px,
-    transparent 17px 24px
-  );
-  background-size: 8px 100%;
-  background-position: center;
-  background-repeat: repeat-y;
-}
-
 /* The logo's own glow, borrowed for moments that need warmth. */
 .bloom {
   position: relative;
