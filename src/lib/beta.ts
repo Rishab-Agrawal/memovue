@@ -118,25 +118,33 @@ export function listAccess() {
  *
  * Deliberately not "set to 1": re-typing an address that already has four rolls left should
  * not quietly take three of them away. Adjusting is what the counter is for.
+ *
+ * Returns whether the address is new to the list — the only case where somebody just got in.
  */
-export function grantAccess(email: string) {
-  const normalized = normalizeEmail(email);
-  return prisma.betaAccess.upsert({
-    where: { email: normalized },
-    create: { email: normalized },
-    update: {},
+export async function grantAccess(email: string): Promise<boolean> {
+  const { count } = await prisma.betaAccess.createMany({
+    data: [{ email: normalizeEmail(email) }],
+    skipDuplicates: true,
   });
+  return count > 0;
 }
 
-/** The + and − beside the counter. Floored at zero; there is no such thing as owing a roll. */
-export async function adjustAccess(id: string, delta: number): Promise<void> {
-  const row = await prisma.betaAccess.findUnique({ where: { id }, select: { rollsLeft: true } });
-  if (!row) return;
-
-  await prisma.betaAccess.update({
+/**
+ * The + and − beside the counter. Floored at zero; there is no such thing as owing a roll.
+ *
+ * Returns the address when this took it off zero, so the caller can tell them they are in.
+ * Topping up somebody who still has rolls left is not news to them.
+ */
+export async function adjustAccess(id: string, delta: number): Promise<string | null> {
+  const row = await prisma.betaAccess.findUnique({
     where: { id },
-    data: { rollsLeft: Math.max(0, row.rollsLeft + delta) },
+    select: { email: true, rollsLeft: true },
   });
+  if (!row) return null;
+
+  const rollsLeft = Math.max(0, row.rollsLeft + delta);
+  await prisma.betaAccess.update({ where: { id }, data: { rollsLeft } });
+  return row.rollsLeft === 0 && rollsLeft > 0 ? row.email : null;
 }
 
 /**

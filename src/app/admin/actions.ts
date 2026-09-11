@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { adjustAccess, grantAccess, revokeAccess } from "@/lib/beta";
+import { sendAccessGranted } from "@/lib/email";
 import { rateLimit } from "@/lib/ratelimit";
 import { requireAdmin } from "@/lib/session";
 import {
@@ -37,7 +38,7 @@ export async function grantAccessAction(input: { email: string }): Promise<Actio
     return { ok: false, error: firstError(parsed.error) };
   }
 
-  await grantAccess(parsed.data.email);
+  if (await grantAccess(parsed.data.email)) await sendAccessGranted(parsed.data.email);
   revalidatePath("/admin");
   return { ok: true };
 }
@@ -53,7 +54,8 @@ export async function adjustAccessAction(input: {
   const parsed = adjustAccessSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid" };
 
-  await adjustAccess(parsed.data.id, parsed.data.delta);
+  const granted = await adjustAccess(parsed.data.id, parsed.data.delta);
+  if (granted) await sendAccessGranted(granted);
   revalidatePath("/admin");
   return { ok: true };
 }

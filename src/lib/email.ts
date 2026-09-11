@@ -98,6 +98,21 @@ export function sendBetaRequest(request: {
 }
 
 /**
+ * Beta access granted, sent when the admin screen takes an address from no rolls to some —
+ * a new address on the list, or a `+` on one sitting at zero. Not on a top-up: somebody who
+ * still has rolls left already knows they are in.
+ */
+export function sendAccessGranted(to: string): Promise<void> {
+  return send(
+    to,
+    "You're in: MemoVue beta access",
+    `Good news — you've been given beta access to MemoVue, so you can now create a roll ` +
+      `for your event.\n\nSign in with Google using this address (${to}) and start one here:\n` +
+      `${env.appUrl}/rolls\n\n— MemoVue`,
+  );
+}
+
+/**
  * Retention warning, sent once by the nightly sweep a week before a roll reaches its
  * `keptUntil`. The roll's `warnedAt` records the send, so a host hears about it once rather
  * than every night for a week.
