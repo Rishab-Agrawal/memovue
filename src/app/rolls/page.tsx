@@ -5,6 +5,7 @@ import { BottomNav } from "@/components/roll/BottomNav";
 import { PillLink } from "@/components/roll/Chrome";
 import { Cover } from "@/components/roll/Cover";
 import { Person, Qr } from "@/components/roll/Icons";
+import { LiveRefresh } from "@/components/roll/LiveRefresh";
 import { canCreateRoll } from "@/lib/beta";
 import { cn } from "@/lib/cn";
 import { formatDuration } from "@/lib/format";
@@ -86,6 +87,9 @@ export default async function RollsHome() {
       </main>
 
       <BottomNav current="rolls" />
+
+      {/* Each card counts down, and a roll that finishes moves to Albums. */}
+      {running ? <LiveRefresh /> : null}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { PillLink } from "@/components/roll/Chrome";
 import { RollHeader } from "@/components/roll/RollHeader";
+import { LiveRefresh } from "@/components/roll/LiveRefresh";
 import { PhotoGrid, type GridPhoto } from "@/components/roll/PhotoGrid";
-import { RefreshAt } from "@/components/roll/RefreshAt";
 import { RollControls, VisibilityNotice } from "@/components/roll/RollParts";
 import { formatDay, formatDuration } from "@/lib/format";
 import { isCapturing, isOpen } from "@/lib/roll-access";
@@ -76,11 +76,11 @@ export function RollBackdrop({
       />
 
       {/*
-        This screen is rendered once and never asks again, which is right: nothing on it
-        changes without somebody navigating — except the seal lifting, whose moment is a date
-        on the roll. Only while it is still sealed, so an open roll schedules nothing at all.
+        Frames land, people join and both clocks run down with nobody touching this screen, so
+        it asks again for as long as any of that can happen. Open and finished shooting is the
+        state an album spends the rest of its life in, and it schedules nothing at all.
       */}
-      {open ? null : <RefreshAt at={roll.revealAt.getTime()} />}
+      {open && ended ? null : <LiveRefresh />}
 
       <div className="space-y-4 px-5 pt-4 pb-6">
         <RollControls

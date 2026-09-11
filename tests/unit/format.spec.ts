@@ -241,6 +241,14 @@ test.describe("durations", () => {
     expect(formatDuration(3 * 24 * 60 * minute + 4 * 60 * minute)).toBe("3d 4h");
     expect(formatDuration(7 * 60 * minute + 32 * minute)).toBe("7h 32m");
     expect(formatDuration(50 * minute)).toBe("50m");
-    expect(formatDuration(0)).toBe("Ended");
+    expect(formatDuration(minute)).toBe("1m");
+  });
+
+  test("under a minute is never 0m", () => {
+    expect(formatDuration(59_999)).toBe("less than a minute");
+    expect(formatDuration(1)).toBe("less than a minute");
+    // A phone that has passed the reveal before the server has said so.
+    expect(formatDuration(0)).toBe("less than a minute");
+    expect(formatDuration(-5_000)).toBe("less than a minute");
   });
 });

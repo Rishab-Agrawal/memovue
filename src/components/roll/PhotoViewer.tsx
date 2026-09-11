@@ -50,6 +50,18 @@ export function PhotoViewer({
   onDelete?: (photo: ViewerPhoto) => Promise<void>;
 }) {
   const [index, setIndex] = useState(startIndex);
+  /*
+    The frame on screen is followed by id, not by number. A live wall takes new photographs at
+    its head while one is open, and an index held still would slide somebody else's under the
+    reader's thumb. Adjusted during render rather than in an effect, so the wrong frame is
+    never painted first.
+  */
+  const [seen, setSeen] = useState(photos);
+  if (seen !== photos) {
+    setSeen(photos);
+    const moved = photos.findIndex((photo) => photo.id === seen[index]?.id);
+    if (moved !== -1) setIndex(moved);
+  }
   const [offset, setOffset] = useState(0);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);

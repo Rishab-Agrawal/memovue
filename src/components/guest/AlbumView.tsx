@@ -55,7 +55,7 @@ interface Feed {
  *
  * Two requests, deliberately separate. `/feed` is a small status poll every twenty seconds —
  * the countdown, the counts, whether the seal has lifted. `/photos` is the grid, in pages of 48,
- * fetched on scroll and never on a timer.
+ * fetched on scroll, and its first page again only when the poll's count says a frame landed.
  *
  * The seal is enforced on the server: while a roll is sealed `/photos` returns blur placeholders
  * and no preview URL, so this component does not have to be careful. It renders what it is
@@ -95,6 +95,42 @@ export function AlbumView({
   const request = useRef(0);
   /* Whether this roll has anything left to say. See where it is set, below. */
   const settled = useRef(false);
+  /* The roll's count at the last poll, and the wall as last drawn — what `loadNew` compares. */
+  const lastTotal = useRef<number | null>(null);
+  const shown = useRef<FeedPhoto[]>([]);
+  useEffect(() => {
+    shown.current = photos;
+  }, [photos]);
+
+  /**
+   * Frames that landed since this screen last looked, laid over the head of the wall.
+   *
+   * Merged rather than restarted: the grid used to be rebuilt whenever the count moved, which
+   * threw away every page scrolled to and landed the reader back at the top several times a
+   * minute. Only when the new first page shares nothing with the wall — more arrived than a
+   * page holds, typically a phone back out of a pocket — is it started again from the top,
+   * because prepending then would leave a hole in the middle that no scroll ever fills.
+   */
+  const loadNew = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/r/${code}/photos`, { cache: "no-store" });
+      if (!response.ok) return;
+      const page = (await response.json()) as { items: FeedPhoto[]; nextCursor: string | null };
+      const head = new Set(page.items.map((photo) => photo.id));
+
+      if (!shown.current.some((photo) => head.has(photo.id))) {
+        request.current += 1;
+        loading.current = false;
+        setPhotos(page.items);
+        setCursor(page.nextCursor);
+        setExhausted(page.nextCursor === null);
+        return;
+      }
+      setPhotos((previous) => [...page.items, ...previous.filter((photo) => !head.has(photo.id))]);
+    } catch {
+      /* The next count that moves asks again. */
+    }
+  }, [code]);
 
   const loadStatus = useCallback(async () => {
     try {
@@ -104,6 +140,8 @@ export function AlbumView({
         return;
       }
       const next = (await response.json()) as Feed;
+      if (lastTotal.current !== null && next.totalPhotos !== lastTotal.current) void loadNew();
+      lastTotal.current = next.totalPhotos;
       /* Open, and no longer shooting: the seal has lifted and the counts are final, so there
          is nothing left for the poll below to hear about. This is the state an album spends
          the rest of its life in — the one people leave open on a phone and come back to. */
@@ -122,7 +160,7 @@ export function AlbumView({
     } catch {
       setError("We couldn't load this roll.");
     }
-  }, [code, router]);
+  }, [code, router, loadNew]);
 
   /** The next page of the grid. `after` null starts again from the top. */
   const loadPage = useCallback(
@@ -198,14 +236,18 @@ export function AlbumView({
       for as long as it stayed there, whether or not anybody was looking and whether or not
       anything could still change. Both of those are askable before we ask the server.
 
-      The interval itself keeps ticking rather than being torn down and rebuilt: a phone taken
-      back out of a pocket is current within twenty seconds, and costs nothing until it is.
+      A phone taken back out of a pocket asks the moment it is visible again, and costs nothing
+      until it is.
     */
-    const timer = setInterval(() => {
-      if (settled.current || document.visibilityState !== "visible") return;
-      void loadStatus();
-    }, 20_000);
-    return () => clearInterval(timer);
+    const poll = () => {
+      if (!settled.current && document.visibilityState === "visible") void loadStatus();
+    };
+    const timer = setInterval(poll, 20_000);
+    document.addEventListener("visibilitychange", poll);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", poll);
+    };
   }, [loadStatus]);
 
   /*
@@ -213,9 +255,8 @@ export function AlbumView({
 
     It used to restart whenever the sealed photo count changed — which is every time anybody
     at the event takes a picture. Every page that had been scrolled to was thrown away and the
-    reader landed back at the top of the wall, mid-scroll, several times a minute. The count
-    in the header still ticks up live off the same poll; the grid catches up the next time
-    this screen is opened.
+    reader landed back at the top of the wall, mid-scroll, several times a minute. New frames
+    are `loadNew`'s now, which lays them over the head of the wall and leaves the rest alone.
   */
   useEffect(() => {
     // Invalidate anything in flight and take the lock off it, so the restart below is not

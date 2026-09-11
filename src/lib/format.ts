@@ -199,9 +199,13 @@ export function formatRange(from: Date, to: Date): string {
  * The same span is read three ways — "7h 32m left", "Reveals in 7h 32m", and bare under the
  * word "Left" on a roll header — so the word lives at the call site. Baking "left" into the
  * only formatter produced "Reveals in 7h 32m left".
+ *
+ * Under a minute is said in words, never "0m". That includes a span already run out: every
+ * caller that can get here with one is a sealed countdown on a phone whose clock has passed
+ * the reveal before the server has told it so, and "Reveals in Ended" was the old answer.
  */
 export function formatDuration(ms: number): string {
-  if (ms <= 0) return "Ended";
+  if (ms < 60_000) return "less than a minute";
 
   const minutes = Math.floor(ms / 60_000);
   const hours = Math.floor(minutes / 60);
