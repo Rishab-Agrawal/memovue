@@ -138,7 +138,6 @@ export function EditInfoForm({
               setCover(preset);
               dropCover();
             }}
-            onRemoveUpload={dropCover}
           />
         </div>
       </div>

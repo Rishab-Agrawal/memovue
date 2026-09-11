@@ -1,9 +1,13 @@
 "use client";
 
+import { useState, type ReactNode } from "react";
+
 import { cn } from "@/lib/cn";
 
+import { Pill } from "@/components/roll/Chrome";
 import { Cover } from "@/components/roll/Cover";
-import { Photo, Trash } from "@/components/roll/Icons";
+import { Dialog } from "@/components/roll/Dialog";
+import { Photo } from "@/components/roll/Icons";
 import { COVERS } from "@/lib/imagery";
 
 /** The shipped covers, by index — which is what `Roll.coverPreset` stores. */
@@ -16,6 +20,9 @@ const COVER_PRESETS = COVERS.map((_, index) => index);
  * offering different covers. It is deliberately presentational — it reports what was picked
  * and renders what it is told is current. Where the bytes go differs between the two callers
  * (the wizard has no roll to upload to yet) and that difference stays with them.
+ *
+ * The choices live behind Change. Picking a preset replaces an uploaded photo, so there is no
+ * separate Remove. `children` sit under Change, beside the cover.
  */
 export function CoverChoice({
   previewUrl,
@@ -24,7 +31,7 @@ export function CoverChoice({
   error,
   onPickFile,
   onPickPreset,
-  onRemoveUpload,
+  children,
 }: {
   /** The uploaded cover, if there is one — an object URL mid-wizard, a signed URL after. */
   previewUrl: string | null;
@@ -33,85 +40,81 @@ export function CoverChoice({
   error?: string | null;
   onPickFile: (file: File) => void;
   onPickPreset: (preset: number) => void;
-  onRemoveUpload: () => void;
+  children?: ReactNode;
 }) {
+  const [open, setOpen] = useState(false);
+
   return (
     <div>
-      <div className="flex items-start gap-5">
+      <div className="flex items-center gap-5">
         <Cover
           url={previewUrl}
           preset={preset}
           className="h-[200px] w-[110px] shrink-0 rounded-2xl"
         />
 
-        <div className="flex-1">
-          <label
-            className={cn(
-              "inline-flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-chalk px-4 text-[14px] font-medium text-void transition-colors hover:bg-white",
-              busy && "pointer-events-none opacity-60",
-            )}
-          >
-            <Photo className="h-4 w-4" />
-            {busy ? "Preparing…" : previewUrl ? "Replace photo" : "Upload a photo"}
-            <input
-              type="file"
-              accept="image/*"
-              disabled={busy}
-              className="sr-only"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                // Cleared so picking the same file twice in a row still fires a change.
-                event.target.value = "";
-                if (file) onPickFile(file);
-              }}
-            />
-          </label>
-
-          {previewUrl ? (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={onRemoveUpload}
-              className="mt-2 inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border border-hair-bright text-[14px] text-danger transition-colors"
-            >
-              <Trash className="h-4 w-4" />
-              Remove photo
-            </button>
-          ) : (
-            <p className="mt-3 text-[13px] leading-relaxed text-ash">
-              Your photo is resized on your phone before it uploads. Or pick one of the covers
-              below.
-            </p>
-          )}
+        <div className="flex flex-1 flex-col gap-2">
+          <Pill variant="quiet" full disabled={busy} onClick={() => setOpen(true)}>
+            {busy ? "Preparing…" : "Change image"}
+          </Pill>
+          {children}
         </div>
       </div>
 
       {error ? <p className="mt-3 text-[13px] text-danger">{error}</p> : null}
 
-      {/* The negative margin and matching padding are the ring's room to exist. `overflow-x`
-          clips on both axes, so the selected cover's 4px halo was being sliced off on three
-          sides and only its right edge survived — which read as a stray orange line between
-          two thumbnails rather than as a selection. */}
-      <div className="mt-4 -mx-1 flex gap-2.5 overflow-x-auto px-1 py-1 no-scrollbar">
-        {COVER_PRESETS.map((option) => (
-          <button
-            key={option}
-            type="button"
-            aria-label={COVERS[option].label}
-            // A preset is only the live cover when no photo is sitting on top of it.
-            aria-pressed={!previewUrl && option === preset}
-            onClick={() => onPickPreset(option)}
-            className={cn(
-              "shrink-0 rounded-xl",
-              !previewUrl &&
-                option === preset &&
-                "ring-2 ring-flame ring-offset-2 ring-offset-page",
-            )}
-          >
-            <Cover preset={option} className="h-[104px] w-[58px] rounded-xl" />
-          </button>
-        ))}
-      </div>
+      <Dialog
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Choose a cover"
+        actions={
+          <Pill variant="quiet" full onClick={() => setOpen(false)}>
+            Cancel
+          </Pill>
+        }
+      >
+        <div className="grid grid-cols-4 gap-3 p-1">
+          {COVER_PRESETS.map((option) => (
+            <button
+              key={option}
+              type="button"
+              aria-label={COVERS[option].label}
+              // A preset is only the live cover when no photo is sitting on top of it.
+              aria-pressed={!previewUrl && option === preset}
+              onClick={() => {
+                setOpen(false);
+                onPickPreset(option);
+              }}
+              className={cn(
+                "rounded-xl",
+                !previewUrl &&
+                  option === preset &&
+                  "ring-2 ring-flame ring-offset-2 ring-offset-surface",
+              )}
+            >
+              <Cover preset={option} className="aspect-[58/104] w-full rounded-xl" />
+            </button>
+          ))}
+        </div>
+
+        <label className="mt-4 inline-flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-chalk px-4 text-[14px] font-medium text-void transition-colors hover:bg-white">
+          <Photo className="h-4 w-4" />
+          Upload a photo
+          <input
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              // Straight back to the screen behind, not to this box.
+              if (file) {
+                setOpen(false);
+                onPickFile(file);
+              }
+            }}
+          />
+        </label>
+      </Dialog>
     </div>
   );
 }

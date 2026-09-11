@@ -16,10 +16,10 @@ import { useDraft } from "../DraftContext";
  * `/rolls/[id]/settings/info` offers once the roll exists. Editing the two together and
  * creating them apart was the odd arrangement, not this one.
  *
- * The covers are laid out rather than hidden behind a dialog on a later step, and there is no
- * phone mockup: a cover shrunk to a third of its size inside a drawn bezel is harder to judge
- * than the same cover at the size the picker already shows it. What the mockup was for lives
- * on the Preview button, which puts the picture and the title together at full size.
+ * There is no phone mockup: a cover shrunk to a third of its size inside a drawn bezel is
+ * harder to judge than the same cover at the size the picker already shows it. What the
+ * mockup was for lives on the Preview button, which puts the picture and the title together
+ * at full size.
  *
  * The reference offers a SUGGESTIONS list under the field — "Sanjana's party", "Sanjana's
  * Birthday" and so on. Dropped: they are generated from a name we no longer collect, and a
@@ -72,7 +72,7 @@ export default function StepName() {
       </label>
 
       <div className="mt-7 border-t border-hair pt-6">
-        <p className="marking">Cover image</p>
+        <p className="marking">Invitation cover image</p>
 
         <div className="mt-4">
           <CoverChoice
@@ -86,13 +86,12 @@ export default function StepName() {
               clearCover();
               update({ coverPreset: preset });
             }}
-            onRemoveUpload={clearCover}
-          />
+          >
+            <PillLink href="/new/preview" variant="light" full className="px-4">
+              Preview invitation
+            </PillLink>
+          </CoverChoice>
         </div>
-
-        <PillLink href="/new/preview" variant="quiet" full className="mt-5">
-          Preview invitation
-        </PillLink>
       </div>
     </WizardShell>
   );
