@@ -155,6 +155,23 @@ export function CameraView({
     return () => pending.forEach(clearTimeout);
   }, []);
 
+  /*
+    A pinch on a viewfinder means one thing, and the browser does the other: it zooms the
+    page, so the shutter and the counter slide off screen and the guest is left panning
+    around a magnified photograph of a camera. Refusing the second finger leaves the first —
+    and so every control here — exactly as it was.
+
+    Not `touch-action: none` in CSS: Safari honours that for panning and still zooms the page
+    on a pinch, and half of this audience is holding an iPhone.
+  */
+  useEffect(() => {
+    const pinch = (event: TouchEvent) => {
+      if (event.touches.length > 1) event.preventDefault();
+    };
+    document.addEventListener("touchmove", pinch, { passive: false });
+    return () => document.removeEventListener("touchmove", pinch);
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 
