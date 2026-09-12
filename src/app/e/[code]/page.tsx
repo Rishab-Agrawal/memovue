@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { GuestApp } from "@/components/guest/GuestApp";
 import { getGuestContext, rollHome } from "@/lib/guest-context";
 import { prisma } from "@/lib/prisma";
-import { half } from "@/lib/roll-config";
+import { poolMoves } from "@/lib/roll-config";
 import { poolLeft } from "@/lib/rolls";
 
 export const dynamic = "force-dynamic";
@@ -50,7 +50,13 @@ export default async function GuestRollPage({ params }: PageProps<"/e/[code]">) 
       // actually hold.
       shotsTotal={context.roll.photosPerGuest + context.guest.fromPool}
       pool={pool}
-      takeStep={half(context.roll.photosPerGuest)}
+      /*
+        Asked with an empty camera rather than their current one. The dialog is raised by the
+        client the instant the last shot goes, off a page rendered while they still had film,
+        so the number it needs is the one that will apply then. Every move is re-checked
+        against the real count on the way in.
+      */
+      takeMax={poolMoves(context.roll, { ...context.guest, shotsLeft: 0 }, pool).take}
       // The camera closes itself on this, rather than only being refused entry next time the
       // page is loaded.
       finishesAt={context.roll.finishesAt.getTime()}

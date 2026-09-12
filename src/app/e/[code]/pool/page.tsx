@@ -28,7 +28,7 @@ export default async function PoolPage({ params, searchParams }: PageProps<"/e/[
   const pool = await poolLeft(context.roll);
   const { give, back } = poolMoves(
     context.roll,
-    { fromPool: context.guest.fromPool, shotsLeft: context.shotsLeft },
+    { ...context.guest, shotsLeft: context.shotsLeft },
     pool,
   );
 

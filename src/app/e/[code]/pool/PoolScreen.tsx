@@ -6,7 +6,7 @@ import { useState } from "react";
 import { BackButton, Pill } from "@/components/roll/Chrome";
 import { ShotsDialog } from "@/components/roll/ShotsDialog";
 
-import { movePool } from "./actions";
+import { type PoolMove, movePool } from "./actions";
 
 /**
  * The shots pool, and the one thing anybody can do to it from here.
@@ -44,9 +44,9 @@ export function PoolScreen({
   const [asking, setAsking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /** Positive draws out of the pool, negative hands film to it. The server owns the ceilings. */
-  async function move(delta: number) {
-    const result = await movePool(code, delta);
+  /** The server owns every ceiling; this only says which button was pressed, and how many. */
+  async function move(kind: PoolMove, shots: number) {
+    const result = await movePool(code, kind, shots);
     if (!result.ok) {
       setError(result.error);
       return;
@@ -125,7 +125,7 @@ export function PoolScreen({
           this says four, which is the honest answer and the whole rule.
         */}
         {state.reclaim > 0 ? (
-          <Pill variant="quiet" full className="mt-3" onClick={() => void move(state.reclaim)}>
+          <Pill variant="quiet" full className="mt-3" onClick={() => void move("back", state.reclaim)}>
             Take back {state.reclaim} you gave away
           </Pill>
         ) : null}
@@ -140,7 +140,7 @@ export function PoolScreen({
         max={state.give}
         confirmLabel="Give"
         cancelLabel="Cancel"
-        onConfirm={(shots) => move(-shots)}
+        onConfirm={(shots) => move("give", shots)}
         onCancel={() => setAsking(false)}
       />
     </div>

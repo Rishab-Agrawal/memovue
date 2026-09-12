@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 
 import { Camera, Download, Lock, Photo, Qr } from "@/components/roll/Icons";
 import { cn } from "@/lib/cn";
-import { SHOTS_SPENT, ZIP_DOWNLOAD_SPENT } from "@/lib/constants";
+import { SHOTS_HELD, SHOTS_SPENT, ZIP_DOWNLOAD_SPENT } from "@/lib/constants";
 import { subscribeQueue } from "@/lib/upload-queue";
 
 /**
@@ -25,6 +25,7 @@ export function RollControls({
   inviteHref,
   poolHref,
   poolLeft = 0,
+  refill = 0,
   saveHref,
   downloadsLeft,
   onCamera,
@@ -53,11 +54,14 @@ export function RollControls({
   inviteHref?: string;
   /** The shots pool. Same screen for everybody, so the same link either side of the roll. */
   poolHref?: string;
-  /**
-   * Unclaimed film in the roll. Only a spent quota *and* an empty pool closes the camera: a
-   * guest out of shots is offered the pool's when they get there, so the tile stays live.
-   */
+  /** Unclaimed film in the roll. Only ever read to tell the two refusals below apart. */
   poolLeft?: number;
+  /**
+   * What this guest could draw from the pool once their own film is gone. Only a spent quota
+   * *and* nothing to refill with closes the camera — otherwise the tile stays live, because
+   * what is behind it is the offer.
+   */
+  refill?: number;
   /** Where "Save" goes. Omitted by anyone who cannot download the album. */
   saveHref?: string;
   /** ZIP downloads this roll has left of its lifetime ten. Ignored without `saveHref`. */
@@ -91,11 +95,14 @@ export function RollControls({
     Out of film no longer closes the camera on its own.
 
     Whoever runs dry is offered the roll's pool at the viewfinder, so the tile has somewhere
-    to lead — and tapping it is now how a guest gets there. Only when the pool is empty too is
-    there nothing left behind this control, and that is the one case it refuses.
+    to lead — and tapping it is now how a guest gets there. It refuses only when there is
+    nothing behind it: no film of their own, and no refill they are allowed to draw. Which of
+    those it is decides which sentence it answers with.
   */
   const filmSpent = shotsLeft !== undefined && shotsLeft - unreserved <= 0;
-  const off = cameraOff ?? (filmSpent && poolLeft <= 0 ? SHOTS_SPENT : undefined);
+  const off =
+    cameraOff ??
+    (filmSpent && refill <= 0 ? (poolLeft > 0 ? SHOTS_HELD : SHOTS_SPENT) : undefined);
   /*
     One line of transient text for the whole row.
 

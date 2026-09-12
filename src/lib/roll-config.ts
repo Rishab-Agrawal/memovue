@@ -252,6 +252,50 @@ export function giveawayOffered(roll: {
   return roll.giveawayAllowed && roll.photosPerGuest >= GIVEAWAY_MIN_SHOTS;
 }
 
+/* ------------------------------------------------------- how often, and how soon */
+
+/**
+ * The pool is shut for the first tenth of the event, thin for the first quarter, and capped
+ * for good after that.
+ *
+ * The shape is about who the film reaches, not about how much of it there is. Somebody who
+ * empties their camera in the first twenty minutes of a wedding is shooting the room filling
+ * up; the people the pool exists for have not arrived yet, and without a floor the whole of
+ * it would be gone before the ceremony. So nothing moves at all while the event is finding
+ * its feet, and for the rest of the first quarter a guest may double their own allowance and
+ * no more — two refills, because a refill is half an allowance.
+ *
+ * After that the clock stops mattering: the roll is well under way, whoever was going to turn
+ * up has, and film left in the pool at the end helped nobody. What is left is a lifetime
+ * ceiling of ten, which is five times a guest's own allowance drawn from the shared half —
+ * past that somebody is not shooting an event, they are emptying a roll.
+ */
+export const REFILL_LOCKOUT = 0.1;
+export const REFILL_EARLY = 0.25;
+export const REFILL_EARLY_MAX = 2;
+export const REFILL_MAX = 10;
+
+/** How far through its shooting window a roll is. Negative before it opens, past 1 after. */
+export function eventElapsed(roll: { startsAt: Date; finishesAt: Date }, now: Date): number {
+  const span = roll.finishesAt.getTime() - roll.startsAt.getTime();
+  // A roll cannot be shorter than `MIN_ROLL_MINUTES`, so this is a guard against corrupt
+  // dates rather than a real case — and "over" is the safe answer, not "not started".
+  if (span <= 0) return 1;
+  return (now.getTime() - roll.startsAt.getTime()) / span;
+}
+
+/** Refills this guest has left, counting both the clock and everything they have taken. */
+export function refillsLeft(
+  roll: { startsAt: Date; finishesAt: Date },
+  refills: number,
+  now: Date,
+): number {
+  const elapsed = eventElapsed(roll, now);
+  if (elapsed < REFILL_LOCKOUT) return 0;
+  if (elapsed < REFILL_EARLY) return Math.max(0, REFILL_EARLY_MAX - refills);
+  return Math.max(0, REFILL_MAX - refills);
+}
+
 /**
  * What one guest may move, in each direction, right now.
  *
@@ -274,18 +318,29 @@ export function giveawayOffered(roll: {
  * closing the door on giving must not trap film on the wrong side of it.
  */
 export function poolMoves(
-  roll: { photosPerGuest: number; giveawayAllowed: boolean },
-  guest: { fromPool: number; shotsLeft: number },
+  roll: {
+    photosPerGuest: number;
+    giveawayAllowed: boolean;
+    startsAt: Date;
+    finishesAt: Date;
+  },
+  guest: { fromPool: number; shotsLeft: number; refills: number },
   pool: number,
+  now: Date = new Date(),
 ): { take: number; give: number; back: number } {
   const allowance = roll.photosPerGuest + guest.fromPool;
   const keep = roll.photosPerGuest - half(roll.photosPerGuest);
   return {
-    take: Math.max(0, Math.min(pool, half(roll.photosPerGuest) - guest.shotsLeft)),
+    take:
+      refillsLeft(roll, guest.refills, now) > 0
+        ? Math.max(0, Math.min(pool, half(roll.photosPerGuest) - guest.shotsLeft))
+        : 0,
     give: giveawayOffered(roll)
       ? Math.max(0, Math.min(guest.shotsLeft, allowance - keep))
       : 0,
     // Net, so somebody who gave six and later drew twelve has given nothing back to reclaim.
+    // Neither gate touches it: reclaiming your own gift is not drawing on the shared half,
+    // so it answers to neither the clock nor the lifetime count.
     back: Math.max(0, Math.min(pool, -guest.fromPool)),
   };
 }

@@ -1,7 +1,7 @@
 import { getGuestContext } from "@/lib/guest-context";
 import { prisma } from "@/lib/prisma";
 import { limited } from "@/lib/ratelimit";
-import { poolFrom } from "@/lib/roll-config";
+import { poolFrom, poolMoves } from "@/lib/roll-config";
 import { coverUrlFor } from "@/lib/rolls";
 
 export const dynamic = "force-dynamic";
@@ -88,6 +88,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
   const { roll, guest, phase, open, capturing, shotsLeft, shotsUsed } = context;
 
   const { totalPhotos, guestCount, drawn } = await rollTotals(roll.id);
+  const pool = poolFrom(roll, guestCount, drawn);
 
   return Response.json({
     phase,
@@ -107,12 +108,15 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
     guestCount,
     /* Unclaimed film. The album draws it on the pool tile and reads it to decide whether a
        guest with nothing left still has a camera worth opening. */
-    poolLeft: poolFrom(roll, guestCount, drawn),
+    poolLeft: pool,
     me: {
       id: guest.id,
       name: guest.name,
       shotsLeft,
       shotsUsed,
+      /* What they could draw once their own film is gone — asked with an empty camera, since
+         that is the moment it applies. Zero closes the album's camera tile. */
+      refill: poolMoves(roll, { ...guest, shotsLeft: 0 }, pool).take,
       photosPerGuest: roll.photosPerGuest,
       // Whether this guest is an account, which is what decides if the sign-up banner in
       // the album has anything left to offer them.

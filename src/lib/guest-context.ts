@@ -8,7 +8,7 @@ import { getCurrentUser } from "./session";
 
 interface GuestContext {
   roll: NonNullable<Awaited<ReturnType<typeof findRoll>>>;
-  guest: { id: string; name: string; userId: string | null; fromPool: number };
+  guest: { id: string; name: string; userId: string | null; fromPool: number; refills: number };
   phase: RollPhase;
   /** Whether photographs in this roll are legible yet. */
   open: boolean;
@@ -60,7 +60,14 @@ export async function guestHome(roll: Located): Promise<string | null> {
   return user.id === roll.hostId ? `/rolls/${roll.id}` : "/rolls";
 }
 
-const guestFields = { id: true, name: true, rollId: true, userId: true, fromPool: true } as const;
+const guestFields = {
+  id: true,
+  name: true,
+  rollId: true,
+  userId: true,
+  fromPool: true,
+  refills: true,
+} as const;
 
 /**
  * Resolves whoever is holding this roll's camera, by cookie or by account.
@@ -80,7 +87,14 @@ export async function getGuestContext(code: string): Promise<GuestContext | null
   if (!roll) return null;
 
   let guest:
-    | { id: string; name: string; rollId: string; userId: string | null; fromPool: number }
+    | {
+        id: string;
+        name: string;
+        rollId: string;
+        userId: string | null;
+        fromPool: number;
+        refills: number;
+      }
     | null = null;
 
   const claims = await readGuestClaims(roll.code);
@@ -127,7 +141,13 @@ export async function getGuestContext(code: string): Promise<GuestContext | null
 
   return {
     roll,
-    guest: { id: guest.id, name: guest.name, userId: guest.userId, fromPool: guest.fromPool },
+    guest: {
+      id: guest.id,
+      name: guest.name,
+      userId: guest.userId,
+      fromPool: guest.fromPool,
+      refills: guest.refills,
+    },
     phase: rollPhase(roll),
     open: isOpen(roll),
     capturing: isCapturing(roll),

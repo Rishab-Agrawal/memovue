@@ -173,6 +173,14 @@ model Guest {
   /// as a column when it was a different size would disagree with the roll it belongs to.
   fromPool Int @default(0)
 
+  /// How many times this guest has refilled from the pool. Only draws count — handing film
+  /// back and reclaiming it again are not refills, and must not spend one.
+  ///
+  /// A tally rather than something derived from `fromPool`, because the ceilings are on the
+  /// number of times rather than on the total: ten is five allowances, and the first quarter
+  /// of the event allows two. See `refillsLeft` in `roll-config.ts`.
+  refills Int @default(0)
+
   createdAt DateTime @default(now())
 
   photos Photo[]

@@ -41,5 +41,17 @@ export const UPLOAD_LIMITS = {
   coverMaxBytes: 8 * 1024 * 1024,
 } as const;
 
-/** What anyone holding a spent camera is told when they tap it anyway. */
+/** What anyone holding a spent camera is told when the roll has no film left anywhere. */
 export const SHOTS_SPENT = "That’s all your shots for this roll.";
+
+/**
+ * And what they are told when the pool still has film but they may not draw on it — the first
+ * tenth of the event, or a guest who has spent their refills.
+ *
+ * Two messages rather than one, because the difference matters to the person reading it and
+ * the app knows which is true. Telling somebody twenty minutes into a wedding that this is
+ * all their shots for the roll is simply false: the pool opens to them shortly. Neither
+ * sentence promises anything, because the lifetime ceiling produces this screen too and there
+ * is nothing coming after that one.
+ */
+export const SHOTS_HELD = "That’s all your shots for now.";

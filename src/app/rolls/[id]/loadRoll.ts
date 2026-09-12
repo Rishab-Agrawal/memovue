@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { ZIP_DOWNLOAD_LIMIT } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { isOpen } from "@/lib/roll-access";
+import { poolMoves } from "@/lib/roll-config";
 import { coverUrlFor, getRollForHost, poolLeft } from "@/lib/rolls";
 import { publicUrl } from "@/lib/storage";
 import { requireHost } from "@/lib/session";
@@ -69,7 +70,7 @@ export async function loadRoll(
   const [mine, pool] = await Promise.all([
     prisma.guest.findFirst({
       where: { rollId: found.id, userId: user.id },
-      select: { fromPool: true, _count: { select: { photos: true } } },
+      select: { fromPool: true, refills: true, _count: { select: { photos: true } } },
     }),
     poolLeft(found),
   ]);
@@ -138,6 +139,12 @@ export async function loadRoll(
       photosPerGuest: found.photosPerGuest,
       shotsLeft,
       poolLeft: pool,
+      // Asked with an empty camera, for the same reason the guest album asks it that way.
+      refill: poolMoves(
+        found,
+        { fromPool: mine?.fromPool ?? 0, refills: mine?.refills ?? 0, shotsLeft: 0 },
+        pool,
+      ).take,
       downloadsLeft: Math.max(0, ZIP_DOWNLOAD_LIMIT - found.downloads),
     },
     /*

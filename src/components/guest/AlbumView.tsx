@@ -47,6 +47,8 @@ interface Feed {
     shotsLeft: number;
     shotsUsed: number;
     photosPerGuest: number;
+    /** What they could draw from the pool once empty. Zero means the camera has nothing. */
+    refill: number;
     /** Whether this guest is attached to an account. */
     linked: boolean;
   };
@@ -336,6 +338,7 @@ export function AlbumView({
             inviteHref={`/e/${code}/invite`}
             poolHref={`/e/${code}/pool`}
             poolLeft={feed.poolLeft}
+            refill={feed.me.refill}
           />
         ) : null}
 

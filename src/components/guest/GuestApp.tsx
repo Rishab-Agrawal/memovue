@@ -25,8 +25,12 @@ interface GuestAppProps {
   shotsTotal: number;
   /** Film nobody has claimed, as the server last counted it. */
   pool: number;
-  /** The most that may be drawn out of it in one go — half the roll's allowance per guest. */
-  takeStep: number;
+  /**
+   * The most this guest could draw the moment they run dry — the ceilings as the server saw
+   * them when this page was rendered, with an empty camera assumed. Zero while the event is
+   * in its first tenth, or once they have spent their refills, and then no box is raised.
+   */
+  takeMax: number;
   /** When the shutter closes, in epoch milliseconds. */
   finishesAt: number;
   /**
@@ -53,7 +57,7 @@ export function GuestApp({
   shotsLeft: initialShots,
   shotsTotal,
   pool: initialPool,
-  takeStep,
+  takeMax: initialTakeMax,
   finishesAt,
   home,
   latestBlur,
@@ -96,7 +100,10 @@ export function GuestApp({
   );
 
   const shotsLeft = Math.max(0, initialShots + taken - spent - carried);
-  const takeMax = Math.min(pool, takeStep);
+  // Whichever the server last said, or what is left of the pool if that is now the smaller
+  // of the two — the refill ceilings are the server's to enforce and it re-checks every move.
+  const [offer, setOffer] = useState(initialTakeMax);
+  const takeMax = Math.min(pool, offer);
 
   /*
     The camera has its own clock now, because the page only ever had one on the way in.
@@ -168,7 +175,7 @@ export function GuestApp({
   }, [closed, shotsLeft, takeMax, home, router]);
 
   async function take(shots: number) {
-    const result = await movePool(code, shots);
+    const result = await movePool(code, "take", shots);
     if (!result.ok) {
       // Nothing to be had after all — the pool emptied while they were shooting.
       decline();
@@ -176,6 +183,9 @@ export function GuestApp({
     }
     setTaken((had) => had + result.moved);
     setPool(result.pool);
+    // Their last refill may have been their last: the server hands back what is left. Not
+    // `take`, which is zero the instant after a refill because the camera is full again.
+    setOffer(result.refill);
   }
 
   function decline() {
