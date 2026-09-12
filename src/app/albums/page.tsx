@@ -43,7 +43,7 @@ export default async function AlbumsPage() {
 
         <div className="mt-6 grid grid-cols-2 gap-x-3 gap-y-6">
           {albums.map((roll) => (
-            <Link key={roll.id} href={destination(roll)} className="block">
+            <Link key={roll.id} href={destination(roll)} className="block transition-[scale] duration-150 active:scale-[0.97]">
               <Mosaic roll={roll} coverUrl={covers.get(roll.id)} />
 
               <p className="display-sm mt-2.5 line-clamp-2 text-[15px] text-chalk">
@@ -66,7 +66,7 @@ export default async function AlbumsPage() {
             album in a paragraph teaches less than one tile you can open, and a host with
             albums of their own still gets theirs first.
           */}
-          <Link href={SAMPLE_ALBUM.href} className="block">
+          <Link href={SAMPLE_ALBUM.href} className="block transition-[scale] duration-150 active:scale-[0.97]">
             <Mosaic
               roll={{ thumbs: SAMPLE_PHOTOS.map((photo) => photo.url), coverPreset: 1 }}
             />

@@ -145,7 +145,7 @@ function ActiveCard({
   return (
     <Link
       href={destination(roll)}
-      className="relative block aspect-[9/16] overflow-hidden rounded-2xl bg-void"
+      className="relative block aspect-[9/16] overflow-hidden rounded-2xl bg-void transition-[scale] duration-150 active:scale-[0.97]"
     >
       <Cover url={coverUrl} preset={roll.coverPreset} className="absolute inset-0" />
       <div className="absolute inset-0 bg-gradient-to-t from-void via-void/40 to-transparent" />

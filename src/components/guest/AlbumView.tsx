@@ -345,7 +345,7 @@ export function AlbumView({
         {feed.me.linked ? null : (
           <Link
             href="/welcome"
-            className="flex items-center gap-4 rounded-2xl bg-surface px-4 py-4 transition-colors hover:bg-hair-bright"
+            className="flex items-center gap-4 rounded-2xl bg-surface px-4 py-4 transition-[background-color,scale] duration-150 hover:bg-hair-bright active:scale-[0.98]"
           >
             <span className="flex-1">
               <span className="block text-[16px] font-semibold text-chalk">

@@ -49,7 +49,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
       */}
       <a
         href="/api/auth/google/start"
-        className="ml-auto inline-flex h-10 items-center gap-2 rounded-full border border-hair-bright bg-surface px-4 text-[14px] font-medium whitespace-nowrap text-chalk transition-colors hover:text-flame"
+        className="ml-auto inline-flex h-10 items-center gap-2 rounded-full border border-hair-bright bg-surface px-4 text-[14px] font-medium whitespace-nowrap text-chalk transition-[color,background-color,scale] duration-150 hover:text-flame active:scale-[0.97]"
       >
         <Google className="h-4 w-4" />
         Sign in
@@ -74,7 +74,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
         {/* Where a guest starts, not where the album ends: the invitation, then the camera,
             then the album — the whole of what somebody is handed at an event, in order. */}
         <PillLink href={`${SAMPLE_ALBUM.href}/join`} variant="quiet" full>
-          Experience a sample album
+          Experience a sample roll
         </PillLink>
 
         <PillLink href="/join" variant="quiet" full>

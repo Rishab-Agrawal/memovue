@@ -47,7 +47,24 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={archivo.variable}>
-      <body className="grain min-h-dvh bg-page text-chalk">{children}</body>
+      <body className="grain min-h-dvh bg-page text-chalk">
+        {/*
+          The listener is empty on purpose. iOS applies `:active` to a link only while
+          something on the page is listening for touches, so without this every press style
+          in the app answers on a desktop and on Android and stays still on the one device it
+          was written for. Buttons are exempt from the quirk; the pills and cards that are
+          anchors are not, which is exactly the set that did not move under a finger.
+
+          Inline and ahead of the tree so the first tap is already covered. React refuses the
+          `ontouchstart=""` attribute this would otherwise be.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `document.addEventListener("touchstart",function(){},{passive:true})`,
+          }}
+        />
+        {children}
+      </body>
     </html>
   );
 }

@@ -252,7 +252,7 @@ export default function StepGuests() {
           // to go. `next` brings them back to this step, with the draft still in the tab.
           <a
             href="/api/auth/google/start?next=/new/guests%3Fcreate=1"
-            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-chalk px-6 text-[15px] font-medium whitespace-nowrap text-void transition-colors hover:bg-white"
+            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-chalk px-6 text-[15px] font-medium whitespace-nowrap text-void transition-[color,background-color,scale] duration-150 hover:bg-white active:scale-[0.97]"
           >
             <Google className="h-5 w-5" />
             Continue with Google
