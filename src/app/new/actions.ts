@@ -4,7 +4,7 @@ import { after } from "next/server";
 
 import { BetaAccessError } from "@/lib/beta";
 import { record } from "@/lib/metrics";
-import { rateLimit } from "@/lib/ratelimit";
+import { callerIp, rateLimit } from "@/lib/ratelimit";
 import { createRoll } from "@/lib/rolls";
 import { requireHost } from "@/lib/session";
 import { notify } from "@/lib/telegram";
@@ -35,6 +35,20 @@ export async function createRollAction(
     an admin, who is not on the list at all, is bounded by nothing else whatsoever.
   */
   if (!rateLimit(`create-roll:${user.id}`, 20, 3_600).ok) {
+    return { ok: false, error: "That's a lot of rolls at once. Try again shortly." };
+  }
+
+  /*
+    And the same bound on the address it came from.
+
+    The per-account budget is the one that matters to a person, and it is barely a bound at
+    all on a script: accounts are free and Google will mint as many as somebody has phone
+    numbers for. Now that the wizard is open to people who have not signed in, the walk up to
+    this action is unauthenticated right until the Create button — so the machine behind it
+    is worth counting as well as the account in front of it. Generous enough that a
+    household, an office or a venue sharing one address never meets it.
+  */
+  if (!rateLimit(`create-roll-ip:${await callerIp()}`, 20, 3_600).ok) {
     return { ok: false, error: "That's a lot of rolls at once. Try again shortly." };
   }
 

@@ -26,6 +26,7 @@ const draft: Draft = {
   coverPreset: 2,
   coverBlob: null,
   coverPreviewUrl: "blob:http://localhost/abcd",
+  coverPicked: true,
   participantIndex: 3,
   shotIndex: 1,
   everyoneCanSee: true,
@@ -45,6 +46,10 @@ test("a draft comes back off a reload as the shapes it went in as", () => {
   // broken cover, which is worse than the preset it falls back to.
   expect(back?.coverBlob).toBeNull();
   expect(back?.coverPreviewUrl).toBeNull();
+
+  // What does survive is that there was one, which is how the roll created on the far side
+  // of a sign-in knows to say its cover did not make the trip.
+  expect(back?.coverPicked).toBe(true);
 });
 
 test("an empty or corrupt slot is nothing, not a crash on the way into the wizard", () => {

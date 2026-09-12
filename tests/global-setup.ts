@@ -109,12 +109,19 @@ export default async function globalSetup() {
       );
     }
 
-    // Reset rather than increment: the previous run spent this down to zero, and a suite
-    // that starts with whatever the last one left behind fails differently every time.
+    /*
+      Reset rather than increment: the previous run spent this down to zero, and a suite that
+      starts with whatever the last one left behind fails differently every time.
+
+      `refunds` is on the same footing and was missed when the give-back grew a cap. One
+      refund per account is the rule, the suite spends its one every run, and a counter that
+      is never put back means every run after the first is asserting against an account that
+      has already used it up.
+    */
     await prisma.betaAccess.upsert({
       where: { email: TEST_HOST.email },
       create: { email: TEST_HOST.email, rollsLeft: TEST_ROLL_ALLOWANCE },
-      update: { rollsLeft: TEST_ROLL_ALLOWANCE },
+      update: { rollsLeft: TEST_ROLL_ALLOWANCE, refunds: 0 },
     });
   } finally {
     await prisma.$disconnect();

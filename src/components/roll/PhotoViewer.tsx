@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { Pill } from "@/components/roll/Chrome";
 import { useConfirm } from "@/components/roll/Confirm";
@@ -274,7 +275,19 @@ export function PhotoViewer({
   // others are one gesture away from being seen.
   const window_ = [index - 1, index, index + 1].filter((i) => i >= 0 && i < photos.length);
 
-  return (
+  /*
+    Portalled to the body rather than left where it was opened from.
+
+    Both walls render this inside the stack that holds the grid, and those stacks are
+    `space-y-4` — which puts a 16px bottom margin on every child but the last. A margin on a
+    `fixed inset-0` element shortens it, so the overlay stopped 16px above the bottom of the
+    screen and left a strip of the album showing underneath a photograph that is meant to be
+    the whole screen. Out here nothing a parent does to its children can reach it, including
+    a transform, which would break `fixed` far more thoroughly than a margin.
+
+    No SSR guard: every call site mounts this from a click, so there is always a document.
+  */
+  return createPortal(
     <div className="fixed inset-0 z-50 flex flex-col bg-void">
       <header className="flex items-start justify-between gap-4 px-5 pt-[calc(var(--safe-top)+1.25rem)]">
         <div>
@@ -382,6 +395,7 @@ export function PhotoViewer({
       </div>
 
       {confirmDialog}
-    </div>
+    </div>,
+    document.body,
   );
 }

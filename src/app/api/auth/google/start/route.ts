@@ -30,7 +30,9 @@ export async function GET(request: Request) {
   */
   const home = new URL(env.appUrl);
   const asked = new URL(new URL(request.url).searchParams.get("next") ?? "/rolls", home);
-  const next = asked.origin === home.origin ? asked.pathname : "/rolls";
+  // Path and query, no more: the wizard's `?create=1` is half the instruction, and a
+  // fragment is never sent to a server in the first place.
+  const next = asked.origin === home.origin ? asked.pathname + asked.search : "/rolls";
 
   const state = await startOAuthState(next);
   return Response.redirect(buildAuthorizeUrl(state), 307);

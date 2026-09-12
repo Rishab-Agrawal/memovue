@@ -371,6 +371,30 @@ test.describe("a roll from creation to reveal", () => {
     await expect(page).toHaveURL(/\/new\/name$/);
   });
 
+  /**
+   * Coming back from Google onto a draft that was already finished.
+   *
+   * Somebody without an account walks the wizard, presses Create, signs in — and must be met
+   * by the roll's code and its link, not by the button they already pressed. Asking twice for
+   * one decision is the whole thing this replaced.
+   *
+   * The Google round trip cannot be driven in a browser, so what stands in for it is its last
+   * step, which is the part that has to work: the same tab, the draft still in it, and the
+   * URL the callback sends them to.
+   */
+  test("returning from sign-in finishes the roll rather than asking again", async ({ page }) => {
+    await page.goto("/new/name");
+    await page.getByLabel("Event name").fill("Returned Roll");
+
+    await page.goto("/new/guests?create=1");
+
+    await expect(page.getByRole("heading", { name: "Roll Created!" })).toBeVisible();
+    await expect(page.getByText(/Share Code:/)).toBeVisible();
+
+    await page.getByRole("button", { name: "OK" }).click();
+    await expect(page).toHaveURL(/\/rolls\/[a-z0-9]+$/);
+  });
+
   test("a guest joins with a name and shoots", async ({ browser }) => {
     const context = await browser.newContext({ ...ANONYMOUS, permissions: ["camera"] });
     const page = await context.newPage();

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 import { cn } from "@/lib/cn";
 
@@ -36,7 +36,7 @@ import { draftToInput, forgetDraft, useDraft } from "../DraftContext";
 const SHOT_MAX = SHOT_TIERS.reduce((max, shots, index) => (shotsAvailable(shots) ? index : max), 0);
 
 export default function StepGuests() {
-  const { draft, update, hostName, signedIn } = useDraft();
+  const { draft, update, hostName, signedIn, restored } = useDraft();
   const router = useRouter();
 
   /*
@@ -91,6 +91,11 @@ export default function StepGuests() {
         } catch {
           setCoverFailed(true);
         }
+      } else if (draft.coverPicked) {
+        // Picked, but not here any more: a `Blob` does not survive the page that held it, so
+        // a roll finished on the far side of a sign-in or a reload has the gradient and the
+        // host has a photograph they think they chose.
+        setCoverFailed(true);
       }
 
       // The roll exists, so the draft behind it has nothing left to protect.
@@ -98,6 +103,31 @@ export default function StepGuests() {
       setCreated({ id: result.rollId, code: result.code, name: result.name });
     });
   };
+
+  /*
+    Back from Google, on the roll they had already finished describing.
+
+    Sending them to this screen and asking them to press Create a second time is asking twice
+    for the same decision — they pressed it before they were interrupted. So the sign-in link
+    carries `?create=1`, and landing on it with a draft finishes the job: the next thing they
+    see is the roll's code and its link, which is what pressing Create was for.
+
+    Waited on `restored`, because the draft arrives from `sessionStorage` an effect late and
+    firing before it would post the blank defaults. Once, via the ref: this effect reruns on
+    every keystroke of the transition it starts.
+  */
+  const autoCreated = useRef(false);
+  useEffect(() => {
+    if (autoCreated.current || !signedIn || !restored || !draft.name.trim()) return;
+    // Read off the URL rather than `useSearchParams`, which would want a Suspense boundary
+    // around a screen that is only ever rendered on demand anyway.
+    if (new URLSearchParams(window.location.search).get("create") !== "1") return;
+    autoCreated.current = true;
+    // The rule is right in general and wrong here: arriving back from Google *is* the event,
+    // and there is no earlier place to hear it. Guarded to fire once, so nothing cascades.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    create();
+  });
 
   return (
     <>
@@ -215,13 +245,13 @@ export default function StepGuests() {
       <Dialog
         open={needsAccount}
         onClose={() => setNeedsAccount(false)}
-        title="Almost there"
+        title="All set"
         actions={
           // A plain anchor for the same reason as the welcome screen's: this hands off to a
           // route handler that redirects to Google, and a client-side navigation has nowhere
           // to go. `next` brings them back to this step, with the draft still in the tab.
           <a
-            href="/api/auth/google/start?next=/new/guests"
+            href="/api/auth/google/start?next=/new/guests%3Fcreate=1"
             className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-chalk px-6 text-[15px] font-medium whitespace-nowrap text-void transition-colors hover:bg-white"
           >
             <Google className="h-5 w-5" />
@@ -229,10 +259,7 @@ export default function StepGuests() {
           </a>
         }
       >
-        <p>
-          Your roll needs somewhere to live. Sign in and we&rsquo;ll bring you straight back
-          here — nothing you&rsquo;ve picked is lost.
-        </p>
+        <p>Sign in to create your roll.</p>
       </Dialog>
 
       <Dialog

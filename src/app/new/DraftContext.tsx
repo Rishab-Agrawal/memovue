@@ -31,6 +31,15 @@ export interface Draft {
    */
   coverBlob: Blob | null;
   coverPreviewUrl: string | null;
+  /**
+   * Whether a photograph was chosen, which outlives the photograph itself.
+   *
+   * The blob and its object URL both die with the page that minted them, so a draft restored
+   * after a reload — or after the trip to Google — cannot tell a host who picked a cover from
+   * one who never did. This can, which is the difference between a roll quietly falling back
+   * to a gradient and one that says so.
+   */
+  coverPicked: boolean;
   participantIndex: number;
   shotIndex: number;
   everyoneCanSee: boolean;
@@ -46,6 +55,8 @@ type DraftContextValue = {
   hostName: string;
   /** False for someone walking the wizard before making an account. See the last step. */
   signedIn: boolean;
+  /** Whether the saved draft has been read back yet. See the last step's auto-create. */
+  restored: boolean;
 };
 
 const DraftContext = createContext<DraftContextValue | null>(null);
@@ -131,6 +142,7 @@ export function DraftProvider({
       coverPreset: 0,
       coverBlob: null,
       coverPreviewUrl: null,
+      coverPicked: false,
       participantIndex: 1,
       shotIndex: 3,
       // On, because a shared album is what somebody sets a roll up for. The other way round
@@ -146,10 +158,13 @@ export function DraftProvider({
     write below fires once with the defaults before the restore lands, which costs nothing —
     the value was already read by then.
   */
+  const [restored, setRestored] = useState(false);
   useEffect(() => {
     const saved = readDraft();
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (saved) setDraft(saved);
+    setRestored(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
   useEffect(() => writeDraft(draft), [draft]);
@@ -159,6 +174,7 @@ export function DraftProvider({
       draft,
       hostName,
       signedIn,
+      restored,
       update: (patch: Partial<Draft>) => setDraft((current) => ({ ...current, ...patch })),
 
       /*
@@ -168,14 +184,24 @@ export function DraftProvider({
       */
       setCover: (blob: Blob, previewUrl: string) => {
         if (draft.coverPreviewUrl) URL.revokeObjectURL(draft.coverPreviewUrl);
-        setDraft((current) => ({ ...current, coverBlob: blob, coverPreviewUrl: previewUrl }));
+        setDraft((current) => ({
+          ...current,
+          coverBlob: blob,
+          coverPreviewUrl: previewUrl,
+          coverPicked: true,
+        }));
       },
       clearCover: () => {
         if (draft.coverPreviewUrl) URL.revokeObjectURL(draft.coverPreviewUrl);
-        setDraft((current) => ({ ...current, coverBlob: null, coverPreviewUrl: null }));
+        setDraft((current) => ({
+          ...current,
+          coverBlob: null,
+          coverPreviewUrl: null,
+          coverPicked: false,
+        }));
       },
     }),
-    [draft, hostName, signedIn],
+    [draft, hostName, signedIn, restored],
   );
 
   return <DraftContext.Provider value={value}>{children}</DraftContext.Provider>;

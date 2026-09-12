@@ -72,10 +72,10 @@ test.describe("public pages", () => {
 
     await page.getByRole("button", { name: /Create/ }).click();
 
-    await expect(page.getByRole("heading", { name: "Almost there" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "All set" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Continue with Google" })).toHaveAttribute(
       "href",
-      "/api/auth/google/start?next=/new/guests",
+      "/api/auth/google/start?next=/new/guests%3Fcreate=1",
     );
     // And nothing was created on the way to the gate.
     await expect(page.getByRole("heading", { name: "Roll Created!" })).toHaveCount(0);

@@ -13,8 +13,11 @@ type Permission = "idle" | "starting" | "live" | "denied" | "unsupported";
 type Phase = "idle" | "flash" | "hold" | "fly";
 
 const FLASH_MS = 55;
-const HOLD_MS = 600;
-const FLIGHT_MS = 420;
+// The beat the frame is held before it flies. Long enough to read as a photograph having
+// been taken, short enough that the shutter is ready again before the thumb is — it used to
+// be 600ms of hold and 420ms of flight, which is a second of a camera that will not fire.
+const HOLD_MS = 140;
+const FLIGHT_MS = 240;
 const PHOTO_TIMEOUT_MS = 3000;
 
 /** `torch` is a real constraint on Android Chrome but isn't in the DOM typings yet. */
