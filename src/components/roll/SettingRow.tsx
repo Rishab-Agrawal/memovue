@@ -49,8 +49,10 @@ export function SettingRow({
   );
 
   const className = cn(
-    "flex h-14 w-full items-center gap-3.5 border-b border-hair-bright/60 text-left transition-colors last:border-b-0",
-    href && "hover:text-flame",
+    "flex h-14 w-full items-center gap-3.5 border-b border-hair-bright/60 text-left last:border-b-0",
+    // Only a row that leads somewhere answers to a press. A row carrying a switch is not
+    // itself the control, and dipping the whole thing would claim the tap the switch took.
+    href && "transition-[color,scale] duration-150 hover:text-flame active:scale-[0.99]",
   );
 
   if (href && !href.startsWith("/")) {

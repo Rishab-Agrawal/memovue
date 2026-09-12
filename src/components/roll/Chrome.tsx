@@ -129,7 +129,8 @@ const pillBase =
   "inline-flex h-12 items-center justify-center gap-2 rounded-full px-6 text-[15px] " +
   // A wrapped label turns a pill into a rounded paragraph. Nothing here is long enough to
   // need two lines, so nothing gets them.
-  "font-medium whitespace-nowrap transition-colors select-none " +
+  "font-medium whitespace-nowrap select-none active:scale-[0.97] " +
+  "transition-[color,background-color,box-shadow,scale] duration-150 " +
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flame " +
   "disabled:pointer-events-none disabled:opacity-40";
 

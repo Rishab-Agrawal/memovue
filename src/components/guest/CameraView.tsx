@@ -447,7 +447,7 @@ export function CameraView({
           aria-label="Take photo"
           onClick={capture}
           disabled={out || closed || working || phase !== "idle" || permission !== "live"}
-          className="h-[88px] w-[88px] rounded-full border-4 border-chalk bg-surface transition-transform active:scale-95 disabled:opacity-40"
+          className="h-[88px] w-[88px] rounded-full border-4 border-chalk bg-surface disabled:opacity-40"
         />
 
         {/*

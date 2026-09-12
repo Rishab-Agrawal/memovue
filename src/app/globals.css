@@ -480,3 +480,39 @@ body {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* ------------------------------------------------------------------ press */
+
+/*
+  Every control answers under the finger.
+
+  `-webkit-tap-highlight-color: transparent` above removes the one acknowledgement a phone
+  gives a control for free, and nothing was put back: a tap started a navigation or a network
+  round trip and the button itself never moved, so the only honest read was that it had
+  missed. A 3% dip is enough — it is the press, not an animation.
+
+  Unlayered on purpose. A `transition-colors` utility at the call site sits in Tailwind's
+  utilities layer and would otherwise replace this transition outright, leaving the scale to
+  snap back; the colour properties those call sites animate are therefore listed here too.
+  `scale` rather than `transform`, so a control that is positioned by a transform — a
+  centred overlay, a mirrored preview — keeps it.
+*/
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+label:has(> input[type="file"]),
+summary {
+  transition:
+    scale 130ms var(--ease-out-soft),
+    color 150ms ease,
+    background-color 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    opacity 150ms ease;
+}
+
+button:not(:disabled):active,
+[role="button"]:not([aria-disabled="true"]):active,
+label:has(> input[type="file"]):active,
+summary:active {
+  scale: 0.97;
+}

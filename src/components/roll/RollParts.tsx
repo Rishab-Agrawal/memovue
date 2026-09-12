@@ -14,7 +14,8 @@ import { subscribeQueue } from "@/lib/upload-queue";
 
 /** Every control in the row is this shape and this width, whatever it does. */
 const tile =
-  "flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl text-[14px] font-medium";
+  "flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl text-[14px] font-medium " +
+  "transition-[color,background-color,scale] duration-150 active:scale-[0.97]";
 
 export function RollControls({
   ended,
@@ -192,7 +193,7 @@ export function RollControls({
               <Link
                 href={inviteHref}
                 aria-label="Invite guests"
-                className={cn(tile, "bg-surface text-chalk transition-colors hover:text-flame")}
+                className={cn(tile, "bg-surface text-chalk hover:text-flame")}
               >
                 <Qr className="h-5 w-5" />
                 Invite
@@ -226,7 +227,7 @@ function Control({
   /** Takes the event so a control can refuse the navigation it would otherwise start. */
   onClick?: (event: React.MouseEvent) => void;
 }) {
-  const className = cn(tile, "bg-surface text-chalk transition-colors hover:text-flame");
+  const className = cn(tile, "bg-surface text-chalk hover:text-flame");
 
   // An API route serves a file, not a page. A client-side navigation would try to render the
   // ZIP as one, so the download leaves through a plain anchor.

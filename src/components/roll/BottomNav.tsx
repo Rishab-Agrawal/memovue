@@ -33,7 +33,7 @@ export function BottomNav({ current }: { current: (typeof TABS)[number]["key"] }
             href={href}
             aria-current={here ? "page" : undefined}
             className={cn(
-              "flex flex-1 flex-col items-center justify-center gap-1 transition-colors",
+              "flex flex-1 flex-col items-center justify-center gap-1 transition-[color,scale] duration-150 active:scale-[0.94]",
               here ? "text-flame" : "text-dust hover:text-ash",
             )}
           >
