@@ -19,6 +19,7 @@ export function SettingRow({
   label,
   value,
   href,
+  after,
   trailing,
   tone = "normal",
 }: {
@@ -26,6 +27,12 @@ export function SettingRow({
   label: string;
   value?: string;
   href?: string;
+  /**
+   * Sits against the end of the label rather than at the end of the row — for a row whose
+   * name needs a footnote. The giveaway row's question mark goes here so that its switch
+   * stays on the same right-hand edge as every other switch in the list.
+   */
+  after?: ReactNode;
   /** Replaces the chevron — used by the visibility row, which carries a switch. */
   trailing?: ReactNode;
   tone?: "normal" | "danger";
@@ -35,13 +42,13 @@ export function SettingRow({
       <span className={cn("shrink-0", tone === "danger" ? "text-danger" : "text-ash")}>{icon}</span>
       {/* Both label and value stay on one line: a settings row that grows to two lines
           breaks the rhythm of the stack and, at this width, most of them would. */}
-      <span
-        className={cn(
-          "flex-1 truncate text-[15px]",
-          tone === "danger" ? "text-danger" : "text-chalk",
-        )}
-      >
-        {label}
+      <span className="flex min-w-0 flex-1 items-center gap-2">
+        <span
+          className={cn("truncate text-[15px]", tone === "danger" ? "text-danger" : "text-chalk")}
+        >
+          {label}
+        </span>
+        {after}
       </span>
       {value ? <span className="max-w-[42%] truncate text-[14px] text-dust">{value}</span> : null}
       {trailing ?? (href ? <span className="shrink-0 text-[14px] text-dust">›</span> : null)}

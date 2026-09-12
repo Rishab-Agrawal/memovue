@@ -73,9 +73,7 @@ export function PoolScreen({
       <div className="px-5 pt-6 pb-10">
         <h1 className="display-md text-[24px] text-chalk">Shots pool</h1>
         <p className="mt-2 text-[14px] leading-relaxed text-ash">
-          {offered
-            ? "The film nobody has claimed — everyone who never turned up, plus whatever guests hand back. Run out at the camera and it offers you some."
-            : "The film nobody has claimed — everyone who never turned up. Run out at the camera and it offers you some."}
+          Shots from this common pool will be offered to you once you run out of your shots.
         </p>
 
         <div className="mt-6 rounded-2xl bg-surface px-5 py-7 text-center">
@@ -114,7 +112,7 @@ export function PoolScreen({
               <p className="mt-3 text-center text-[13px] text-dust">
                 {state.shotsLeft <= 0
                   ? "You have no shots left to give."
-                  : "Half your film stays yours — you have given away all you can."}
+                  : "No more of your shots can be given away."}
               </p>
             ) : null}
           </>

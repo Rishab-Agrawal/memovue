@@ -217,8 +217,12 @@ export function half(photosPerGuest: number): number {
  *
  * Half of five is two, and a guest choosing whether to part with two frames is not making a
  * decision — it is a screen, a dialog and a slider for something nobody would notice either
- * way. The switch below still exists on such a roll, because the host may raise the shot
- * count later; what it turns on simply has nothing to offer until they do.
+ * way. Below this the switch is not drawn at all, on either screen that offers it: a control
+ * that is present and explains why it can do nothing is worse than one that was never there.
+ *
+ * `giveawayOffered` still asks, because a host can turn the switch on at twenty-four shots
+ * and then drop the roll to five, which leaves the column true on a roll that must not offer
+ * it. The screens decide what to draw; that decides what is allowed.
  */
 export const GIVEAWAY_MIN_SHOTS = 10;
 
@@ -232,17 +236,11 @@ export function giveawayLabel(allowed: boolean): string {
   return allowed ? GIVEAWAY_LABEL.on : GIVEAWAY_LABEL.off;
 }
 
-/** What the question mark beside that switch says, on either kind of roll. */
+/** What the question mark beside that switch says. Only ever asked on a roll that offers it. */
 export function giveawayHelp(photosPerGuest: number): string {
-  if (photosPerGuest < GIVEAWAY_MIN_SHOTS) {
-    return (
-      `Giving away needs at least ${GIVEAWAY_MIN_SHOTS} shots each — at ${photosPerGuest} ` +
-      `there is too little film to spare. Raise the shot count to offer it.`
-    );
-  }
   return (
     `This feature allows guests to giveaway ${half(photosPerGuest)} of their shots to the ` +
-    `common pool for more active users to use if they run out of shots.`
+    `common pool, for others to use if they run out of shots.`
   );
 }
 

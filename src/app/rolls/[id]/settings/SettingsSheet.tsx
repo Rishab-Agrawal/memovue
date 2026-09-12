@@ -16,12 +16,13 @@ import {
   Photo,
   Trash,
 } from "@/components/roll/Icons";
-import { GiveawayToggle } from "@/components/roll/GiveawayToggle";
+import { GiveawayHelp } from "@/components/roll/GiveawayHelp";
 import { SettingRow } from "@/components/roll/SettingRow";
 import { Sheet } from "@/components/roll/Sheet";
 import { Toggle } from "@/components/roll/Toggle";
 import { formatDateTime } from "@/lib/format";
 import {
+  GIVEAWAY_MIN_SHOTS,
   PARTICIPANT_TIERS,
   SHOT_TIERS,
   giveawayLabel,
@@ -198,13 +199,22 @@ export function SettingsSheet({
             }
           />
 
-          <SettingRow
-            icon={<Photo className="h-5 w-5" />}
-            label={giveawayLabel(giveaway)}
-            trailing={
-              <GiveawayToggle bare on={giveaway} shots={photosPerGuest} onChange={toggleGiveaway} />
-            }
-          />
+          {/* Not drawn at all on a roll too small to give film away on — see
+              `GIVEAWAY_MIN_SHOTS`. The row would have nothing to offer and no way to say so. */}
+          {photosPerGuest >= GIVEAWAY_MIN_SHOTS ? (
+            <SettingRow
+              icon={<Photo className="h-5 w-5" />}
+              label={giveawayLabel(giveaway)}
+              after={<GiveawayHelp shots={photosPerGuest} />}
+              trailing={
+                <Toggle
+                  on={giveaway}
+                  onChange={toggleGiveaway}
+                  name={giveawayLabel(giveaway)}
+                />
+              }
+            />
+          ) : null}
         </div>
 
         {error ? <p className="mt-4 text-[14px] text-danger">{error}</p> : null}

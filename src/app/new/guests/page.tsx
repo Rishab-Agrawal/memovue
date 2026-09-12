@@ -8,7 +8,7 @@ import { cn } from "@/lib/cn";
 import { BetaGate } from "@/components/roll/BetaGate";
 import { Pill, StepButton } from "@/components/roll/Chrome";
 import { Dialog } from "@/components/roll/Dialog";
-import { GiveawayToggle } from "@/components/roll/GiveawayToggle";
+import { GiveawayHelp } from "@/components/roll/GiveawayHelp";
 import { Google } from "@/components/roll/Icons";
 import { ShareLink } from "@/components/roll/ShareLink";
 import { Toggle } from "@/components/roll/Toggle";
@@ -16,6 +16,8 @@ import { WizardShell } from "@/components/roll/WizardShell";
 import { uploadCover } from "@/lib/cover-upload";
 import {
   BETA,
+  GIVEAWAY_LABEL,
+  GIVEAWAY_MIN_SHOTS,
   PARTICIPANT_TIERS,
   SHOT_TIERS,
   VISIBILITY_LABEL,
@@ -239,15 +241,24 @@ export default function StepGuests() {
             />
           </div>
 
-          {/* Its own row under the same rule rather than its own section: both are one
-              question about what a guest is allowed to do with somebody else's roll. */}
-          <div className="mt-5">
-            <GiveawayToggle
-              on={draft.giveawayAllowed}
-              shots={SHOT_TIERS[draft.shotIndex]}
-              onChange={(giveawayAllowed) => update({ giveawayAllowed })}
-            />
-          </div>
+          {/*
+            Its own row under the same rule rather than its own section: both are one question
+            about what a guest is allowed to do with somebody else's roll.
+
+            Gone entirely on a roll too small to give film away on — see `GIVEAWAY_MIN_SHOTS`.
+            The stepper above is right there, so a host who wants this can see it arrive.
+          */}
+          {SHOT_TIERS[draft.shotIndex] >= GIVEAWAY_MIN_SHOTS ? (
+            <div className="mt-5 flex items-center gap-3">
+              <Toggle
+                on={draft.giveawayAllowed}
+                onChange={(giveawayAllowed) => update({ giveawayAllowed })}
+                labelOn={GIVEAWAY_LABEL.on}
+                labelOff={GIVEAWAY_LABEL.off}
+              />
+              <GiveawayHelp shots={SHOT_TIERS[draft.shotIndex]} />
+            </div>
+          ) : null}
         </div>
       </WizardShell>
 
