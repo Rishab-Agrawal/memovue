@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 import { Cover } from "@/components/roll/Cover";
-import { Camera, Clock, Person } from "@/components/roll/Icons";
+import { Camera, Clock, Pencil, Person } from "@/components/roll/Icons";
 
 /**
  * The first thing a guest sees. It appears three times — shrunk inside a phone mock on the
@@ -11,6 +11,19 @@ import { Camera, Clock, Person } from "@/components/roll/Icons";
  * is one component with a `mini` scale rather than three drifting copies.
  */
 export const JOIN_LABEL = "Join roll →";
+
+/**
+ * The box the guest's name sits in. The real screen fills it with an input, the host's
+ * preview with the name it stands in for — so what the host is shown is the field guests get.
+ */
+export function NameField({ children }: { children: ReactNode }) {
+  return (
+    <label className="flex h-14 items-center gap-3 rounded-2xl bg-surface/85 px-4 backdrop-blur-sm focus-within:ring-1 focus-within:ring-flame">
+      <Pencil className="h-4 w-4 shrink-0 text-dust" />
+      {children}
+    </label>
+  );
+}
 
 export function InvitationCover({
   coverIndex,

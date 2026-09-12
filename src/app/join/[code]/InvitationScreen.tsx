@@ -3,8 +3,7 @@
 import { useState, useTransition } from "react";
 
 import { Pill } from "@/components/roll/Chrome";
-import { Pencil } from "@/components/roll/Icons";
-import { InvitationCover, JOIN_LABEL } from "@/components/roll/InvitationCover";
+import { InvitationCover, JOIN_LABEL, NameField } from "@/components/roll/InvitationCover";
 import { Honeypot, useFormAge } from "@/components/ui/Honeypot";
 import { formatDateTime } from "@/lib/format";
 import type { RollPhase } from "@/lib/roll-access";
@@ -71,8 +70,7 @@ export function InvitationScreen({
         countdown={scheduled ? `Opens ${formatDateTime(new Date(opensAt))}` : countdown}
         shots={shots}
       >
-        <label className="flex h-14 items-center gap-3 rounded-2xl bg-surface/85 px-4 backdrop-blur-sm focus-within:ring-1 focus-within:ring-flame">
-          <Pencil className="h-4 w-4 shrink-0 text-dust" />
+        <NameField>
           <input
             value={name}
             onChange={(event) => {
@@ -84,7 +82,7 @@ export function InvitationScreen({
             disabled={scheduled}
             className="w-full bg-transparent text-[16px] text-chalk placeholder:text-dust focus:outline-none"
           />
-        </label>
+        </NameField>
 
         <Honeypot value={trap} onChange={setTrap} />
 

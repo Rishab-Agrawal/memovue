@@ -1,7 +1,7 @@
 "use client";
 
 import { CloseButton, Pill } from "@/components/roll/Chrome";
-import { InvitationCover, JOIN_LABEL } from "@/components/roll/InvitationCover";
+import { InvitationCover, JOIN_LABEL, NameField } from "@/components/roll/InvitationCover";
 import { formatCountdown } from "@/lib/format";
 import { useNow } from "@/lib/useNow";
 
@@ -39,9 +39,9 @@ export function InvitationPreview({
         countdown={formatCountdown(finishesAt.getTime() - now)}
         shots={shots}
       >
-        <div className="flex h-14 items-center rounded-2xl bg-surface/80 px-4 text-[16px] text-dust">
-          Preview User
-        </div>
+        <NameField>
+          <span className="text-[16px] text-dust">Preview User</span>
+        </NameField>
         <Pill variant="light" full disabled>
           {JOIN_LABEL}
         </Pill>
