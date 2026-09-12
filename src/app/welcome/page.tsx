@@ -71,10 +71,9 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
           Create a roll
         </PillLink>
 
-        {/* The camera, not the album: an album of somebody else's wedding is a thing you look
-            at, and the shutter is the thing that sells the product. The album is one tap
-            past it, where a guest finds theirs. */}
-        <PillLink href={`${SAMPLE_ALBUM.href}/camera`} variant="quiet" full>
+        {/* Where a guest starts, not where the album ends: the invitation, then the camera,
+            then the album — the whole of what somebody is handed at an event, in order. */}
+        <PillLink href={`${SAMPLE_ALBUM.href}/join`} variant="quiet" full>
           Experience a sample album
         </PillLink>
 

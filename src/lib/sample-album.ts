@@ -11,9 +11,18 @@ import { fromWall } from "./format";
  * It is fiction and it never touches the database. Nobody hosts it, so there is no ZIP to
  * build and no Save on it, and there is nothing in it a host could take out.
  */
+/**
+ * The film on the sample's camera, and what its invitation promises. One number, because an
+ * invitation offering a different count from the camera behind it is the one detail somebody
+ * would notice.
+ */
+export const SAMPLE_SHOTS = 21;
+
 export const SAMPLE_ALBUM = {
   href: "/albums/sample",
   name: "Priya and Arjun's Wedding",
+  /** Whoever the invitation says invited you. Half of the couple, since it is their evening. */
+  host: "Priya",
   startsAt: fromWall(2026, 1, 14, 11, 0),
   finishesAt: fromWall(2026, 1, 15, 2, 0),
   /** One more than the pair below: somebody came and shot nothing, as somebody always does. */

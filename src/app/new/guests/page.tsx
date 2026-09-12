@@ -245,7 +245,7 @@ export default function StepGuests() {
       <Dialog
         open={needsAccount}
         onClose={() => setNeedsAccount(false)}
-        title="All set"
+        title="Almost there"
         actions={
           // A plain anchor for the same reason as the welcome screen's: this hands off to a
           // route handler that redirects to Google, and a client-side navigation has nowhere
@@ -259,7 +259,7 @@ export default function StepGuests() {
           </a>
         }
       >
-        <p>Sign in to create your roll.</p>
+        <p>All set! Sign in to create your roll.</p>
       </Dialog>
 
       <Dialog

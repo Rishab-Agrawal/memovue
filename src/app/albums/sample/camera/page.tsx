@@ -5,10 +5,7 @@ import { useState } from "react";
 
 import { CameraView } from "@/components/guest/CameraView";
 import { BackButton } from "@/components/roll/Chrome";
-import { SAMPLE_ALBUM, SAMPLE_PHOTOS } from "@/lib/sample-album";
-
-/** A guest's allowance on a middling roll, so the dial has somewhere real to count down from. */
-const SHOTS = 21;
+import { SAMPLE_ALBUM, SAMPLE_PHOTOS, SAMPLE_SHOTS } from "@/lib/sample-album";
 
 /**
  * The viewfinder, pointed at no roll.
@@ -31,12 +28,12 @@ export default function SampleCamera() {
     <div className="fixed inset-0 bg-page">
       <div className="h-full pt-[var(--safe-top)] pb-[var(--safe-bottom)]">
         <CameraView
-          shotsLeft={SHOTS - spent}
-          shotsTotal={SHOTS}
+          shotsLeft={SAMPLE_SHOTS - spent}
+          shotsTotal={SAMPLE_SHOTS}
           latestThumb={SAMPLE_PHOTOS[0].url}
           onCaptured={() => {
             // Out of film, so the camera hands them the album — the same exit a real one has.
-            if (spent + 1 === SHOTS) album();
+            if (spent + 1 === SAMPLE_SHOTS) album();
             setSpent(spent + 1);
           }}
           onLeave={album}

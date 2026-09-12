@@ -42,7 +42,7 @@ test.describe("public pages", () => {
     );
     await expect(page.getByRole("link", { name: /sample album/i })).toHaveAttribute(
       "href",
-      "/albums/sample/camera",
+      "/albums/sample/join",
     );
     await expect(page.getByRole("link", { name: /Invited\? Join a roll/ })).toBeVisible();
 
@@ -72,7 +72,7 @@ test.describe("public pages", () => {
 
     await page.getByRole("button", { name: /Create/ }).click();
 
-    await expect(page.getByRole("heading", { name: "All set" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Almost there" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Continue with Google" })).toHaveAttribute(
       "href",
       "/api/auth/google/start?next=/new/guests%3Fcreate=1",
@@ -82,16 +82,26 @@ test.describe("public pages", () => {
   });
 
   /**
-   * The sample camera: a real viewfinder over no roll.
+   * The sample, end to end, with no account anywhere in it.
    *
-   * The shutter itself needs a camera the runner does not have, so what is held down here is
-   * the frame around it — the film a visitor is handed, the thumbnail standing in for a last
-   * shot they have not taken, and the two doors, one of which differs from a guest's on
-   * purpose.
+   * Invitation, camera, album — what a guest is handed at an event, in that order. The
+   * shutter itself needs a camera the runner does not have, so what is held down here is
+   * everything around it: the film the invitation promises and the camera then shows, the
+   * name that gates the way in, and the door at each end.
    */
-  test("the sample camera runs without an account and leads both ways", async ({ page }) => {
-    await page.goto("/albums/sample/camera");
+  test("the sample runs invitation to album without an account", async ({ page }) => {
+    await page.goto("/albums/sample/join");
 
+    await expect(page.getByText("Invited by Priya")).toBeVisible();
+    await expect(page.getByText("21 shots available")).toBeVisible();
+
+    // The button waits for a name, the way a real invitation does.
+    const join = page.getByRole("button", { name: /Join roll/ });
+    await expect(join).toBeDisabled();
+    await page.getByLabel("Your name").fill("Visitor");
+    await join.click();
+
+    await expect(page).toHaveURL(/\/albums\/sample\/camera$/);
     await expect(page.getByTestId("shots-left")).toHaveText("21");
 
     // The arrow leaves the product rather than opening somebody else's album.

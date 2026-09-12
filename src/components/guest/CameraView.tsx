@@ -13,11 +13,8 @@ type Permission = "idle" | "starting" | "live" | "denied" | "unsupported";
 type Phase = "idle" | "flash" | "hold" | "fly";
 
 const FLASH_MS = 55;
-// The beat the frame is held before it flies. Long enough to read as a photograph having
-// been taken, short enough that the shutter is ready again before the thumb is — it used to
-// be 600ms of hold and 420ms of flight, which is a second of a camera that will not fire.
-const HOLD_MS = 140;
-const FLIGHT_MS = 240;
+const HOLD_MS = 600;
+const FLIGHT_MS = 420;
 const PHOTO_TIMEOUT_MS = 3000;
 
 /** `torch` is a real constraint on Android Chrome but isn't in the DOM typings yet. */
@@ -43,6 +40,50 @@ async function takePhoto(track: MediaStreamTrack | undefined, video: HTMLVideoEl
   } catch {
     return null;
   }
+}
+
+/** Waits, and lets the browser paint what was just set before the next line blocks it. */
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const painted = () =>
+  new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
+
+/**
+ * The slice of the sensor that was actually on screen, drawn into a canvas.
+ *
+ * A mirror of CSS `object-fit: cover`: the sensor is wider than the viewport, and handing
+ * somebody a photo containing things that were never in their viewfinder feels broken.
+ *
+ * `width` caps the output. The photograph keeps every pixel it was given; the freeze only
+ * has to look right at the size it is already being shown at, and encoding it at sensor size
+ * would cost the very milliseconds it exists to save.
+ */
+function crop(
+  source: CanvasImageSource,
+  vw: number,
+  vh: number,
+  frame: HTMLElement,
+  mirrored: boolean,
+  width?: number,
+) {
+  const scale = Math.max(frame.clientWidth / vw, frame.clientHeight / vh);
+  const sw = Math.min(vw, frame.clientWidth / scale);
+  const sh = Math.min(vh, frame.clientHeight / scale);
+
+  const shrink = width && width < sw ? width / sw : 1;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(sw * shrink);
+  canvas.height = Math.round(sh * shrink);
+
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Canvas unavailable");
+  if (mirrored) {
+    // The preview is mirrored, so the saved frame is too — otherwise the photo you get is
+    // not the one you framed.
+    context.translate(canvas.width, 0);
+    context.scale(-1, 1);
+  }
+  context.drawImage(source, (vw - sw) / 2, (vh - sh) / 2, sw, sh, 0, 0, canvas.width, canvas.height);
+  return canvas;
 }
 
 interface CameraViewProps {
@@ -92,6 +133,8 @@ export function CameraView({
   const [torchOn, setTorchOn] = useState(false);
   const [hasTorch, setHasTorch] = useState(false);
   const [phase, setPhase] = useState<Phase>("idle");
+  /** A photograph still being taken behind the animation. See `capture`. */
+  const [working, setWorking] = useState(false);
   const [frozen, setFrozen] = useState<string | null>(null);
   const [flight, setFlight] = useState<{ x: number; y: number; scale: number } | null>(null);
 
@@ -175,7 +218,7 @@ export function CameraView({
     }
   }
 
-  function runFlight(preview: Blob) {
+  function runFlight(src: string) {
     const frame = frameRef.current?.getBoundingClientRect();
     const thumb = thumbRef.current?.getBoundingClientRect();
 
@@ -191,14 +234,12 @@ export function CameraView({
       y: thumb.top + thumb.height / 2 - (frame.top + frame.height / 2),
       scale: thumb.width / frame.width,
     });
-    const url = URL.createObjectURL(preview);
-    setFrozen(url);
+    setFrozen(src);
     setPhase("hold");
 
     timers.current.push(
       setTimeout(() => setPhase("fly"), HOLD_MS),
       setTimeout(() => {
-        URL.revokeObjectURL(url);
         setPhase("idle");
         setFrozen(null);
         setFlight(null);
@@ -206,54 +247,75 @@ export function CameraView({
     );
   }
 
+  /**
+   * The shutter, which answers in about as long as it takes to blink.
+   *
+   * The order here is the whole point. The freeze comes off the frame that is already on
+   * screen — one small draw and one small encode, a few milliseconds — and goes up before
+   * anything slow has started. Only then does the photograph itself get taken.
+   *
+   * It used to be the other way round, and the two halves are not remotely the same length:
+   * `ImageCapture.takePhoto` is a real exposure and can take the better part of a second,
+   * and the three derivatives after it are encoded on the main thread. All of that happened
+   * with the viewfinder blacked out and nothing on screen, which is what made an instant
+   * shutter feel like a slow one — you pressed the button and the camera went dark.
+   *
+   * The photograph is still the photograph: the still is what gets uploaded, and this only
+   * changes when the animation is allowed to start.
+   */
   async function capture() {
     const video = videoRef.current;
     const frame = frameRef.current;
-    if (!video || !frame || phase !== "idle" || shotsLeft <= 0 || closed) return;
+    if (!video || !frame || phase !== "idle" || working || shotsLeft <= 0 || closed) return;
 
     setPhase("flash");
+    setWorking(true);
     navigator.vibrate?.(12);
 
     try {
+      const mirrored = facing === "user";
+      const shown = crop(
+        video,
+        video.videoWidth,
+        video.videoHeight,
+        frame,
+        mirrored,
+        frame.clientWidth,
+      ).toDataURL("image/jpeg", 0.7);
+
+      // Black for a beat, then the frame they took, on screen and already flying.
+      await wait(FLASH_MS);
+      runFlight(shown);
+      await painted();
+
       const track = streamRef.current?.getVideoTracks()[0];
       const photo = await takePhoto(track, video);
       // Taking a still switches the torch off on some Android phones; put it back.
       if (torchOn) void track?.applyConstraints(torch(true)).catch(() => {});
-      const source = photo ?? video;
-      const vw = photo?.width ?? video.videoWidth;
-      const vh = photo?.height ?? video.videoHeight;
-      const cw = frame.clientWidth;
-      const ch = frame.clientHeight;
 
-      // Mirror of CSS `object-fit: cover` — work out which slice of the sensor was actually
-      // on screen, and keep only that.
-      const scale = Math.max(cw / vw, ch / vh);
-      const sw = Math.min(vw, cw / scale);
-      const sh = Math.min(vh, ch / scale);
-
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.round(sw);
-      canvas.height = Math.round(sh);
-      const context = canvas.getContext("2d");
-      if (!context) throw new Error("Canvas unavailable");
-
-      if (facing === "user") {
-        // The preview is mirrored, so the saved frame is too — otherwise the photo you get
-        // is not the one you framed.
-        context.translate(canvas.width, 0);
-        context.scale(-1, 1);
-      }
-      context.drawImage(source, (vw - sw) / 2, (vh - sh) / 2, sw, sh, 0, 0, canvas.width, canvas.height);
-
-      const processed = await processCapture(canvas);
-      onCaptured(processed);
-
-      timers.current.push(
-        // The preview is already encoded; re-encoding the full canvas here stalled the shutter.
-        setTimeout(() => runFlight(processed.preview), FLASH_MS),
+      onCaptured(
+        await processCapture(
+          crop(
+            photo ?? video,
+            photo?.width ?? video.videoWidth,
+            photo?.height ?? video.videoHeight,
+            frame,
+            mirrored,
+          ),
+        ),
       );
     } catch {
       setPhase("idle");
+      setFrozen(null);
+    } finally {
+      /*
+        Only now is the shutter armed again — not when the animation ends.
+
+        The two no longer finish together, and the gap is the dangerous direction: the last
+        frame of a quota could be taken twice, the server would refuse the second, and the
+        queue deletes what the server refuses. A photograph somebody took, gone.
+      */
+      setWorking(false);
     }
   }
 
@@ -384,7 +446,7 @@ export function CameraView({
           type="button"
           aria-label="Take photo"
           onClick={capture}
-          disabled={out || closed || phase !== "idle" || permission !== "live"}
+          disabled={out || closed || working || phase !== "idle" || permission !== "live"}
           className="h-[88px] w-[88px] rounded-full border-4 border-chalk bg-surface transition-transform active:scale-95 disabled:opacity-40"
         />
 
