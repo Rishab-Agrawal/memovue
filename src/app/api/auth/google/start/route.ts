@@ -20,6 +20,18 @@ export async function GET(request: Request) {
     return Response.redirect(`${env.appUrl}/welcome?error=too_many`, 307);
   }
 
-  const state = await startOAuthState();
+  /*
+    Where to land afterwards, resolved against our own origin and kept only if it stayed
+    there. The parameter arrives on a public query string, so an absolute URL or a
+    protocol-relative one would make this an open redirect wearing our own domain.
+
+    The wizard is what asks for it: somebody who filled in five steps before signing in is
+    owed the Create button they were standing on, not the home screen.
+  */
+  const home = new URL(env.appUrl);
+  const asked = new URL(new URL(request.url).searchParams.get("next") ?? "/rolls", home);
+  const next = asked.origin === home.origin ? asked.pathname : "/rolls";
+
+  const state = await startOAuthState(next);
   return Response.redirect(buildAuthorizeUrl(state), 307);
 }

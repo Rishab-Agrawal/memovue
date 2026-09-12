@@ -5,6 +5,7 @@ import { Mark } from "@/components/ui/Logo";
 
 import { PillLink } from "@/components/roll/Chrome";
 import { Google, Qr } from "@/components/roll/Icons";
+import { SAMPLE_ALBUM } from "@/lib/sample-album";
 import { getCurrentUser } from "@/lib/session";
 
 export const metadata = { title: "Welcome" };
@@ -18,9 +19,14 @@ const MESSAGES: Record<string, string> = {
 };
 
 /**
- * The reference pairs Apple and Google side by side. With one provider the button goes full
- * width rather than sitting half-empty, and the guest route keeps its own row underneath —
- * it is a different kind of arrival, not a third sign-in option.
+ * The front door, which is no longer a sign-in screen.
+ *
+ * It used to be one: a full-width "Continue with Google" and nothing else to do. People who
+ * had come to look at a product were asked for an account before they had seen it, and a
+ * good many of them simply left. So the three things you can do here are the three things
+ * the product is — make a roll, shoot one, join one — and none of them need an account to
+ * start. The account is asked for at the Create button, which is the first moment it buys
+ * anything, and returning hosts get the small door in the corner.
  */
 export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
   /*
@@ -36,7 +42,19 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
   const error = typeof params.error === "string" ? MESSAGES[params.error] : undefined;
 
   return (
-    <div className="flex min-h-dvh flex-col px-6 py-10">
+    <div className="flex min-h-dvh flex-col px-6 py-6">
+      {/*
+        A plain anchor, not a Link: this hands off to a route handler that redirects to
+        Google, and a client-side navigation has nowhere to go.
+      */}
+      <a
+        href="/api/auth/google/start"
+        className="ml-auto inline-flex h-10 items-center gap-2 rounded-full border border-hair-bright bg-surface px-4 text-[14px] font-medium whitespace-nowrap text-chalk transition-colors hover:text-flame"
+      >
+        <Google className="h-4 w-4" />
+        Sign in
+      </a>
+
       <div className="flex flex-1 flex-col items-center justify-center gap-6">
         <Mark glow className="h-16 w-auto" />
         <h1 className="display text-center text-[34px] text-chalk">Welcome to MemoVue</h1>
@@ -49,17 +67,16 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
       ) : null}
 
       <div className="space-y-3">
-        {/*
-          A plain anchor, not a Link: this hands off to a route handler that redirects to
-          Google, and a client-side navigation has nowhere to go.
-        */}
-        <a
-          href="/api/auth/google/start"
-          className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-chalk px-6 text-[15px] font-medium whitespace-nowrap text-void transition-colors hover:bg-white"
-        >
-          <Google className="h-5 w-5" />
-          Continue with Google
-        </a>
+        <PillLink href="/new/name" variant="flame" full>
+          Create a roll
+        </PillLink>
+
+        {/* The camera, not the album: an album of somebody else's wedding is a thing you look
+            at, and the shutter is the thing that sells the product. The album is one tap
+            past it, where a guest finds theirs. */}
+        <PillLink href={`${SAMPLE_ALBUM.href}/camera`} variant="quiet" full>
+          Experience a sample album
+        </PillLink>
 
         <PillLink href="/join" variant="quiet" full>
           <Qr className="h-5 w-5" />
@@ -68,7 +85,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
       </div>
 
       <p className="mt-6 text-center text-[13px] leading-relaxed text-dust">
-        By signing up, you agree to MemoVue&rsquo;s{" "}
+        By continuing, you agree to MemoVue&rsquo;s{" "}
         <Link href="/terms" className="underline underline-offset-2 hover:text-ash">
           Terms of Service
         </Link>{" "}

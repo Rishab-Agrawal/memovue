@@ -32,19 +32,31 @@ const cookieBase = {
  * login endpoint — anyone could hand a victim a link that signs them into an account the
  * attacker controls.
  */
-export async function startOAuthState(): Promise<string> {
+export async function startOAuthState(next?: string): Promise<string> {
   const state = crypto.randomUUID();
   const jar = await cookies();
-  jar.set(OAUTH_STATE_COOKIE, state, { ...cookieBase, maxAge: 60 * 10 });
+
+  /*
+    Where to land afterwards rides in this cookie rather than in `state`, which Google echoes
+    back from the open internet and which anyone can therefore choose. The caller has already
+    checked it is a path on this site; keeping it out of `state` is what stops it being
+    swapped for one that is not.
+  */
+  jar.set(OAUTH_STATE_COOKIE, next ? `${state} ${next}` : state, {
+    ...cookieBase,
+    maxAge: 60 * 10,
+  });
   return state;
 }
 
 /** Single use: the cookie is cleared whether or not it matched. */
-export async function consumeOAuthState(returned: string | null): Promise<boolean> {
+export async function consumeOAuthState(
+  returned: string | null,
+): Promise<{ ok: boolean; next?: string }> {
   const jar = await cookies();
-  const expected = jar.get(OAUTH_STATE_COOKIE)?.value;
+  const [expected, next] = (jar.get(OAUTH_STATE_COOKIE)?.value ?? "").split(" ");
   jar.delete(OAUTH_STATE_COOKIE);
-  return Boolean(expected && returned && expected === returned);
+  return { ok: Boolean(expected && returned && expected === returned), next };
 }
 
 /* ------------------------------------------------------------------ host session */

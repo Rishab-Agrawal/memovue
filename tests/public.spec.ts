@@ -24,14 +24,85 @@ test.describe("public pages", () => {
     }
   });
 
-  test("welcome offers Google and the guest route, and nothing else", async ({ page }) => {
+  /**
+   * The front door asks for nothing.
+   *
+   * It used to open with a full-width "Continue with Google" and no other way forward, and
+   * people who had come to look at a product left rather than make an account for one they
+   * had not seen yet. All three things you can do here have to work without one; sign-in is
+   * the small door in the corner, for people who already have an account.
+   */
+  test("welcome leads into the product without an account", async ({ page }) => {
     await page.goto("/welcome");
 
     await expect(page.getByText("Welcome to MemoVue")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Create a roll" })).toHaveAttribute(
+      "href",
+      "/new/name",
+    );
+    await expect(page.getByRole("link", { name: /sample album/i })).toHaveAttribute(
+      "href",
+      "/albums/sample/camera",
+    );
     await expect(page.getByRole("link", { name: /Invited\? Join a roll/ })).toBeVisible();
+
+    // Sign-in is still here, and is still Google and nothing else.
+    await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
     await expect(page.getByText("Apple")).toHaveCount(0);
     // No password field anywhere: there are no passwords.
     await expect(page.locator('input[type="password"]')).toHaveCount(0);
+  });
+
+  /**
+   * The wizard, walked by nobody.
+   *
+   * Nothing before the last step writes anything — the draft lives in the tab — so every
+   * screen up to Create is free, and Create is where an account finally buys something.
+   * Getting this wrong in either direction is bad: a gate on the way in is the problem this
+   * replaced, and a missing gate at the end would fire an anonymous request at the action.
+   */
+  test("anyone can walk the wizard, and is asked for an account at the end", async ({ page }) => {
+    await page.goto("/new/name");
+
+    await page.getByLabel("Event name").fill("Curious visitor");
+    for (const step of ["start", "finish", "reveal", "guests"]) {
+      await page.getByRole("link", { name: /Next/ }).click();
+      await expect(page).toHaveURL(new RegExp(`/new/${step}$`));
+    }
+
+    await page.getByRole("button", { name: /Create/ }).click();
+
+    await expect(page.getByRole("heading", { name: "Almost there" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Continue with Google" })).toHaveAttribute(
+      "href",
+      "/api/auth/google/start?next=/new/guests",
+    );
+    // And nothing was created on the way to the gate.
+    await expect(page.getByRole("heading", { name: "Roll Created!" })).toHaveCount(0);
+  });
+
+  /**
+   * The sample camera: a real viewfinder over no roll.
+   *
+   * The shutter itself needs a camera the runner does not have, so what is held down here is
+   * the frame around it — the film a visitor is handed, the thumbnail standing in for a last
+   * shot they have not taken, and the two doors, one of which differs from a guest's on
+   * purpose.
+   */
+  test("the sample camera runs without an account and leads both ways", async ({ page }) => {
+    await page.goto("/albums/sample/camera");
+
+    await expect(page.getByTestId("shots-left")).toHaveText("21");
+
+    // The arrow leaves the product rather than opening somebody else's album.
+    await page.getByRole("link", { name: "Leave the camera" }).click();
+    await expect(page).toHaveURL(/\/welcome$/);
+
+    // The thumbnail is what opens it.
+    await page.goto("/albums/sample/camera");
+    await page.getByRole("button", { name: "Open the roll" }).click();
+    await expect(page).toHaveURL(/\/albums\/sample$/);
+    await expect(page.getByRole("heading", { name: "Priya and Arjun's Wedding" })).toBeVisible();
   });
 
   test("legal pages are reachable from the footer", async ({ page }) => {
@@ -60,7 +131,8 @@ test.describe("public pages", () => {
     await page.goto("/admin");
     await expect(page).toHaveURL(/\/welcome/);
 
-    await page.goto("/new/name");
+    // The wizard is deliberately off this list now; the albums tab is a host's own shelf.
+    await page.goto("/albums");
     await expect(page).toHaveURL(/\/welcome/);
   });
 

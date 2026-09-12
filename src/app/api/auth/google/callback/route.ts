@@ -34,7 +34,8 @@ export async function GET(request: Request) {
 
   // Checked before anything is spent on the code exchange: a callback that did not start
   // here is not worth talking to Google about.
-  if (!(await consumeOAuthState(state))) return back("bad_state");
+  const started = await consumeOAuthState(state);
+  if (!started.ok) return back("bad_state");
 
   let identity;
   try {
@@ -112,5 +113,5 @@ export async function GET(request: Request) {
     // Nothing to do about it here, and nothing the person signing in can act on.
   }
 
-  return Response.redirect(`${env.appUrl}/rolls`, 307);
+  return Response.redirect(`${env.appUrl}${started.next ?? "/rolls"}`, 307);
 }

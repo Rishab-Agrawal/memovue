@@ -44,6 +44,8 @@ type DraftContextValue = {
   clearCover: () => void;
   /** Shown on the invitation card as "Invited by …". */
   hostName: string;
+  /** False for someone walking the wizard before making an account. See the last step. */
+  signedIn: boolean;
 };
 
 const DraftContext = createContext<DraftContextValue | null>(null);
@@ -112,9 +114,11 @@ export function forgetDraft() {
 export function DraftProvider({
   children,
   hostName,
+  signedIn,
 }: {
   children: ReactNode;
   hostName: string;
+  signedIn: boolean;
 }) {
   const [draft, setDraft] = useState<Draft>(() => {
     const window = defaultWindow();
@@ -154,6 +158,7 @@ export function DraftProvider({
     () => ({
       draft,
       hostName,
+      signedIn,
       update: (patch: Partial<Draft>) => setDraft((current) => ({ ...current, ...patch })),
 
       /*
@@ -170,7 +175,7 @@ export function DraftProvider({
         setDraft((current) => ({ ...current, coverBlob: null, coverPreviewUrl: null }));
       },
     }),
-    [draft, hostName],
+    [draft, hostName, signedIn],
   );
 
   return <DraftContext.Provider value={value}>{children}</DraftContext.Provider>;

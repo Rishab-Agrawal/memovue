@@ -342,7 +342,7 @@ test.describe("a roll from creation to reveal", () => {
     */
     await page.goto("/rolls");
     await page.getByRole("button", { name: /Create roll/ }).click();
-    await expect(page.getByRole("heading", { name: /don.t have access yet/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /used your first roll/ })).toBeVisible();
 
     // And the way out of the refusal is a form, not a dead end.
     await page.getByRole("button", { name: "Request" }).click();

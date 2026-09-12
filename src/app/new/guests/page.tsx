@@ -8,6 +8,7 @@ import { cn } from "@/lib/cn";
 import { BetaGate } from "@/components/roll/BetaGate";
 import { Pill, StepButton } from "@/components/roll/Chrome";
 import { Dialog } from "@/components/roll/Dialog";
+import { Google } from "@/components/roll/Icons";
 import { ShareLink } from "@/components/roll/ShareLink";
 import { Toggle } from "@/components/roll/Toggle";
 import { WizardShell } from "@/components/roll/WizardShell";
@@ -35,7 +36,7 @@ import { draftToInput, forgetDraft, useDraft } from "../DraftContext";
 const SHOT_MAX = SHOT_TIERS.reduce((max, shots, index) => (shotsAvailable(shots) ? index : max), 0);
 
 export default function StepGuests() {
-  const { draft, update, hostName } = useDraft();
+  const { draft, update, hostName, signedIn } = useDraft();
   const router = useRouter();
 
   /*
@@ -44,6 +45,8 @@ export default function StepGuests() {
     another tab, or run out while somebody sits on this screen, and only the server knows.
   */
   const [blocked, setBlocked] = useState(false);
+  /** The account, asked for once it buys something rather than on the way in. */
+  const [needsAccount, setNeedsAccount] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<{ id: string; code: string; name: string } | null>(null);
   const [coverFailed, setCoverFailed] = useState(false);
@@ -57,6 +60,16 @@ export default function StepGuests() {
       : "";
 
   const create = () => {
+    /*
+      The first and only moment an account is needed: everything up to here is a draft in
+      this tab. It survives the trip to Google in `sessionStorage`, and the sign-in lands
+      back on this step, so the answer to the box is one tap and then Create.
+    */
+    if (!signedIn) {
+      setNeedsAccount(true);
+      return;
+    }
+
     setError(null);
     startTransition(async () => {
       const result = await createRollAction(draftToInput(draft));
@@ -198,6 +211,29 @@ export default function StepGuests() {
       </WizardShell>
 
       <BetaGate open={blocked} onClose={() => setBlocked(false)} hostName={hostName} />
+
+      <Dialog
+        open={needsAccount}
+        onClose={() => setNeedsAccount(false)}
+        title="Almost there"
+        actions={
+          // A plain anchor for the same reason as the welcome screen's: this hands off to a
+          // route handler that redirects to Google, and a client-side navigation has nowhere
+          // to go. `next` brings them back to this step, with the draft still in the tab.
+          <a
+            href="/api/auth/google/start?next=/new/guests"
+            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-chalk px-6 text-[15px] font-medium whitespace-nowrap text-void transition-colors hover:bg-white"
+          >
+            <Google className="h-5 w-5" />
+            Continue with Google
+          </a>
+        }
+      >
+        <p>
+          Your roll needs somewhere to live. Sign in and we&rsquo;ll bring you straight back
+          here — nothing you&rsquo;ve picked is lost.
+        </p>
+      </Dialog>
 
       <Dialog
         open={error !== null}
