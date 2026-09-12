@@ -62,11 +62,7 @@ export function BackButton({
   );
 }
 
-/**
- * Closing is a navigation on the screens that are routes, and a state change on the one that
- * is an overlay — the invitation preview, which the settings screen opens over itself so it
- * can show the cover and title the host has picked but not yet saved. Same square either way.
- */
+/** A link on the screens that are routes, a button on the ones that are overlays. */
 export function CloseButton({
   href,
   onClick,

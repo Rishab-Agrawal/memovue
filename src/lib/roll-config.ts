@@ -61,14 +61,7 @@ export function shotsAvailable(shots: number): boolean {
 /** Weddings get booked years ahead, so the window is generous. Settings can still move it. */
 export const START_MAX_YEARS = 2;
 
-/**
- * A roll that runs longer than a week is a mistake, not a plan.
- *
- * It used to be two months, which no real event is — and while we are in beta every day a
- * roll stays open is a day we hold its photographs without knowing what any of this costs at
- * scale. A week covers the longest thing anybody actually shoots as one roll: a wedding
- * week, a trip, a festival.
- */
+/** A roll that runs longer than a week is a mistake, not a plan. */
 export const FINISH_MAX_DAYS = 7;
 
 /**

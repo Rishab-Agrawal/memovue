@@ -8,8 +8,7 @@ import { SHOT_TIERS } from "@/lib/roll-config";
 import { useDraft } from "../DraftContext";
 
 /**
- * The draft's invitation, at full size. A route rather than an overlay here so the phone's
- * own back gesture closes it, which is how anybody leaves a full-screen picture.
+ * The draft's invitation, at full size.
  *
  * The countdown and the shot count are whatever the draft holds right now, which on step one
  * is still the defaults. They are the last two things a host picks and the first two they

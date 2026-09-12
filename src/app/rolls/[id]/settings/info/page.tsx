@@ -16,8 +16,7 @@ export default async function EditInfoPage({ params }: PageProps<"/rolls/[id]/se
       name={roll.name}
       coverPreset={roll.coverPreset}
       coverUrl={roll.coverUrl}
-      // What the invitation preview needs beyond the pair being edited. The roll already
-      // holds its own answers to these, so unlike the wizard's they are not guesses.
+      // The rest of what the invitation preview draws.
       hostName={user.name}
       finishesAt={roll.finishesAt}
       shots={roll.photosPerGuest}

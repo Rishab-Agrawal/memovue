@@ -48,13 +48,8 @@ export function EditInfoForm({
   const [busy, setBusy] = useState(false);
   const [pending, startTransition] = useTransition();
 
-  /*
-    An overlay rather than a route of its own, unlike the wizard's.
-
-    The whole use of a preview here is judging a title and a cover the host has just changed
-    and not yet saved, and neither of those exists anywhere a route could read them — leaving
-    for one would show the invitation as it already is, which they can see on the roll.
-  */
+  // An overlay, not a route: what is worth previewing is the cover picked and not yet saved,
+  // which nothing server-side can read.
   const [previewing, setPreviewing] = useState(false);
 
   // Every object URL this screen mints, so none of them outlive it.
