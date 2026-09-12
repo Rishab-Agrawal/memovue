@@ -186,3 +186,56 @@ export const VISIBILITY_LABEL = {
 export function visibilityLabel(everyoneCanSee: boolean): string {
   return everyoneCanSee ? VISIBILITY_LABEL.on : VISIBILITY_LABEL.off;
 }
+
+/* ------------------------------------------------------------------ the shots pool */
+
+/**
+ * A roll is bought as `maxGuests × photosPerGuest` frames, and a guest walking in is handed
+ * `photosPerGuest` of them. What is left over is the pool: the film of everybody who never
+ * turned up, plus whatever guests hand back because they are not going to shoot it.
+ *
+ * Derived from the guest rows rather than kept as a column of its own. The host can still
+ * resize a roll from the settings sheet, and a tally written when it was a different size
+ * would quietly disagree with the roll it belongs to — where this cannot.
+ */
+export function poolFrom(
+  roll: { maxGuests: number; photosPerGuest: number },
+  joined: number,
+  /** Net film drawn out of the pool by those guests; negative once more is given than taken. */
+  drawn: number,
+): number {
+  return Math.max(0, (roll.maxGuests - joined) * roll.photosPerGuest - drawn);
+}
+
+/** Half a guest's own allowance, rounded down: the most that moves in one go, either way. */
+export function half(photosPerGuest: number): number {
+  return Math.floor(photosPerGuest / 2);
+}
+
+/**
+ * What one guest may move, in each direction, right now.
+ *
+ * Giving away is bounded by the half of their original allowance they have to keep — and
+ * *keep* counts what they have already shot, which is the whole subtlety. Somebody who gave
+ * six away, spent the rest, and then drew twelve out of the pool is holding twelve frames
+ * they were never entitled to keep, and may hand back every one; a rule that simply capped
+ * the lifetime total at half would have offered them six.
+ *
+ * Taking tops a guest up to half an allowance and no further, which is what stops the per-go
+ * ceiling being a formality: the only way to take twice is to shoot what you took. Written as
+ * a ceiling on what they may hold rather than as "only when empty" on purpose — a frame still
+ * sitting in this phone's queue means the server has not heard about the last shot yet, and a
+ * rule that reads exactly zero would refuse the guest who has just run out.
+ */
+export function poolMoves(
+  roll: { photosPerGuest: number },
+  guest: { fromPool: number; shotsLeft: number },
+  pool: number,
+): { take: number; give: number } {
+  const allowance = roll.photosPerGuest + guest.fromPool;
+  const keep = roll.photosPerGuest - half(roll.photosPerGuest);
+  return {
+    take: Math.max(0, Math.min(pool, half(roll.photosPerGuest) - guest.shotsLeft)),
+    give: Math.max(0, Math.min(guest.shotsLeft, allowance - keep)),
+  };
+}

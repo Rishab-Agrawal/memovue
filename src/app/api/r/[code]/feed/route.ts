@@ -1,6 +1,7 @@
 import { getGuestContext } from "@/lib/guest-context";
 import { prisma } from "@/lib/prisma";
 import { limited } from "@/lib/ratelimit";
+import { poolFrom } from "@/lib/roll-config";
 import { coverUrlFor } from "@/lib/rolls";
 
 export const dynamic = "force-dynamic";
@@ -26,17 +27,25 @@ export const dynamic = "force-dynamic";
  * the rate limiter on the day a second replica exists.
  */
 const TOTALS_TTL_MS = 10_000;
-const totals = new Map<string, { at: number; totalPhotos: number; guestCount: number }>();
+const totals = new Map<
+  string,
+  { at: number; totalPhotos: number; guestCount: number; drawn: number }
+>();
 
 async function rollTotals(rollId: string) {
   const now = Date.now();
   const cached = totals.get(rollId);
   if (cached && now - cached.at < TOTALS_TTL_MS) return cached;
 
-  const [totalPhotos, guestCount] = await Promise.all([
+  // The guest count and the pool's net draw come out of one aggregate — the same scan the
+  // count alone used to cost, which is why the pool rides along in here rather than asking
+  // separately on a route every phone at the event polls.
+  const [totalPhotos, guests] = await Promise.all([
     prisma.photo.count({ where: { rollId, status: "READY" } }),
-    prisma.guest.count({ where: { rollId } }),
+    prisma.guest.aggregate({ where: { rollId }, _count: true, _sum: { fromPool: true } }),
   ]);
+  const guestCount = guests._count;
+  const drawn = guests._sum.fromPool ?? 0;
 
   // Swept rather than left to grow: one entry per roll polled, and a roll stops being polled
   // the night its event ends.
@@ -44,7 +53,7 @@ async function rollTotals(rollId: string) {
     if (now - value.at > TOTALS_TTL_MS) totals.delete(key);
   }
 
-  const fresh = { at: now, totalPhotos, guestCount };
+  const fresh = { at: now, totalPhotos, guestCount, drawn };
   totals.set(rollId, fresh);
   return fresh;
 }
@@ -78,7 +87,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
 
   const { roll, guest, phase, open, capturing, shotsLeft, shotsUsed } = context;
 
-  const { totalPhotos, guestCount } = await rollTotals(roll.id);
+  const { totalPhotos, guestCount, drawn } = await rollTotals(roll.id);
 
   return Response.json({
     phase,
@@ -96,6 +105,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
     keptUntil: roll.keptUntil.toISOString(),
     totalPhotos,
     guestCount,
+    /* Unclaimed film. The album draws it on the pool tile and reads it to decide whether a
+       guest with nothing left still has a camera worth opening. */
+    poolLeft: poolFrom(roll, guestCount, drawn),
     me: {
       id: guest.id,
       name: guest.name,

@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { ZIP_DOWNLOAD_LIMIT } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { isOpen } from "@/lib/roll-access";
-import { coverUrlFor, getRollForHost } from "@/lib/rolls";
+import { coverUrlFor, getRollForHost, poolLeft } from "@/lib/rolls";
 import { publicUrl } from "@/lib/storage";
 import { requireHost } from "@/lib/session";
 
@@ -66,11 +66,17 @@ export async function loadRoll(
     who never joined has spent nothing and gets the full allowance — which is right: the
     camera button is what takes them into the join flow.
   */
-  const mine = await prisma.guest.findFirst({
-    where: { rollId: found.id, userId: user.id },
-    select: { _count: { select: { photos: true } } },
-  });
-  const shotsLeft = Math.max(0, found.photosPerGuest - (mine?._count.photos ?? 0));
+  const [mine, pool] = await Promise.all([
+    prisma.guest.findFirst({
+      where: { rollId: found.id, userId: user.id },
+      select: { fromPool: true, _count: { select: { photos: true } } },
+    }),
+    poolLeft(found),
+  ]);
+  const shotsLeft = Math.max(
+    0,
+    found.photosPerGuest + (mine?.fromPool ?? 0) - (mine?._count.photos ?? 0),
+  );
 
   /*
     One past the page, so "is there more" comes out of the same read rather than a second
@@ -130,6 +136,7 @@ export async function loadRoll(
       maxGuests: found.maxGuests,
       photosPerGuest: found.photosPerGuest,
       shotsLeft,
+      poolLeft: pool,
       downloadsLeft: Math.max(0, ZIP_DOWNLOAD_LIMIT - found.downloads),
     },
     /*

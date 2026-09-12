@@ -3,7 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { movePool } from "@/app/e/[code]/pool/actions";
 import { BackButton } from "@/components/roll/Chrome";
+import { ShotsDialog } from "@/components/roll/ShotsDialog";
 import type { ProcessedPhoto } from "@/lib/image";
 import {
   carriedForward,
@@ -19,8 +21,12 @@ interface GuestAppProps {
   code: string;
   rollName: string;
   shotsLeft: number;
-  /** The roll's film allowance per guest, which the counter reads as a fraction. */
+  /** This guest's own allowance, which the counter reads as a fraction. */
   shotsTotal: number;
+  /** Film nobody has claimed, as the server last counted it. */
+  pool: number;
+  /** The most that may be drawn out of it in one go — half the roll's allowance per guest. */
+  takeStep: number;
   /** When the shutter closes, in epoch milliseconds. */
   finishesAt: number;
   /**
@@ -46,6 +52,8 @@ export function GuestApp({
   rollName,
   shotsLeft: initialShots,
   shotsTotal,
+  pool: initialPool,
+  takeStep,
   finishesAt,
   home,
   latestBlur,
@@ -53,6 +61,11 @@ export function GuestApp({
   const router = useRouter();
 
   const [spent, setSpent] = useState(0);
+  /** Film drawn out of the pool in this session, and what is left of it afterwards. */
+  const [taken, setTaken] = useState(0);
+  const [pool, setPool] = useState(initialPool);
+  /** They said no to the pool. The navigation is already in flight; this hides the box. */
+  const [declined, setDeclined] = useState(false);
   const [latestThumb, setLatestThumb] = useState(latestBlur);
   const [closed, setClosed] = useState(false);
 
@@ -82,7 +95,8 @@ export function GuestApp({
     [code],
   );
 
-  const shotsLeft = Math.max(0, initialShots - spent - carried);
+  const shotsLeft = Math.max(0, initialShots + taken - spent - carried);
+  const takeMax = Math.min(pool, takeStep);
 
   /*
     The camera has its own clock now, because the page only ever had one on the way in.
@@ -129,21 +143,44 @@ export function GuestApp({
   function handleCaptured(photo: ProcessedPhoto) {
     shot.current += 1;
     setSpent(shot.current);
-    const left = Math.max(0, initialShots - shot.current - carried);
     // What the frame flies into, and what stays there afterwards.
     setLatestThumb(photo.blurData);
-
-    /*
-      Out of film. Sitting on a dead viewfinder with a greyed-out shutter is the camera
-      pretending it still has a job, so it closes and hands them the roll.
-
-      Before the queue rather than after it: writing a photograph into IndexedDB takes long
-      enough on a phone to leave the spent viewfinder on screen for several seconds, which is
-      the one moment this screen has nothing left to say. The upload is unaffected — the queue
-      is a module, not a component, so it keeps draining across the navigation.
-    */
-    if (left === 0) router.push(home);
     void enqueuePhoto(code, photo);
+  }
+
+  /*
+    Out of film, with a pool that still has some.
+
+    Sitting on a dead viewfinder with a greyed-out shutter is the camera pretending it still
+    has a job. It used to close and hand them the roll; now it asks first, because the roll
+    still holds film that nobody has claimed and the moment somebody wants it is exactly this
+    one. Declining is the old exit, unchanged.
+
+    Derived rather than raised as an event, so it covers arriving here already spent — which
+    is now possible, since the roll's camera tile no longer goes dead on an empty quota.
+  */
+  const asking = !closed && shotsLeft <= 0 && takeMax > 0 && !declined;
+
+  // And an empty pool behind an empty quota is the old behaviour exactly: there is nothing
+  // to offer, so the screen leaves rather than explaining itself.
+  useEffect(() => {
+    if (!closed && shotsLeft <= 0 && takeMax <= 0) router.push(home);
+  }, [closed, shotsLeft, takeMax, home, router]);
+
+  async function take(shots: number) {
+    const result = await movePool(code, shots);
+    if (!result.ok) {
+      // Nothing to be had after all — the pool emptied while they were shooting.
+      decline();
+      return;
+    }
+    setTaken((had) => had + result.moved);
+    setPool(result.pool);
+  }
+
+  function decline() {
+    setDeclined(true);
+    router.push(home);
   }
 
   return (
@@ -151,13 +188,27 @@ export function GuestApp({
       <div className="h-full pt-[var(--safe-top)] pb-[var(--safe-bottom)]">
         <CameraView
           shotsLeft={shotsLeft}
-          shotsTotal={shotsTotal}
+          // Their allowance grows as they draw on the pool, so the rule under the figure has
+          // to grow with it — otherwise the bar reads full from the moment they take any.
+          shotsTotal={shotsTotal + taken}
           closed={closed}
           onCaptured={handleCaptured}
           latestThumb={latestThumb}
           onLeave={() => router.push(home)}
+          poolHref={`/e/${code}/pool?from=camera`}
         />
       </div>
+
+      <ShotsDialog
+        open={asking}
+        title="Take more shots from pool?"
+        note={`Up to ${takeMax} of the ${pool} nobody has claimed.`}
+        max={takeMax}
+        confirmLabel="Take"
+        cancelLabel="No thanks"
+        onConfirm={take}
+        onCancel={decline}
+      />
 
       {/* The same squircle every other screen backs out of, rather than a typed arrow on a
           translucent square that matched nothing. */}

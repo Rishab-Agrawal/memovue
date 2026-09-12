@@ -157,6 +157,14 @@ model Guest {
   userId String?
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
+  /// Shots moved between this guest and the roll's shared pool: positive drawn out of it,
+  /// negative handed back. Their allowance is `photosPerGuest + fromPool`.
+  ///
+  /// The pool itself is derived from these rather than stored — see `poolFrom` in
+  /// `roll-config.ts`. A roll's size is still editable after it exists, and a pool written
+  /// as a column when it was a different size would disagree with the roll it belongs to.
+  fromPool Int @default(0)
+
   createdAt DateTime @default(now())
 
   photos Photo[]

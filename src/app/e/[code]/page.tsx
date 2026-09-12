@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { GuestApp } from "@/components/guest/GuestApp";
 import { getGuestContext, rollHome } from "@/lib/guest-context";
 import { prisma } from "@/lib/prisma";
+import { half } from "@/lib/roll-config";
+import { poolLeft } from "@/lib/rolls";
 
 export const dynamic = "force-dynamic";
 
@@ -29,18 +31,26 @@ export default async function GuestRollPage({ params }: PageProps<"/e/[code]">) 
     camera that has lost their photographs. The blur is the whole record we keep inline, so
     this costs one small row and no image fetch.
   */
-  const latest = await prisma.photo.findFirst({
-    where: { guestId: context.guest.id },
-    orderBy: { takenAt: "desc" },
-    select: { blurData: true },
-  });
+  const [latest, pool] = await Promise.all([
+    prisma.photo.findFirst({
+      where: { guestId: context.guest.id },
+      orderBy: { takenAt: "desc" },
+      select: { blurData: true },
+    }),
+    poolLeft(context.roll),
+  ]);
 
   return (
     <GuestApp
       code={context.roll.code}
       rollName={context.roll.name}
       shotsLeft={context.shotsLeft}
-      shotsTotal={context.roll.photosPerGuest}
+      // Their allowance, not the roll's flat rate: film taken from the pool is theirs, and
+      // film given away is not — so the rule under the counter measures against what they
+      // actually hold.
+      shotsTotal={context.roll.photosPerGuest + context.guest.fromPool}
+      pool={pool}
+      takeStep={half(context.roll.photosPerGuest)}
       // The camera closes itself on this, rather than only being refused entry next time the
       // page is loaded.
       finishesAt={context.roll.finishesAt.getTime()}

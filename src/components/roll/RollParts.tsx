@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { Camera, Download, Lock, Qr } from "@/components/roll/Icons";
+import { Camera, Download, Lock, Photo, Qr } from "@/components/roll/Icons";
 import { cn } from "@/lib/cn";
 import { SHOTS_SPENT, ZIP_DOWNLOAD_SPENT } from "@/lib/constants";
 import { subscribeQueue } from "@/lib/upload-queue";
@@ -23,6 +23,8 @@ export function RollControls({
   shotsLeft,
   cameraHref,
   inviteHref,
+  poolHref,
+  poolLeft = 0,
   saveHref,
   downloadsLeft,
   onCamera,
@@ -47,8 +49,15 @@ export function RollControls({
   shotsLeft?: number;
   /** Ignored when `onCamera` is given, which is how the guest app keeps its stream alive. */
   cameraHref?: string;
-  /** Omitted by a guest, who has no invite sheet to open. */
+  /** The invite sheet. Guests have one of their own now — the QR was never the host's alone. */
   inviteHref?: string;
+  /** The shots pool. Same screen for everybody, so the same link either side of the roll. */
+  poolHref?: string;
+  /**
+   * Unclaimed film in the roll. Only a spent quota *and* an empty pool closes the camera: a
+   * guest out of shots is offered the pool's when they get there, so the tile stays live.
+   */
+  poolLeft?: number;
   /** Where "Save" goes. Omitted by anyone who cannot download the album. */
   saveHref?: string;
   /** ZIP downloads this roll has left of its lifetime ten. Ignored without `saveHref`. */
@@ -78,8 +87,15 @@ export function RollControls({
     [code],
   );
 
-  const off =
-    cameraOff ?? (shotsLeft !== undefined && shotsLeft - unreserved <= 0 ? SHOTS_SPENT : undefined);
+  /*
+    Out of film no longer closes the camera on its own.
+
+    Whoever runs dry is offered the roll's pool at the viewfinder, so the tile has somewhere
+    to lead — and tapping it is now how a guest gets there. Only when the pool is empty too is
+    there nothing left behind this control, and that is the one case it refuses.
+  */
+  const filmSpent = shotsLeft !== undefined && shotsLeft - unreserved <= 0;
+  const off = cameraOff ?? (filmSpent && poolLeft <= 0 ? SHOTS_SPENT : undefined);
   /*
     One line of transient text for the whole row.
 
@@ -115,12 +131,16 @@ export function RollControls({
   return (
     <>
       {/*
-        Equal width, and every control named rather than left to a glyph.
+        The camera across the top, and whatever else the roll offers on the row beneath it.
 
+        Every control is the same tile and every one is named rather than left to a glyph.
         This was one wide white pill with a camera on it and two unlabelled squares beside it —
         the reference's exact arrangement, and a row where two of the three controls could only
-        be guessed at. Equal width says they are peers; the words say what they do; and the one
-        that matters is the one filled in the accent colour, not the one three times wider.
+        be guessed at. The words say what they do, and the one that matters is the one filled
+        in the accent colour and given the whole width.
+
+        Host and guest draw the same two rows. The host will get more control over the pool
+        later; a different shape of screen for the same three buttons is not what that is.
 
         A finished roll offers only Save. It used to offer a Send beside it, which opened the
         invite sheet — the join link. Handing that round is not the same as handing a photograph
@@ -129,33 +149,33 @@ export function RollControls({
         open tab and hands each new arrival a participant slot out of the roll's cap. So the
         album travels as the ZIP, and single frames travel as their own cached links.
       */}
-      <div className="flex gap-2">
-        {ended ? (
-          <>
-            {saveHref ? (
-              <Control
-                href={saveHref}
-                label="Save"
-                icon={<Download className="h-5 w-5" />}
-                onClick={(event) => {
-                  if (left <= 0) {
-                    event.preventDefault();
-                    setNotice(ZIP_DOWNLOAD_SPENT);
-                    return;
-                  }
-                  setSpent((count) => count + 1);
-                  setNotice("Building your album — the download starts on its own. Big rolls take a minute.");
-                }}
-              />
-            ) : null}
-          </>
-        ) : (
-          <>
+      {ended ? (
+        <div className="flex gap-2">
+          {saveHref ? (
+            <Control
+              href={saveHref}
+              label="Save"
+              icon={<Download className="h-5 w-5" />}
+              onClick={(event) => {
+                if (left <= 0) {
+                  event.preventDefault();
+                  setNotice(ZIP_DOWNLOAD_SPENT);
+                  return;
+                }
+                setSpent((count) => count + 1);
+                setNotice("Building your album — the download starts on its own. Big rolls take a minute.");
+              }}
+            />
+          ) : null}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <div className="flex">
             {/*
-              Out of film, or the roll is not shooting yet. Removing the control would leave
-              the row a different shape every time somebody spends their last shot, and a live
-              camera that leads somewhere that refuses the photo is worse still — so it stays
-              where it was and answers when tapped.
+              The roll is not shooting yet, or there is no film left anywhere in it. Removing
+              the control would leave the row a different shape every time somebody spends
+              their last shot, and a live camera that leads somewhere that refuses the photo
+              is worse still — so it stays where it was and answers when tapped.
             */}
             {off ? (
               <button
@@ -188,20 +208,35 @@ export function RollControls({
                 Camera
               </Link>
             ) : null}
+          </div>
 
-            {inviteHref ? (
-              <Link
-                href={inviteHref}
-                aria-label="Invite guests"
-                className={cn(tile, "bg-surface text-chalk hover:text-flame")}
-              >
-                <Qr className="h-5 w-5" />
-                Invite
-              </Link>
-            ) : null}
-          </>
-        )}
-      </div>
+          {inviteHref || poolHref ? (
+            <div className="flex gap-2">
+              {inviteHref ? (
+                <Link
+                  href={inviteHref}
+                  aria-label="Invite guests"
+                  className={cn(tile, "bg-surface text-chalk hover:text-flame")}
+                >
+                  <Qr className="h-5 w-5" />
+                  Invite
+                </Link>
+              ) : null}
+
+              {poolHref ? (
+                <Link
+                  href={poolHref}
+                  aria-label="Shots pool"
+                  className={cn(tile, "bg-surface text-chalk hover:text-flame")}
+                >
+                  <Photo className="h-5 w-5" />
+                  Shots pool
+                </Link>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      )}
 
       {notice ? (
         <p

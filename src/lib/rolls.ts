@@ -6,7 +6,7 @@ import { type Account, refundRoll, spendRoll } from "./beta";
 import { rollCode } from "./codes";
 import { prisma } from "./prisma";
 import { computeKeptUntil, computeRevealAt, isOpen, visiblePhotoWhere } from "./roll-access";
-import { clampFinish, earliestFinish, movedStart } from "./roll-config";
+import { clampFinish, earliestFinish, movedStart, poolFrom } from "./roll-config";
 import { purgeRoll } from "./retention";
 import { coverKey, deleteObjects, publicUrl, storageConfigured, zipKey } from "./storage";
 
@@ -20,6 +20,26 @@ import { coverKey, deleteObjects, publicUrl, storageConfigured, zipKey } from ".
  * down must not mint upload URLs.
  */
 const photoCount = { where: { status: "READY" } } as const;
+
+/**
+ * The unclaimed film in one roll, right now.
+ *
+ * One aggregate over the roll's guests, which is the same scan a guest count already costs.
+ * The feed route folds this into the ten-second cache it already keeps for every phone at the
+ * event; everywhere else asks it once per screen.
+ */
+export async function poolLeft(roll: {
+  id: string;
+  maxGuests: number;
+  photosPerGuest: number;
+}): Promise<number> {
+  const { _count, _sum } = await prisma.guest.aggregate({
+    where: { rollId: roll.id },
+    _count: true,
+    _sum: { fromPool: true },
+  });
+  return poolFrom(roll, _count, _sum.fromPool ?? 0);
+}
 
 /**
  * Everything that reads or writes a roll.

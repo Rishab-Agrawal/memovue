@@ -39,6 +39,8 @@ interface Feed {
   keptUntil: string;
   totalPhotos: number;
   guestCount: number;
+  /** Film nobody has claimed, which is what the shots pool holds. */
+  poolLeft: number;
   me: {
     id: string;
     name: string;
@@ -329,6 +331,11 @@ export function AlbumView({
             code={code}
             shotsLeft={feed.me.shotsLeft}
             cameraHref={cameraHref}
+            // The same two tiles the host has. A QR printed on a table is already out of any
+            // one phone's hands, so a guest passing it on is the flow rather than a leak.
+            inviteHref={`/e/${code}/invite`}
+            poolHref={`/e/${code}/pool`}
+            poolLeft={feed.poolLeft}
           />
         ) : null}
 

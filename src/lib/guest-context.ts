@@ -8,7 +8,7 @@ import { getCurrentUser } from "./session";
 
 interface GuestContext {
   roll: NonNullable<Awaited<ReturnType<typeof findRoll>>>;
-  guest: { id: string; name: string; userId: string | null };
+  guest: { id: string; name: string; userId: string | null; fromPool: number };
   phase: RollPhase;
   /** Whether photographs in this roll are legible yet. */
   open: boolean;
@@ -60,7 +60,7 @@ export async function guestHome(roll: Located): Promise<string | null> {
   return user.id === roll.hostId ? `/rolls/${roll.id}` : "/rolls";
 }
 
-const guestFields = { id: true, name: true, rollId: true, userId: true } as const;
+const guestFields = { id: true, name: true, rollId: true, userId: true, fromPool: true } as const;
 
 /**
  * Resolves whoever is holding this roll's camera, by cookie or by account.
@@ -79,7 +79,9 @@ export async function getGuestContext(code: string): Promise<GuestContext | null
   const roll = await findRoll(code);
   if (!roll) return null;
 
-  let guest: { id: string; name: string; rollId: string; userId: string | null } | null = null;
+  let guest:
+    | { id: string; name: string; rollId: string; userId: string | null; fromPool: number }
+    | null = null;
 
   const claims = await readGuestClaims(roll.code);
   if (claims && claims.eventId === roll.id) {
@@ -125,12 +127,14 @@ export async function getGuestContext(code: string): Promise<GuestContext | null
 
   return {
     roll,
-    guest: { id: guest.id, name: guest.name, userId: guest.userId },
+    guest: { id: guest.id, name: guest.name, userId: guest.userId, fromPool: guest.fromPool },
     phase: rollPhase(roll),
     open: isOpen(roll),
     capturing: isCapturing(roll),
     acceptsUploads: acceptsUploads(roll),
     shotsUsed,
-    shotsLeft: Math.max(0, roll.photosPerGuest - shotsUsed),
+    // Their allowance, not the roll's: film drawn from the pool is theirs to spend, and film
+    // given away is not.
+    shotsLeft: Math.max(0, roll.photosPerGuest + guest.fromPool - shotsUsed),
   };
 }

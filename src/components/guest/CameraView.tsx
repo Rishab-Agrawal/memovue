@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/cn";
@@ -100,6 +101,11 @@ interface CameraViewProps {
   onLeave?: () => void;
   /** Blur data for the last shot, which is all the thumbnail ever shows. */
   latestThumb?: string | null;
+  /**
+   * The shots pool. Given, the counter in the corner becomes the way there — the figure and
+   * the place you go to change it are the same object. The sample camera has no pool.
+   */
+  poolHref?: string;
 }
 
 /**
@@ -119,6 +125,7 @@ export function CameraView({
   onCaptured,
   onLeave,
   latestThumb,
+  poolHref,
 }: CameraViewProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
@@ -322,6 +329,31 @@ export function CameraView({
   const out = shotsLeft <= 0;
   const flying = phase === "hold" || phase === "fly";
 
+  /*
+    What is left, stated. This was a mechanical frame dial with the neighbouring numbers
+    half-visible either side, which is a lovely object and the wrong one: on a phone in a
+    dark room the number you need is the smallest thing in the widget, wrapped in two numbers
+    that are not true. Here the figure is the whole control, and the rule under it carries the
+    part the dial was really for — the sense that the film is running out.
+  */
+  const counter = (
+    <>
+      <p className="tabular text-[38px] leading-none font-medium text-chalk" data-testid="shots-left">
+        {shotsLeft}
+      </p>
+      <p className="marking mt-1.5 text-dust">Left</p>
+      <span
+        aria-hidden="true"
+        className="mt-2 block h-0.5 w-full overflow-hidden rounded-full bg-hair-bright"
+      >
+        <span
+          className="block h-full bg-flame transition-[width] duration-500 ease-[var(--ease-out-soft)]"
+          style={{ width: `${shotsTotal > 0 ? Math.min(100, (shotsLeft / shotsTotal) * 100) : 0}%` }}
+        />
+      </span>
+    </>
+  );
+
   return (
     <div className="flex h-full flex-col bg-page">
       {/* `min-h-0` + `max-h-full`: the frame keeps its 4:5 shape wherever there is room for
@@ -408,31 +440,17 @@ export function CameraView({
       </div>
 
       <div className="flex items-center justify-between px-6 pt-6 pb-8">
-        {/*
-          What is left, stated. This was a mechanical frame dial with the neighbouring numbers
-          half-visible either side, which is a lovely object and the wrong one: on a phone in a
-          dark room the number you need is the smallest thing in the widget, wrapped in two
-          numbers that are not true. Here the figure is the whole control, and the rule under
-          it carries the part the dial was really for — the sense that the film is running out.
-        */}
-        <div className="w-[72px]">
-          <p
-            className="tabular text-[38px] leading-none font-medium text-chalk"
-            data-testid="shots-left"
+        {poolHref ? (
+          <Link
+            href={poolHref}
+            aria-label="Shots pool"
+            className="block w-[72px] transition-opacity duration-150 active:opacity-60"
           >
-            {shotsLeft}
-          </p>
-          <p className="marking mt-1.5 text-dust">Left</p>
-          <span
-            aria-hidden="true"
-            className="mt-2 block h-0.5 w-full overflow-hidden rounded-full bg-hair-bright"
-          >
-            <span
-              className="block h-full bg-flame transition-[width] duration-500 ease-[var(--ease-out-soft)]"
-              style={{ width: `${shotsTotal > 0 ? (shotsLeft / shotsTotal) * 100 : 0}%` }}
-            />
-          </span>
-        </div>
+            {counter}
+          </Link>
+        ) : (
+          <div className="w-[72px]">{counter}</div>
+        )}
 
         {/*
           Disabled until the stream is actually live.

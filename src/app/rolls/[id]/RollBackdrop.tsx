@@ -30,6 +30,8 @@ export interface BackdropRoll {
   photosPerGuest: number;
   /** What the host has left of their own film, for the camera control below. */
   shotsLeft: number;
+  /** Film nobody has claimed. What the shots pool holds, and what keeps the camera live. */
+  poolLeft: number;
   /** ZIP downloads this roll has left. Zero makes Save answer instead of navigating. */
   downloadsLeft: number;
 }
@@ -102,6 +104,10 @@ export function RollBackdrop({
                 : "This roll has finished shooting."
           }
           inviteHref={`/rolls/${roll.id}/invite`}
+          poolLeft={roll.poolLeft}
+          // By the roll's code, like the camera: the pool screen belongs to whoever is
+          // holding a camera on this roll, and the host is one of them.
+          poolHref={`/e/${roll.code}/pool`}
           saveHref={open ? `/api/rolls/${roll.id}/download` : undefined}
           downloadsLeft={roll.downloadsLeft}
         />
