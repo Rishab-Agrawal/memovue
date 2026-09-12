@@ -130,6 +130,7 @@ export async function loadRoll(
       revealDelayHours: found.revealDelayHours,
       revealedEarly: found.revealedEarly,
       everyoneCanSee: found.everyoneCanSee,
+      giveawayAllowed: found.giveawayAllowed,
       keptUntil: found.keptUntil,
       photoCount: found._count.photos,
       guestCount: found._count.guests,

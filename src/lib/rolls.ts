@@ -58,6 +58,7 @@ interface CreateRollInput {
   maxGuests: number;
   photosPerGuest: number;
   everyoneCanSee: boolean;
+  giveawayAllowed: boolean;
   coverPreset: number;
 }
 
@@ -119,6 +120,7 @@ function writeRoll(host: Account & { name: string }, input: CreateRollInput, rev
         maxGuests: input.maxGuests,
         photosPerGuest: input.photosPerGuest,
         everyoneCanSee: input.everyoneCanSee,
+        giveawayAllowed: input.giveawayAllowed,
         startsAt: input.startsAt,
         finishesAt: input.finishesAt,
         revealMode: input.revealMode,
@@ -163,6 +165,7 @@ const rollSummary = {
   revealDelayHours: true,
   revealedEarly: true,
   everyoneCanSee: true,
+  giveawayAllowed: true,
   maxGuests: true,
   photosPerGuest: true,
   keptUntil: true,
@@ -663,6 +666,16 @@ export async function clearRollCover(id: string, hostId: string): Promise<void> 
 
 export async function updateRollVisibility(id: string, hostId: string, everyoneCanSee: boolean) {
   await prisma.roll.updateMany({ where: { id, hostId }, data: { everyoneCanSee } });
+}
+
+/**
+ * The host opening or closing the giveaway door, mid-roll like everything else here.
+ *
+ * Closing it takes nothing back: film already in the pool stays there, and the guests who
+ * put it there keep the button that reclaims it. Only the offer goes away.
+ */
+export async function updateRollGiveaway(id: string, hostId: string, giveawayAllowed: boolean) {
+  await prisma.roll.updateMany({ where: { id, hostId }, data: { giveawayAllowed } });
 }
 
 /**

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { half, poolFrom, poolMoves } from "@/lib/roll-config";
+import { GIVEAWAY_MIN_SHOTS, half, poolFrom, poolMoves } from "@/lib/roll-config";
 
 /**
  * The shots pool, which is the one place in this app where film changes hands.
@@ -10,7 +10,7 @@ import { half, poolFrom, poolMoves } from "@/lib/roll-config";
  * the two ends would be somebody handing back film they needed, or drawing film that does not
  * exist.
  */
-const roll = { maxGuests: 10, photosPerGuest: 24 };
+const roll = { maxGuests: 10, photosPerGuest: 24, giveawayAllowed: true };
 
 test("the pool is the film of everyone who never turned up, plus what is handed back", () => {
   // Nobody in yet: the whole roll.
@@ -67,9 +67,50 @@ test("taking tops a guest up to half an allowance, and never past the pool", () 
 });
 
 test("an odd allowance rounds in the guest's favour", () => {
-  const five = { photosPerGuest: 5 };
-  expect(half(5)).toBe(2);
-  // Two may go, three stay — never half a frame more than half.
-  expect(poolMoves(five, { fromPool: 0, shotsLeft: 5 }, 100).give).toBe(2);
+  const eleven = { photosPerGuest: 11, giveawayAllowed: true };
+  expect(half(11)).toBe(5);
+  // Five may go, six stay — never half a frame more than half.
+  expect(poolMoves(eleven, { fromPool: 0, shotsLeft: 11 }, 100).give).toBe(5);
+  expect(poolMoves(eleven, { fromPool: 0, shotsLeft: 0 }, 100).take).toBe(5);
+});
+
+/**
+ * Giving away is the host's to allow, and needs a roll with film to spare.
+ *
+ * Drawing from the pool is neither: that film belongs to guests who never turned up, and
+ * nobody chose to keep it. So both gates close over `give` alone.
+ */
+test("the host's switch and a big enough roll both gate giving away", () => {
+  expect(poolMoves({ ...roll, giveawayAllowed: false }, { fromPool: 0, shotsLeft: 24 }, 100).give).toBe(0);
+
+  const five = { photosPerGuest: 5, giveawayAllowed: true };
+  expect(five.photosPerGuest).toBeLessThan(GIVEAWAY_MIN_SHOTS);
+  expect(poolMoves(five, { fromPool: 0, shotsLeft: 5 }, 100).give).toBe(0);
+
+  // Neither gate touches what a guest may draw out.
+  expect(poolMoves({ ...roll, giveawayAllowed: false }, { fromPool: 0, shotsLeft: 0 }, 100).take).toBe(12);
   expect(poolMoves(five, { fromPool: 0, shotsLeft: 0 }, 100).take).toBe(2);
+});
+
+/**
+ * Taking back is undoing a gift, so it answers to neither ceiling.
+ *
+ * It is offered with film still in hand, it survives the host closing the door afterwards,
+ * and it is bounded only by what is left of what they gave — if somebody else has taken it,
+ * what remains is what they get.
+ */
+test("a gift can be reclaimed, but only as much of it as is still there", () => {
+  const gave = { fromPool: -12, shotsLeft: 12 };
+
+  expect(poolMoves(roll, gave, 100).back).toBe(12);
+  // Eight of the twelve have been taken by other people.
+  expect(poolMoves(roll, gave, 4).back).toBe(4);
+  expect(poolMoves(roll, gave, 0).back).toBe(0);
+
+  // The host closing the door does not trap film on the wrong side of it.
+  expect(poolMoves({ ...roll, giveawayAllowed: false }, gave, 100).back).toBe(12);
+
+  // Net, so somebody who gave six and later drew twelve has nothing left to reclaim.
+  expect(poolMoves(roll, { fromPool: 6, shotsLeft: 12 }, 100).back).toBe(0);
+  expect(poolMoves(roll, { fromPool: 0, shotsLeft: 24 }, 100).back).toBe(0);
 });

@@ -43,6 +43,8 @@ export interface Draft {
   participantIndex: number;
   shotIndex: number;
   everyoneCanSee: boolean;
+  /** Whether guests may hand their own film to the pool. Off, the same as the column. */
+  giveawayAllowed: boolean;
 }
 
 type DraftContextValue = {
@@ -149,6 +151,9 @@ export function DraftProvider({
       // is a deliberate choice — a surprise for the host — and deliberate choices are the
       // ones worth making a host reach for.
       everyoneCanSee: true,
+      // Off by default: see the column in schema.prisma for why the host opens this door
+      // rather than finding it already open.
+      giveawayAllowed: false,
     };
   });
 
@@ -224,6 +229,7 @@ export function draftToInput(draft: Draft) {
     maxGuests: PARTICIPANT_TIERS[draft.participantIndex],
     photosPerGuest: SHOT_TIERS[draft.shotIndex],
     everyoneCanSee: draft.everyoneCanSee,
+    giveawayAllowed: draft.giveawayAllowed,
     coverPreset: draft.coverPreset,
   };
 }

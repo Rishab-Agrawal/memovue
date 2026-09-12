@@ -30,6 +30,7 @@ const draft: Draft = {
   participantIndex: 3,
   shotIndex: 1,
   everyoneCanSee: true,
+  giveawayAllowed: false,
 };
 
 test("a draft comes back off a reload as the shapes it went in as", () => {

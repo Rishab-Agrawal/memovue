@@ -13,15 +13,28 @@ import {
   LockOpen,
   Pencil,
   Person,
+  Photo,
   Trash,
 } from "@/components/roll/Icons";
+import { GiveawayToggle } from "@/components/roll/GiveawayToggle";
 import { SettingRow } from "@/components/roll/SettingRow";
 import { Sheet } from "@/components/roll/Sheet";
 import { Toggle } from "@/components/roll/Toggle";
 import { formatDateTime } from "@/lib/format";
-import { PARTICIPANT_TIERS, SHOT_TIERS, shotsAvailable, visibilityLabel } from "@/lib/roll-config";
+import {
+  PARTICIPANT_TIERS,
+  SHOT_TIERS,
+  giveawayLabel,
+  shotsAvailable,
+  visibilityLabel,
+} from "@/lib/roll-config";
 
-import { deleteRollAction, setSizeAction, setVisibilityAction } from "../actions";
+import {
+  deleteRollAction,
+  setGiveawayAction,
+  setSizeAction,
+  setVisibilityAction,
+} from "../actions";
 
 const REVEAL_LABEL = { DURING: "During", AFTER: "After", DELAY: "After + delay" } as const;
 
@@ -45,6 +58,7 @@ export function SettingsSheet({
   photosPerGuest,
   guestCount,
   everyoneCanSee: initialVisibility,
+  giveawayAllowed: initialGiveaway,
 }: {
   rollId: string;
   name: string;
@@ -60,9 +74,11 @@ export function SettingsSheet({
   /** The floor under the guest limit: a cap cannot be set below the people already inside it. */
   guestCount: number;
   everyoneCanSee: boolean;
+  giveawayAllowed: boolean;
 }) {
   const router = useRouter();
   const [everyoneCanSee, setEveryoneCanSee] = useState(initialVisibility);
+  const [giveaway, setGiveaway] = useState(initialGiveaway);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -71,6 +87,14 @@ export function SettingsSheet({
     setEveryoneCanSee(next);
     startTransition(async () => {
       await setVisibilityAction(rollId, next);
+      router.refresh();
+    });
+  };
+
+  const toggleGiveaway = (next: boolean) => {
+    setGiveaway(next);
+    startTransition(async () => {
+      await setGiveawayAction(rollId, next);
       router.refresh();
     });
   };
@@ -171,6 +195,14 @@ export function SettingsSheet({
                 onChange={toggleVisibility}
                 name={visibilityLabel(everyoneCanSee)}
               />
+            }
+          />
+
+          <SettingRow
+            icon={<Photo className="h-5 w-5" />}
+            label={giveawayLabel(giveaway)}
+            trailing={
+              <GiveawayToggle bare on={giveaway} shots={photosPerGuest} onChange={toggleGiveaway} />
             }
           />
         </div>

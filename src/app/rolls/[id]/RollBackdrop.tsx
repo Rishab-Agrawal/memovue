@@ -21,6 +21,8 @@ export interface BackdropRoll {
   revealDelayHours: number;
   revealedEarly: boolean;
   everyoneCanSee: boolean;
+  /** The host's giveaway switch. Only the settings sheet, which flips it, reads it. */
+  giveawayAllowed: boolean;
   keptUntil: Date;
   photoCount: number;
   guestCount: number;

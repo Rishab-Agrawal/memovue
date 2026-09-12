@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { getGuestContext, rollHome } from "@/lib/guest-context";
-import { poolMoves } from "@/lib/roll-config";
+import { giveawayOffered, poolMoves } from "@/lib/roll-config";
 import { poolLeft } from "@/lib/rolls";
 
 import { PoolScreen } from "./PoolScreen";
@@ -26,7 +26,7 @@ export default async function PoolPage({ params, searchParams }: PageProps<"/e/[
   if (!context.capturing) redirect(await rollHome(context.roll));
 
   const pool = await poolLeft(context.roll);
-  const { give } = poolMoves(
+  const { give, back } = poolMoves(
     context.roll,
     { fromPool: context.guest.fromPool, shotsLeft: context.shotsLeft },
     pool,
@@ -44,6 +44,8 @@ export default async function PoolPage({ params, searchParams }: PageProps<"/e/[
       pool={pool}
       shotsLeft={context.shotsLeft}
       give={give}
+      reclaim={back}
+      offered={giveawayOffered(context.roll)}
     />
   );
 }

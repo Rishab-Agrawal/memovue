@@ -213,6 +213,48 @@ export function half(photosPerGuest: number): number {
 }
 
 /**
+ * The smallest roll on which giving film away means anything.
+ *
+ * Half of five is two, and a guest choosing whether to part with two frames is not making a
+ * decision — it is a screen, a dialog and a slider for something nobody would notice either
+ * way. The switch below still exists on such a roll, because the host may raise the shot
+ * count later; what it turns on simply has nothing to offer until they do.
+ */
+export const GIVEAWAY_MIN_SHOTS = 10;
+
+/** The two states of the host's switch, worded once — the same pairing as `VISIBILITY_LABEL`. */
+export const GIVEAWAY_LABEL = {
+  on: "Shots giveaway allowed",
+  off: "No shots giveaway",
+} as const;
+
+export function giveawayLabel(allowed: boolean): string {
+  return allowed ? GIVEAWAY_LABEL.on : GIVEAWAY_LABEL.off;
+}
+
+/** What the question mark beside that switch says, on either kind of roll. */
+export function giveawayHelp(photosPerGuest: number): string {
+  if (photosPerGuest < GIVEAWAY_MIN_SHOTS) {
+    return (
+      `Giving away needs at least ${GIVEAWAY_MIN_SHOTS} shots each — at ${photosPerGuest} ` +
+      `there is too little film to spare. Raise the shot count to offer it.`
+    );
+  }
+  return (
+    `This feature allows guests to giveaway ${half(photosPerGuest)} of their shots to the ` +
+    `common pool for more active users to use if they run out of shots.`
+  );
+}
+
+/** Whether this roll offers giving away at all: the host's switch, and enough film to mean it. */
+export function giveawayOffered(roll: {
+  photosPerGuest: number;
+  giveawayAllowed: boolean;
+}): boolean {
+  return roll.giveawayAllowed && roll.photosPerGuest >= GIVEAWAY_MIN_SHOTS;
+}
+
+/**
  * What one guest may move, in each direction, right now.
  *
  * Giving away is bounded by the half of their original allowance they have to keep — and
@@ -226,16 +268,26 @@ export function half(photosPerGuest: number): number {
  * a ceiling on what they may hold rather than as "only when empty" on purpose — a frame still
  * sitting in this phone's queue means the server has not heard about the last shot yet, and a
  * rule that reads exactly zero would refuse the guest who has just run out.
+ *
+ * Taking back is neither of those. It is undoing a gift, so it is bounded only by what was
+ * given and by what is still there to give back — a guest who changes their mind should not
+ * have to shoot their remaining film first, and if somebody else has already taken it, what
+ * is left is what they get. It stays offered when the host turns the switch off, because
+ * closing the door on giving must not trap film on the wrong side of it.
  */
 export function poolMoves(
-  roll: { photosPerGuest: number },
+  roll: { photosPerGuest: number; giveawayAllowed: boolean },
   guest: { fromPool: number; shotsLeft: number },
   pool: number,
-): { take: number; give: number } {
+): { take: number; give: number; back: number } {
   const allowance = roll.photosPerGuest + guest.fromPool;
   const keep = roll.photosPerGuest - half(roll.photosPerGuest);
   return {
     take: Math.max(0, Math.min(pool, half(roll.photosPerGuest) - guest.shotsLeft)),
-    give: Math.max(0, Math.min(guest.shotsLeft, allowance - keep)),
+    give: giveawayOffered(roll)
+      ? Math.max(0, Math.min(guest.shotsLeft, allowance - keep))
+      : 0,
+    // Net, so somebody who gave six and later drew twelve has given nothing back to reclaim.
+    back: Math.max(0, Math.min(pool, -guest.fromPool)),
   };
 }

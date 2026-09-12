@@ -8,6 +8,7 @@ import { cn } from "@/lib/cn";
 import { BetaGate } from "@/components/roll/BetaGate";
 import { Pill, StepButton } from "@/components/roll/Chrome";
 import { Dialog } from "@/components/roll/Dialog";
+import { GiveawayToggle } from "@/components/roll/GiveawayToggle";
 import { Google } from "@/components/roll/Icons";
 import { ShareLink } from "@/components/roll/ShareLink";
 import { Toggle } from "@/components/roll/Toggle";
@@ -235,6 +236,16 @@ export default function StepGuests() {
               onChange={(everyoneCanSee) => update({ everyoneCanSee })}
               labelOn={VISIBILITY_LABEL.on}
               labelOff={VISIBILITY_LABEL.off}
+            />
+          </div>
+
+          {/* Its own row under the same rule rather than its own section: both are one
+              question about what a guest is allowed to do with somebody else's roll. */}
+          <div className="mt-5">
+            <GiveawayToggle
+              on={draft.giveawayAllowed}
+              shots={SHOT_TIERS[draft.shotIndex]}
+              onChange={(giveawayAllowed) => update({ giveawayAllowed })}
             />
           </div>
         </div>

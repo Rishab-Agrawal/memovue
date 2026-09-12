@@ -29,6 +29,7 @@ export default async function SettingsPage({ params }: PageProps<"/rolls/[id]/se
         photosPerGuest={roll.photosPerGuest}
         guestCount={roll.guestCount}
         everyoneCanSee={roll.everyoneCanSee}
+        giveawayAllowed={roll.giveawayAllowed}
       />
     </div>
   );

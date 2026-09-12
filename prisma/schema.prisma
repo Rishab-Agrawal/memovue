@@ -98,6 +98,14 @@ model Roll {
   /// choice, and the wizard sends an explicit value either way.
   everyoneCanSee Boolean @default(true)
 
+  /// Whether guests may hand their own film to the shots pool.
+  ///
+  /// false, because it is the host's roll and the quiet guest who gives half their shots away
+  /// has no way of knowing they were about to be the one taking the photographs. Drawing from
+  /// the pool is unaffected either way: that film belongs to guests who never turned up, and
+  /// nobody chose to keep it.
+  giveawayAllowed Boolean @default(false)
+
   /// Capture runs startsAt..finishesAt. The reveal is a separate moment — which is the
   /// change from the previous model, where closing and revealing were one control.
   startsAt   DateTime

@@ -10,6 +10,7 @@ import {
   setRollSize,
   updateRollFinish,
   updateRollInfo,
+  updateRollGiveaway,
   updateRollReveal,
   updateRollStart,
   updateRollVisibility,
@@ -48,6 +49,19 @@ export async function setVisibilityAction(
   if (over) return over;
 
   await updateRollVisibility(rollId, user.id, everyoneCanSee);
+  revalidatePath(`/rolls/${rollId}`);
+  return { ok: true };
+}
+
+export async function setGiveawayAction(
+  rollId: string,
+  giveawayAllowed: boolean,
+): Promise<ActionResult> {
+  const user = await requireHost();
+  const over = overWriteBudget(user.id);
+  if (over) return over;
+
+  await updateRollGiveaway(rollId, user.id, giveawayAllowed);
   revalidatePath(`/rolls/${rollId}`);
   return { ok: true };
 }

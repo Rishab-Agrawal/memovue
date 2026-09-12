@@ -46,6 +46,7 @@ const rollFields = z.object({
       .refine((n) => shotCounts.includes(n) && shotsAvailable(n), "Pick how many shots each person gets"),
 
     everyoneCanSee: z.boolean(),
+    giveawayAllowed: z.boolean(),
     coverPreset: z.number().int().min(0).max(8),
 });
 
