@@ -99,7 +99,7 @@ export function InvitationScreen({
           disabled={!name.trim() || pending || scheduled}
           onClick={submit}
         >
-          {pending ? "One moment…" : "Take your camera →"}
+          {pending ? "One moment…" : "Join roll →"}
         </Pill>
       </InvitationCover>
     </div>

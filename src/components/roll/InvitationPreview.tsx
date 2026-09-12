@@ -52,7 +52,7 @@ export function InvitationPreview({
         </div>
         {/* A button rather than a dead link: there is nowhere for it to go from here. */}
         <Pill variant="light" full disabled>
-          Take your camera →
+          Join roll →
         </Pill>
       </InvitationCover>
 

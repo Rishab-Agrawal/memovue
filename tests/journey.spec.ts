@@ -377,7 +377,7 @@ test.describe("a roll from creation to reveal", () => {
 
     await page.goto(joinUrl);
     await page.getByPlaceholder("Enter your name").fill("Meera");
-    await page.getByRole("button", { name: /Take your camera/ }).click();
+    await page.getByRole("button", { name: /Join roll/ }).click();
 
     await expect(page).toHaveURL(/\/e\/[A-Z0-9]{6}$/);
     await expect(page.getByTestId("shots-left")).toBeVisible();
@@ -456,7 +456,7 @@ test.describe("a roll from creation to reveal", () => {
 
     await page.goto(joinUrl);
     await page.getByPlaceholder("Enter your name").fill("Meera");
-    await page.getByRole("button", { name: /Take your camera/ }).click();
+    await page.getByRole("button", { name: /Join roll/ }).click();
 
     await expect(page).toHaveURL(/\/e\/[A-Z0-9]{6}$/);
     // Their own film, not what the first Meera has left after shooting one.
@@ -484,7 +484,7 @@ test.describe("a roll from creation to reveal", () => {
 
     // Their own name is already in the box, because we know it.
     await expect(page.getByPlaceholder("Enter your name")).toHaveValue(TEST_GUEST.name);
-    await page.getByRole("button", { name: /Take your camera/ }).click();
+    await page.getByRole("button", { name: /Join roll/ }).click();
     await expect(page).toHaveURL(/\/e\/[A-Z0-9]{6}$/);
 
     // The banner offering an account has nothing left to offer someone who has one.

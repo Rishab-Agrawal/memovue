@@ -28,7 +28,7 @@ export const MIN_FILL_MS = 1_200;
  *
  * Not a speed test, deliberately — it asks whether the form rendered, not whether the guest
  * was quick about it. The form there is one field which arrives prefilled for anybody signed
- * in, so a guest genuinely can tap "Take your camera" the moment the page paints, and turning
+ * in, so a guest genuinely can tap "Join roll" the moment the page paints, and turning
  * them away is the worst thing this product can do to somebody. Any threshold above a
  * measurement is a threshold a real hand can fall under.
  *
