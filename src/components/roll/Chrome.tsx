@@ -62,8 +62,29 @@ export function BackButton({
   );
 }
 
-export function CloseButton({ href, label = "Close" }: { href: string; label?: string }) {
-  return <ChromeLink href={href} label={label} icon={<Close className="h-4 w-4" />} />;
+/**
+ * Closing is a navigation on the screens that are routes, and a state change on the one that
+ * is an overlay — the invitation preview, which the settings screen opens over itself so it
+ * can show the cover and title the host has picked but not yet saved. Same square either way.
+ */
+export function CloseButton({
+  href,
+  onClick,
+  label = "Close",
+}: {
+  href?: string;
+  onClick?: () => void;
+  label?: string;
+}) {
+  const icon = <Close className="h-4 w-4" />;
+
+  if (href) return <ChromeLink href={href} label={label} icon={icon} />;
+
+  return (
+    <button type="button" onClick={onClick} aria-label={label} className={chromeButton}>
+      {icon}
+    </button>
+  );
 }
 
 /** The other half of a roll's top row, so it matches the back button rather than resembling it. */

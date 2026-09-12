@@ -30,10 +30,9 @@ export async function createRollAction(
   /*
     The allowance is what says how many rolls this account may have; this says how fast.
 
-    They are not the same bound, because deleting a roll that has not started yet gives the
-    allowance back — so create-and-delete is free forever, and each pass writes a roll, walks
-    its objects out of R2 and refunds itself. The allowance never notices. An admin, who is
-    not on the list at all, is bounded by nothing else whatsoever.
+    They are not the same bound. The allowance hands one back for a roll deleted before its
+    start, so create-and-delete does not cost it anything until the refund cap stops it — and
+    an admin, who is not on the list at all, is bounded by nothing else whatsoever.
   */
   if (!rateLimit(`create-roll:${user.id}`, 20, 3_600).ok) {
     return { ok: false, error: "That's a lot of rolls at once. Try again shortly." };

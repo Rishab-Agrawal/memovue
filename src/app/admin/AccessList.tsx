@@ -18,9 +18,13 @@ interface AccessRow {
 /**
  * The beta list: an address, and how many rolls are left to it.
  *
+ * Most rows arrive on their own now — the first roll needs no permission, and spending it
+ * writes the row — so this is every account that has made anything, not only the ones typed
+ * in here. Adding an address already sitting at zero puts a roll back on it.
+ *
  * Zero and removed refuse the person identically — both land on the request form — but they
- * are different intentions, so both are here. Zero is somebody we let in who has spent what
- * they were given, one tap from being topped up. Removed is a row we would rather not keep.
+ * are different intentions, so both are here. Zero is somebody who has spent what they were
+ * given, one tap from being topped up. Removed is a row we would rather not keep.
  *
  * Removing asks first. The bin sits a thumb's width from the − that is safe to tap all day,
  * and an admin who meant to take one roll off somebody should not lose the row instead.

@@ -237,6 +237,9 @@ model DeletedRoll {
 /// Keyed on the email address rather than on a User row because access is granted before the
 /// person has ever signed in — an admin types an address in, and a User row only appears when
 /// Google hands one over. Always stored lower-cased, so this and `User.email` compare directly.
+///
+/// A row nobody typed in is the ordinary case now: the first roll needs no permission, and
+/// spending it writes the row every question after it is answered from.
 model BetaAccess {
   id    String @id @default(cuid())
   email String @unique
@@ -245,6 +248,10 @@ model BetaAccess {
   /// Zero is a live row that has run out, which looks the same to the person as never having
   /// been added — deliberately, so an admin tops someone up rather than re-adding them.
   rollsLeft Int @default(1)
+
+  /// How many give-backs this account has had. Capped in `beta.ts`, because an uncapped
+  /// refund is a free roll on tap: create, delete before the start, repeat.
+  refunds Int @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

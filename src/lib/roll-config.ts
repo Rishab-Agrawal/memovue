@@ -61,8 +61,15 @@ export function shotsAvailable(shots: number): boolean {
 /** Weddings get booked years ahead, so the window is generous. Settings can still move it. */
 export const START_MAX_YEARS = 2;
 
-/** A roll that runs longer than two months is a mistake, not a plan. */
-export const FINISH_MAX_MONTHS = 2;
+/**
+ * A roll that runs longer than a week is a mistake, not a plan.
+ *
+ * It used to be two months, which no real event is — and while we are in beta every day a
+ * roll stays open is a day we hold its photographs without knowing what any of this costs at
+ * scale. A week covers the longest thing anybody actually shoots as one roll: a wedding
+ * week, a trip, a festival.
+ */
+export const FINISH_MAX_DAYS = 7;
 
 /**
  * The shortest a roll may run.
@@ -104,7 +111,7 @@ export function finishDateRange(startsAt: Date): DateRange {
   const wall = toWall(startsAt);
   return {
     min: startOfWallDay(earliestFinish(startsAt)),
-    max: fromWall(wall.year, wall.month + FINISH_MAX_MONTHS, wall.day),
+    max: fromWall(wall.year, wall.month, wall.day + FINISH_MAX_DAYS),
   };
 }
 
@@ -117,7 +124,7 @@ export function isWithin(day: Date, range: DateRange): boolean {
  * A finish that still fits around its start, given one that may no longer.
  *
  * Editing the start after the finish can invalidate it from either end — moving it forward
- * past the finish, or back so far that the finish breaks the two-month ceiling. The wizard
+ * past the finish, or back so far that the finish breaks the one-week ceiling. The wizard
  * runs this whenever the start moves so the pair it carries is always a legal one, rather
  * than letting the host discover it on the last screen of six.
  */

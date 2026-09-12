@@ -14,14 +14,37 @@ import { prisma } from "./prisma";
  * they arrive with is the one already on the list.
  *
  * The gate stays on creating a roll rather than on holding an account, for the same reason it
- * always did — an account costs us nothing, a roll costs us storage.
+ * always did — an account costs us nothing, a roll costs us storage. What has moved is where
+ * it starts: the first roll is on the house, and the list is what the second one needs.
  */
 
 export class BetaAccessError extends Error {}
 
+/**
+ * The roll every account gets without asking for one.
+ *
+ * Signing in is signing in with Google, so an account is already a real address belonging to
+ * a real person — which is most of what the gate was ever buying us. What it cost was asking
+ * somebody to fill in a form and wait for a human before they had seen the product do
+ * anything at all. The second roll is where permission starts meaning something, because by
+ * then they know what they are asking for.
+ */
+const FREE_ROLLS = 1;
+
+/**
+ * How many times an account may delete an unstarted roll and have the allowance back.
+ *
+ * The refund is there so fixing a typo by starting over is not a penalty. Uncapped it is also
+ * a free roll on tap — create, delete before the start, repeat — which is exactly what the
+ * free roll would hand to anybody who noticed. Once is a mistake; twice is somebody finding
+ * out what the button does, and they can ask like everybody else.
+ */
+const MAX_REFUNDS = 1;
+
 /** What every refusal says. Shown in the dialog that offers the request form. */
 const NO_ACCESS =
-  "MemoVue is invite-only while we're in beta, and this account isn't on the list yet.";
+  "You've used the roll your account comes with. MemoVue is invite-only while we're in " +
+  "beta, so the next one needs us to let you in.";
 
 /** Only ever compared against a lower-cased `BetaAccess.email`. */
 function normalizeEmail(email: string): string {
@@ -55,7 +78,9 @@ async function rollsLeftFor(user: Account): Promise<number | null> {
     select: { rollsLeft: true },
   });
 
-  return access?.rollsLeft ?? 0;
+  // No row at all is an account that has never spent a roll, which is who the free one is
+  // for. Spending it writes the row, so this stands in for the allowance exactly once.
+  return access?.rollsLeft ?? FREE_ROLLS;
 }
 
 export async function canCreateRoll(user: Account): Promise<boolean> {
@@ -80,8 +105,22 @@ export async function spendRoll(
 ): Promise<void> {
   if (unlimited(user)) return;
 
+  const email = normalizeEmail(user.email);
+
+  /*
+    The free roll is granted rather than special-cased, so one counter still answers every
+    question and the decrement below is still the only thing that decides. `skipDuplicates` is
+    what makes that true under a double submit: whichever request inserts the row, both then
+    race for the same decrement and the database picks one. A row that already exists — spent,
+    topped up, or typed in by an admin — is left exactly as it is.
+  */
+  await tx.betaAccess.createMany({
+    data: [{ email, rollsLeft: FREE_ROLLS }],
+    skipDuplicates: true,
+  });
+
   const spent = await tx.betaAccess.updateMany({
-    where: { email: normalizeEmail(user.email), rollsLeft: { gt: 0 } },
+    where: { email, rollsLeft: { gt: 0 } },
     data: { rollsLeft: { decrement: 1 } },
   });
 
@@ -97,13 +136,17 @@ export async function spendRoll(
  * for access again because they fixed a typo by starting over is a penalty for no reason.
  * `updateMany` rather than `update` so an account with no allowance row — the admin, or
  * somebody whose access was withdrawn since — is a no-op instead of a throw.
+ *
+ * `MAX_REFUNDS` in the WHERE rather than a check above it, for the same reason the decrement
+ * puts its own condition there. A roll deleted after its start, after it closed, or by the
+ * nightly sweep never reaches here at all: that one was spent on what it was for.
  */
 export async function refundRoll(user: Account): Promise<void> {
   if (unlimited(user)) return;
 
   await prisma.betaAccess.updateMany({
-    where: { email: normalizeEmail(user.email) },
-    data: { rollsLeft: { increment: 1 } },
+    where: { email: normalizeEmail(user.email), refunds: { lt: MAX_REFUNDS } },
+    data: { rollsLeft: { increment: 1 }, refunds: { increment: 1 } },
   });
 }
 
@@ -114,19 +157,33 @@ export function listAccess() {
 }
 
 /**
- * Adds an address, or leaves an existing one alone.
+ * Adds an address, or puts one roll back on an address that has run out.
  *
  * Deliberately not "set to 1": re-typing an address that already has four rolls left should
  * not quietly take three of them away. Adjusting is what the counter is for.
  *
- * Returns whether the address is new to the list — the only case where somebody just got in.
+ * Returns whether somebody just got in — the only case worth emailing about.
+ *
+ * Not simply "is the address new". Every account that has spent its free roll leaves a row
+ * behind sitting at zero, so an address already on the list is the ordinary case rather than
+ * a slip, and skipping it would have meant an admin typing somebody in, seeing nothing
+ * happen, and having to find the same row and press +. Zero is let back in; rolls to spare
+ * are left alone, which is the part that was always deliberate.
  */
 export async function grantAccess(email: string): Promise<boolean> {
+  const address = normalizeEmail(email);
+
   const { count } = await prisma.betaAccess.createMany({
-    data: [{ email: normalizeEmail(email) }],
+    data: [{ email: address }],
     skipDuplicates: true,
   });
-  return count > 0;
+  if (count > 0) return true;
+
+  const topped = await prisma.betaAccess.updateMany({
+    where: { email: address, rollsLeft: 0 },
+    data: { rollsLeft: 1 },
+  });
+  return topped.count > 0;
 }
 
 /**

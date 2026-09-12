@@ -89,7 +89,7 @@ export function BetaGate({
       <Dialog
         open={open && !asking}
         onClose={close}
-        title="You don't have access yet"
+        title="You've used your first roll"
         actions={
           <>
             <Pill variant="quiet" full onClick={close}>
@@ -102,8 +102,9 @@ export function BetaGate({
         }
       >
         <p>
-          MemoVue is invite-only while we&rsquo;re in beta. Tell us about your event and
-          we&rsquo;ll open it up for this account.
+          Every account gets one roll on us, and beyond that MemoVue is invite-only while
+          we&rsquo;re in beta. Tell us about your event and we&rsquo;ll open up more for this
+          account.
         </p>
       </Dialog>
 

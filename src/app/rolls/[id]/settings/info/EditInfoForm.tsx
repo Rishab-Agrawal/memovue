@@ -3,9 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 
+import { Pill } from "@/components/roll/Chrome";
 import { CoverChoice } from "@/components/roll/CoverChoice";
 import { EditScreen } from "@/components/roll/EditScreen";
 import { Pencil } from "@/components/roll/Icons";
+import { InvitationPreview } from "@/components/roll/InvitationPreview";
 import { CoverError, prepareCover, removeCover, uploadCover } from "@/lib/cover-upload";
 
 import { updateInfoAction } from "../../actions";
@@ -15,11 +17,17 @@ export function EditInfoForm({
   name: initialName,
   coverPreset: initialCover,
   coverUrl: initialCoverUrl,
+  hostName,
+  finishesAt,
+  shots,
 }: {
   rollId: string;
   name: string;
   coverPreset: number;
   coverUrl: string | null;
+  hostName: string;
+  finishesAt: Date;
+  shots: number;
 }) {
   const router = useRouter();
   const [name, setName] = useState(initialName);
@@ -39,6 +47,15 @@ export function EditInfoForm({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [pending, startTransition] = useTransition();
+
+  /*
+    An overlay rather than a route of its own, unlike the wizard's.
+
+    The whole use of a preview here is judging a title and a cover the host has just changed
+    and not yet saved, and neither of those exists anywhere a route could read them — leaving
+    for one would show the invitation as it already is, which they can see on the roll.
+  */
+  const [previewing, setPreviewing] = useState(false);
 
   // Every object URL this screen mints, so none of them outlive it.
   const minted = useRef<string[]>([]);
@@ -138,9 +155,25 @@ export function EditInfoForm({
               setCover(preset);
               dropCover();
             }}
-          />
+          >
+            <Pill variant="light" full className="px-4" onClick={() => setPreviewing(true)}>
+              Preview invitation
+            </Pill>
+          </CoverChoice>
         </div>
       </div>
+
+      {previewing ? (
+        <InvitationPreview
+          coverIndex={cover}
+          coverUrl={previewUrl}
+          title={name}
+          hostName={hostName}
+          finishesAt={finishesAt}
+          shots={shots}
+          close={() => setPreviewing(false)}
+        />
+      ) : null}
     </EditScreen>
   );
 }

@@ -29,8 +29,8 @@ export default function TermsPage() {
 
       <h2>1. The service is in beta</h2>
       <p>
-        MemoVue is free while in beta, and creating a roll requires us to have allowed the email
-        address you sign in with. Beta means what it sounds like: features may change, and we
+        MemoVue is free while in beta. Every account may create one roll; beyond that we have to
+        have allowed the email address you sign in with. Beta means what it sounds like: features may change, and we
         cannot promise uninterrupted service. <strong>Please do not make MemoVue the only record of something
         irreplaceable.</strong>
       </p>

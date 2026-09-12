@@ -144,11 +144,19 @@ test.describe("scheduling limits", () => {
     expect(isWithin(fromWall(2026, 8, 12, 10, 0), range)).toBe(false);
   });
 
-  test("a roll may run for at most two months", () => {
+  test("a roll may run for at most a week", () => {
+    // 19 Sep, so the last legal close is 26 Sep and the day after it is not offered.
     const range = finishDateRange(fromWall(2026, 8, 19, 18, 0));
-    expect(isWithin(fromWall(2026, 9, 30, 18, 0), range)).toBe(true);
-    expect(isWithin(fromWall(2026, 10, 25, 18, 0), range)).toBe(false);
+    expect(isWithin(fromWall(2026, 8, 26, 18, 0), range)).toBe(true);
+    expect(isWithin(fromWall(2026, 8, 27, 18, 0), range)).toBe(false);
     expect(isWithin(fromWall(2026, 8, 18, 18, 0), range)).toBe(false);
+  });
+
+  test("a week that runs over the end of a month still counts in days", () => {
+    // 28 Sep + 7 is 5 Oct, which only comes out right if the month rolls over.
+    const range = finishDateRange(fromWall(2026, 8, 28, 18, 0));
+    expect(isWithin(fromWall(2026, 9, 5, 18, 0), range)).toBe(true);
+    expect(isWithin(fromWall(2026, 9, 6, 18, 0), range)).toBe(false);
   });
 
   test("a roll starting today is allowed", () => {
@@ -210,12 +218,12 @@ test.describe("the shortest a roll may run", () => {
     expect(clampFinish(startsAt, floor).getTime()).toBe(floor.getTime());
   });
 
-  test("moving the start back pulls a finish that overshoots two months", () => {
+  test("moving the start back pulls a finish that overshoots the week", () => {
     const finishesAt = fromWall(2026, 9, 30, 21, 0); // 30 Oct
     const startsAt = fromWall(2026, 7, 1, 9, 0); // moved back to 1 Aug
 
     // Pulled onto the last legal day, keeping the time of day that was chosen.
-    expect(formatDateTime(clampFinish(startsAt, finishesAt))).toBe("1 Oct 2026 at 9:00 pm");
+    expect(formatDateTime(clampFinish(startsAt, finishesAt))).toBe("8 Aug 2026 at 9:00 pm");
   });
 
   test("whatever clampFinish returns is something the wizard would accept", () => {
