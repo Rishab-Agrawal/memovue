@@ -18,8 +18,27 @@ const HOLD_MS = 600;
 const FLIGHT_MS = 420;
 const PHOTO_TIMEOUT_MS = 3000;
 
-/** `torch` is a real constraint on Android Chrome but isn't in the DOM typings yet. */
-const torch = (on: boolean) => ({ advanced: [{ torch: on }] }) as unknown as MediaTrackConstraints;
+/**
+ * The camera's own controls — `torch`, `zoom` — live in the optional half of the spec that
+ * the DOM typings haven't caught up with. Android Chrome honours both; Safari neither.
+ */
+type Hardware = { torch?: boolean; zoom?: number };
+const constrain = (settings: Hardware) => ({ advanced: [settings] }) as unknown as MediaTrackConstraints;
+type Capabilities = { torch?: boolean; zoom?: { min: number; max: number } };
+
+/**
+ * The two stops the zoom control offers, or nothing at all.
+ *
+ * `min` is the widest thing the camera has rather than 1×: it is 1 on most phones, 0.5 where
+ * there is an ultra-wide, and a handful of Android stacks report the whole scale in
+ * hundredths. In all three, 1× is the neutral value — never below 1, never above what the
+ * camera reports — and 2× is only offered when the camera can really reach it.
+ */
+export function zoomStops(range?: { min: number; max: number }) {
+  if (!range) return null;
+  const one = Math.max(1, range.min);
+  return range.max >= one * 2 ? { one, two: one * 2 } : null;
+}
 
 /**
  * A still from the camera's photo pipeline rather than a frame of video: the phone denoises
@@ -139,6 +158,9 @@ export function CameraView({
   const [attempt, setAttempt] = useState(0);
   const [torchOn, setTorchOn] = useState(false);
   const [hasTorch, setHasTorch] = useState(false);
+  /** The two zoom levels this lens can actually reach, in whatever units it reports. */
+  const [lens, setLens] = useState<{ one: number; two: number } | null>(null);
+  const [zoomed, setZoomed] = useState(false);
   const [phase, setPhase] = useState<Phase>("idle");
   /** A photograph still being taken behind the animation. See `capture`. */
   const [working, setWorking] = useState(false);
@@ -214,9 +236,20 @@ export function CameraView({
         }
 
         const track = stream.getVideoTracks()[0];
-        const capabilities = track.getCapabilities?.() as { torch?: boolean } | undefined;
+        const capabilities = track.getCapabilities?.() as Capabilities | undefined;
         setHasTorch(Boolean(capabilities?.torch));
         setTorchOn(false);
+
+        /*
+          Zoom, asked of the camera rather than done to the picture.
+
+          The alternative — scaling the frame up afterwards — is the one thing this must not
+          be: it enlarges pixels rather than gathering more of them, and hands the guest a
+          soft photograph of the same detail. Driving the track instead means the phone does
+          whatever its own camera app would, which on a multi-lens phone is to change lens.
+        */
+        setLens(zoomStops(capabilities?.zoom));
+        setZoomed(false);
         setPermission("live");
       } catch {
         if (!cancelled) setPermission("denied");
@@ -235,10 +268,22 @@ export function CameraView({
     if (!track) return;
     const next = !torchOn;
     try {
-      await track.applyConstraints(torch(next));
+      await track.applyConstraints(constrain({ torch: next }));
       setTorchOn(next);
     } catch {
       setHasTorch(false);
+    }
+  }
+
+  async function zoom(into: boolean) {
+    const track = streamRef.current?.getVideoTracks()[0];
+    if (!track || !lens || into === zoomed) return;
+    try {
+      await track.applyConstraints(constrain({ zoom: into ? lens.two : lens.one }));
+      setZoomed(into);
+    } catch {
+      // A control the camera declines is worse than no control: take it off the screen.
+      setLens(null);
     }
   }
 
@@ -315,7 +360,7 @@ export function CameraView({
       const track = streamRef.current?.getVideoTracks()[0];
       const photo = await takePhoto(track, video);
       // Taking a still switches the torch off on some Android phones; put it back.
-      if (torchOn) void track?.applyConstraints(torch(true)).catch(() => {});
+      if (torchOn) void track?.applyConstraints(constrain({ torch: true })).catch(() => {});
 
       onCaptured(
         await processCapture(
@@ -445,6 +490,32 @@ export function CameraView({
         >
           {torchOn ? <Flash className="h-6 w-6" /> : <FlashOff className="h-6 w-6" />}
         </button>
+
+        {/*
+          Two stops rather than a pinch. A pinch on a viewfinder is a continuous gesture
+          answered by an asynchronous constraint, so it lags the fingers and lands somewhere
+          nobody chose; and the phones this runs on have two lenses, not a continuum. Absent
+          entirely where the camera has no zoom to give — an iPhone, or a front camera —
+          rather than present and dead.
+        */}
+        {lens ? (
+          <div role="group" aria-label="Zoom" className="flex items-center gap-1">
+            {([false, true] as const).map((into) => (
+              <button
+                key={String(into)}
+                type="button"
+                aria-pressed={into === zoomed}
+                onClick={() => zoom(into)}
+                className={cn(
+                  "tabular h-9 w-9 rounded-full text-[13px] font-medium transition-colors duration-150",
+                  into === zoomed ? "bg-flame text-void" : "text-dust",
+                )}
+              >
+                {into ? "2×" : "1×"}
+              </button>
+            ))}
+          </div>
+        ) : null}
 
         <button
           type="button"
