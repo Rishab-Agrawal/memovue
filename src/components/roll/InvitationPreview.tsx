@@ -1,7 +1,7 @@
 "use client";
 
 import { CloseButton, Pill } from "@/components/roll/Chrome";
-import { InvitationCover } from "@/components/roll/InvitationCover";
+import { InvitationCover, JOIN_LABEL } from "@/components/roll/InvitationCover";
 import { formatCountdown } from "@/lib/format";
 import { useNow } from "@/lib/useNow";
 
@@ -52,7 +52,7 @@ export function InvitationPreview({
         </div>
         {/* A button rather than a dead link: there is nowhere for it to go from here. */}
         <Pill variant="light" full disabled>
-          Join roll →
+          {JOIN_LABEL}
         </Pill>
       </InvitationCover>
 

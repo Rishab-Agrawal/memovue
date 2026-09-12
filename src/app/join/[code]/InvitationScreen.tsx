@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 
 import { Pill } from "@/components/roll/Chrome";
 import { Pencil } from "@/components/roll/Icons";
-import { InvitationCover } from "@/components/roll/InvitationCover";
+import { InvitationCover, JOIN_LABEL } from "@/components/roll/InvitationCover";
 import { Honeypot, useFormAge } from "@/components/ui/Honeypot";
 import { formatDateTime } from "@/lib/format";
 import type { RollPhase } from "@/lib/roll-access";
@@ -99,7 +99,7 @@ export function InvitationScreen({
           disabled={!name.trim() || pending || scheduled}
           onClick={submit}
         >
-          {pending ? "One moment…" : "Join roll →"}
+          {pending ? "One moment…" : JOIN_LABEL}
         </Pill>
       </InvitationCover>
     </div>

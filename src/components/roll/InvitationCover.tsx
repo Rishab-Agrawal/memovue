@@ -10,6 +10,15 @@ import { Camera, Clock, Person } from "@/components/roll/Icons";
  * wizard's card step, full-screen as its preview, and for real on the guest landing — so it
  * is one component with a `mini` scale rather than three drifting copies.
  */
+
+/**
+ * The one control a guest presses, worded once.
+ *
+ * The preview exists to show the host exactly what a guest will meet, so a label typed into
+ * both screens is a promise that the two say the same thing — kept by hand until somebody
+ * edits one of them.
+ */
+export const JOIN_LABEL = "Join roll →";
 export function InvitationCover({
   coverIndex,
   coverUrl,
