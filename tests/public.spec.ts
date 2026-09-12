@@ -40,7 +40,9 @@ test.describe("public pages", () => {
       "href",
       "/new/name",
     );
-    await expect(page.getByRole("link", { name: /sample album/i })).toHaveAttribute(
+    // "Experience a sample roll" — the button says roll rather than album, because what it
+    // opens is the invitation, and the album is what that becomes.
+    await expect(page.getByRole("link", { name: /sample roll/i })).toHaveAttribute(
       "href",
       "/albums/sample/join",
     );
