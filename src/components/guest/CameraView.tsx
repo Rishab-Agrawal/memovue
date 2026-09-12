@@ -16,6 +16,8 @@ type Phase = "idle" | "flash" | "hold" | "fly";
 const FLASH_MS = 55;
 const HOLD_MS = 600;
 const FLIGHT_MS = 420;
+/** Frames the travel between stops is spread over. See `zoom`. */
+const ZOOM_STEPS = 10;
 const PHOTO_TIMEOUT_MS = 3000;
 
 /**
@@ -151,6 +153,8 @@ export function CameraView({
   const thumbRef = useRef<HTMLButtonElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  /** Which zoom travel owns the lens. See `zoom`. */
+  const travel = useRef(0);
 
   const [facing, setFacing] = useState<Facing>("environment");
   const [permission, setPermission] = useState<Permission>("idle");
@@ -168,6 +172,8 @@ export function CameraView({
   const [flight, setFlight] = useState<{ x: number; y: number; scale: number } | null>(null);
 
   const stop = useCallback(() => {
+    // Abandons any zoom still travelling: the track it was driving is about to end.
+    travel.current += 1;
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
   }, []);
@@ -275,15 +281,47 @@ export function CameraView({
     }
   }
 
+  /*
+    The travel between the two stops, rather than a cut.
+
+    A jump between stops is the one thing a camera never does, and doing it here made the
+    viewfinder look broken rather than zoomed. There is nothing to animate in CSS — scaling
+    the preview would be enlarging the very pixels this exists to avoid — so the ramp is real:
+    the lens is asked for a slightly longer focal length every frame it can manage one, and
+    what is on screen is a true frame at every step of it.
+
+    Geometric rather than linear, because a zoom is felt in stops. 1→1.5→2 is two thirds of
+    the way at the halfway mark and reads as a lurch that settles; 1→1.41→2 is even.
+
+    Counted in frames rather than milliseconds: every step waits for the one before it to be
+    painted, so the ramp is as long as the camera needs and never queues constraints behind a
+    lens that is still moving. `from` is read off the track rather than assumed, so a stop
+    pressed mid-travel carries on from where the lens actually is.
+  */
   async function zoom(into: boolean) {
     const track = streamRef.current?.getVideoTracks()[0];
     if (!track || !lens || into === zoomed) return;
+
+    // The ring moves now; the picture catches up over the next few frames.
+    setZoomed(into);
+
+    // Travel is motion, and somebody who has asked for less of it gets the stop itself.
+    const steps = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 1 : ZOOM_STEPS;
+
+    const to = into ? lens.two : lens.one;
+    const from = (track.getSettings() as { zoom?: number }).zoom || (into ? lens.one : lens.two);
+    const run = ++travel.current;
+
     try {
-      await track.applyConstraints(constrain({ zoom: into ? lens.two : lens.one }));
-      setZoomed(into);
+      for (let step = 1; step <= steps; step++) {
+        // A newer press, or the stream going away, owns the lens now.
+        if (travel.current !== run) return;
+        await track.applyConstraints(constrain({ zoom: from * (to / from) ** (step / steps) }));
+        if (step < steps) await painted();
+      }
     } catch {
       // A control the camera declines is worse than no control: take it off the screen.
-      setLens(null);
+      if (travel.current === run) setLens(null);
     }
   }
 
@@ -507,8 +545,8 @@ export function CameraView({
                 aria-pressed={into === zoomed}
                 onClick={() => zoom(into)}
                 className={cn(
-                  "tabular h-9 w-9 rounded-full text-[13px] font-medium transition-colors duration-150",
-                  into === zoomed ? "bg-flame text-void" : "text-dust",
+                  "tabular h-9 w-9 rounded-full border text-[13px] font-medium transition-colors duration-150",
+                  into === zoomed ? "border-chalk text-chalk" : "border-transparent text-dust",
                 )}
               >
                 {into ? "2×" : "1×"}
