@@ -44,8 +44,8 @@ export function shotsAvailable(shots: number): boolean {
 /** Weddings get booked years ahead, so the window is generous. Settings can still move it. */
 export const START_MAX_YEARS = 2;
 
-/** A roll that runs longer than a week is a mistake, not a plan. */
-export const FINISH_MAX_DAYS = 7;
+/** A roll that runs longer than a month is a mistake, not a plan. */
+export const FINISH_MAX_MONTHS = 1;
 
 /** The shortest a roll may run, so a finish picked on a separate clock cannot precede the start. */
 export const MIN_ROLL_MINUTES = 30;
@@ -77,7 +77,7 @@ export function finishDateRange(startsAt: Date): DateRange {
   const wall = toWall(startsAt);
   return {
     min: startOfWallDay(earliestFinish(startsAt)),
-    max: fromWall(wall.year, wall.month, wall.day + FINISH_MAX_DAYS),
+    max: fromWall(wall.year, wall.month + FINISH_MAX_MONTHS, wall.day),
   };
 }
 
@@ -187,30 +187,28 @@ export function giveawayOffered(roll: {
 /* ------------------------------------------------------- how often, and how soon */
 
 /**
- * The pool is shut for the first tenth of the event, capped at two refills for the first
- * quarter, and at ten for good after that — so the film reaches people who arrive later, not
- * whoever empties their camera while the room fills up.
+ * Measured from the roll's first shot to its close, the pool is shut for the first tenth,
+ * capped at two refills for the first quarter, and at ten for good after that — so the film
+ * reaches people who arrive later, not whoever empties their camera while the room fills up.
+ * The first shot rather than the start, because a start set hours early would spend the
+ * lockout on an empty room.
  */
 export const REFILL_LOCKOUT = 0.1;
 export const REFILL_EARLY = 0.25;
 export const REFILL_EARLY_MAX = 2;
 export const REFILL_MAX = 10;
 
-/** How far through its shooting window a roll is. Negative before it opens, past 1 after. */
-export function eventElapsed(roll: { startsAt: Date; finishesAt: Date }, now: Date): number {
-  const span = roll.finishesAt.getTime() - roll.startsAt.getTime();
-  // Only corrupt dates get here; "over" is the safe answer.
-  if (span <= 0) return 1;
-  return (now.getTime() - roll.startsAt.getTime()) / span;
-}
-
 /** Refills this guest has left, counting both the clock and everything they have taken. */
 export function refillsLeft(
-  roll: { startsAt: Date; finishesAt: Date },
+  roll: { firstShotAt: Date | null; finishesAt: Date },
   refills: number,
   now: Date,
 ): number {
-  const elapsed = eventElapsed(roll, now);
+  // Nobody has shot, so nobody has run out.
+  if (!roll.firstShotAt) return 0;
+  const span = roll.finishesAt.getTime() - roll.firstShotAt.getTime();
+  // Only corrupt dates make it non-positive; "over" is the safe answer.
+  const elapsed = span > 0 ? (now.getTime() - roll.firstShotAt.getTime()) / span : 1;
   if (elapsed < REFILL_LOCKOUT) return 0;
   if (elapsed < REFILL_EARLY) return Math.max(0, REFILL_EARLY_MAX - refills);
   return Math.max(0, REFILL_MAX - refills);
@@ -230,7 +228,7 @@ export function poolMoves(
   roll: {
     photosPerGuest: number;
     giveawayAllowed: boolean;
-    startsAt: Date;
+    firstShotAt: Date | null;
     finishesAt: Date;
   },
   guest: { fromPool: number; shotsLeft: number; refills: number },

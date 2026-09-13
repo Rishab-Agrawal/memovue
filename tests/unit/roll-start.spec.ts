@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { FINISH_MAX_DAYS, MIN_ROLL_MINUTES, movedStart } from "@/lib/roll-config";
+import { MIN_ROLL_MINUTES, movedStart } from "@/lib/roll-config";
 
 /**
  * Moving a roll's opening time, which is the one date change with something to lose.
@@ -49,14 +49,14 @@ test("the close comes along when the new start would crowd or outrun it", () => 
   expect(earlier?.finishesAt.getTime()).toBe(roll.finishesAt.getTime());
 });
 
-test("a finish left beyond the one-week ceiling is pulled back onto it", () => {
+test("a finish left beyond the one-month ceiling is pulled back onto it", () => {
   const long = { startsAt: roll.startsAt, finishesAt: new Date(now.getTime() + 70 * 24 * HOUR) };
   const moved = movedStart(long, new Date(now.getTime() + 2 * HOUR), now);
 
   expect(moved).not.toBeNull();
   // The ceiling is a wall-clock day, so the last legal instant is inside the day after it.
-  const week = (FINISH_MAX_DAYS + 1) * 24 * HOUR;
-  expect(moved!.finishesAt.getTime()).toBeLessThanOrEqual(moved!.startsAt.getTime() + week);
+  const month = 32 * 24 * HOUR;
+  expect(moved!.finishesAt.getTime()).toBeLessThanOrEqual(moved!.startsAt.getTime() + month);
   // And it keeps the time of day the host chose.
   expect(moved!.finishesAt.getUTCMinutes()).toBe(long.finishesAt.getUTCMinutes());
 });

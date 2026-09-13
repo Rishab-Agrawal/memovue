@@ -1,10 +1,12 @@
 import { nanoid } from "nanoid";
+import { after } from "next/server";
 
 import { getGuestContext } from "@/lib/guest-context";
 import { prisma } from "@/lib/prisma";
 import { limited } from "@/lib/ratelimit";
 import { visiblePhotoWhere } from "@/lib/roll-access";
 import { photoKey, presignUpload, publicUrl } from "@/lib/storage";
+import { notify } from "@/lib/telegram";
 import { photoInitSchema } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
@@ -55,6 +57,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
       status: "PENDING",
     },
   });
+
+  // The roll's first frame starts the pool's clock (see `refillsLeft`). Conditional, so only one phone wins.
+  if (!context.roll.firstShotAt) {
+    const { count } = await prisma.roll.updateMany({
+      where: { id: context.roll.id, firstShotAt: null },
+      data: { firstShotAt: new Date() },
+    });
+    if (count) {
+      after(() => notify("signals", `First shot — “${context.roll.name}” · ${context.roll.host.name}`));
+    }
+  }
 
   const [fullUrl, previewUrl] = await Promise.all([
     presignUpload(fullKey, "image/jpeg", parsed.data.fullBytes),

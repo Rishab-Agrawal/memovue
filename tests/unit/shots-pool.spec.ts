@@ -19,16 +19,16 @@ import {
  * not exist.
  */
 const HOUR = 3_600_000;
-const startsAt = new Date("2026-09-12T18:00:00Z");
-/** A ten-hour event, so a tenth is one hour and a quarter is two and a half. */
-const finishesAt = new Date(startsAt.getTime() + 10 * HOUR);
-const at = (hours: number) => new Date(startsAt.getTime() + hours * HOUR);
+const firstShotAt = new Date("2026-09-12T18:00:00Z");
+/** Ten hours from the first shot to the close, so a tenth is one hour and a quarter is two and a half. */
+const finishesAt = new Date(firstShotAt.getTime() + 10 * HOUR);
+const at = (hours: number) => new Date(firstShotAt.getTime() + hours * HOUR);
 
 const roll = {
   maxGuests: 10,
   photosPerGuest: 24,
   giveawayAllowed: true,
-  startsAt,
+  firstShotAt: firstShotAt as Date | null,
   finishesAt,
 };
 
@@ -95,10 +95,12 @@ test("taking tops a guest up to half an allowance, and never past the pool", () 
  * Somebody who empties their camera in the first twenty minutes of a wedding is shooting the
  * room filling up; the people the pool exists for have not arrived yet.
  */
-test("the pool is shut for a tenth of the event and thin for a quarter", () => {
-  // Before it opens, and through the first hour of ten: nothing at all.
-  expect(refillsLeft(roll, 0, at(-1))).toBe(0);
-  expect(refillsLeft(roll, 0, startsAt)).toBe(0);
+test("the pool is shut for a tenth of the time from first shot to close, and thin for a quarter", () => {
+  // Before anybody has shot, however late it is: nothing at all.
+  expect(refillsLeft({ ...roll, firstShotAt: null }, 0, at(9))).toBe(0);
+
+  // Through the first hour of ten after the first shot: still nothing.
+  expect(refillsLeft(roll, 0, firstShotAt)).toBe(0);
   expect(refillsLeft(roll, 0, at(0.99))).toBe(0);
 
   // From a tenth to a quarter: two, which is one whole allowance at half an allowance a go.

@@ -120,6 +120,7 @@ const rollSummary = {
   coverVersion: true,
   startsAt: true,
   finishesAt: true,
+  firstShotAt: true,
   revealAt: true,
   revealMode: true,
   revealDelayHours: true,

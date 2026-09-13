@@ -92,6 +92,9 @@ model Roll {
   startsAt   DateTime
   finishesAt DateTime
 
+  /// When the first frame was reserved. Starts the shots pool's clock. Written once.
+  firstShotAt DateTime?
+
   revealMode       RevealMode @default(AFTER)
   revealDelayHours Int        @default(0)
 

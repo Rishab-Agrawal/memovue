@@ -3,7 +3,6 @@ import { z } from "zod";
 import { UPLOAD_LIMITS } from "./constants";
 
 import {
-  FINISH_MAX_DAYS,
   MAX_DELAY_HOURS,
   MIN_DELAY_HOURS,
   MIN_ROLL_MINUTES,
@@ -71,7 +70,7 @@ export const createRollSchema = rollFields.superRefine((data, ctx) => {
       ctx.addIssue({
         code: "custom",
         path: ["finishesAt"],
-        message: `A roll can run for at most ${FINISH_MAX_DAYS} days`,
+        message: "A roll can run for at most a month",
       });
     }
 
