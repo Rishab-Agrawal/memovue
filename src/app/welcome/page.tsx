@@ -19,23 +19,11 @@ const MESSAGES: Record<string, string> = {
 };
 
 /**
- * The front door, which is no longer a sign-in screen.
- *
- * It used to be one: a full-width "Continue with Google" and nothing else to do. People who
- * had come to look at a product were asked for an account before they had seen it, and a
- * good many of them simply left. So the three things you can do here are the three things
- * the product is — make a roll, shoot one, join one — and none of them need an account to
- * start. The account is asked for at the Create button, which is the first moment it buys
- * anything, and returning hosts get the small door in the corner.
+ * The front door: create, try the sample, or join — none needing an account up front. Sign-in
+ * is asked for at Create; returning hosts use the button in the corner.
  */
 export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
-  /*
-    Someone already signed in has no business on the sign-in screen.
-
-    Reaching it while signed in reads as having been signed out — which is exactly what
-    happened to anyone who tapped Join from their home screen and then pressed back, since
-    this page sat behind that button and offers nothing but "Continue with Google".
-  */
+  // Signed in already: landing here would look like being signed out.
   if (await getCurrentUser()) redirect("/rolls");
 
   const params = await searchParams;
@@ -43,10 +31,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
 
   return (
     <div className="flex min-h-dvh flex-col px-6 py-6">
-      {/*
-        A plain anchor, not a Link: this hands off to a route handler that redirects to
-        Google, and a client-side navigation has nowhere to go.
-      */}
+      {/* A plain anchor: a route handler that redirects to Google. */}
       <a
         href="/api/auth/google/start"
         className="ml-auto inline-flex h-10 items-center gap-2 rounded-full border border-hair-bright bg-surface px-4 text-[14px] font-medium whitespace-nowrap text-chalk transition-[color,background-color,scale] duration-150 hover:text-flame active:scale-[0.97]"
@@ -71,8 +56,7 @@ export default async function Welcome({ searchParams }: PageProps<"/welcome">) {
           Create a roll
         </PillLink>
 
-        {/* Where a guest starts, not where the album ends: the invitation, then the camera,
-            then the album — the whole of what somebody is handed at an event, in order. */}
+        {/* Starts at the invitation, as a real guest would. */}
         <PillLink href={`${SAMPLE_ALBUM.href}/join`} variant="quiet" full>
           Experience a sample roll
         </PillLink>

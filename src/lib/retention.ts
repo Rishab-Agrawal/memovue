@@ -9,37 +9,18 @@ import { ABANDONED_UPLOAD_DAYS, retentionAction, WARN_BEFORE_DAYS } from "./roll
 import { deleteObjects, legacyZipKey, storageConfigured, zipKey } from "./storage";
 
 /**
- * Making the date on a roll mean something.
+ * Enforces `keptUntil`. One daily pass warns a host a week before, then purges.
  *
- * Every roll has carried a `keptUntil` since it was created, and both the host screen and
- * every guest album print it as "Photos available until…". Nothing enforced it: no roll was
- * ever deleted, every photograph any guest ever took was still sitting in the bucket, and the
- * date was a label rather than a rule. The schema was built for this job — `keptUntil` is
- * indexed and `warnedAt` has been waiting on the model — it just was never written.
- *
- * Two things happen here, both driven by one daily pass:
- *
- *   - a roll a week from its date gets its host emailed, once, recorded by `warnedAt`
- *   - a roll past its date is purged, bytes first
- *
- * Ordering inside a purge is the part worth being careful about. R2 objects go before the
- * database row, because a failure halfway leaves the roll still listed and the next night
- * tries again. Deleting the row first and then failing would strand the objects with nothing
- * left anywhere that knows their keys.
+ * Bytes always go before rows: a failure halfway leaves the row to retry tomorrow, rather than
+ * objects nothing knows the keys of.
  */
 
 const DAY = 86_400_000;
 
 /**
- * Removes a roll and everything it owns, from the bucket as well as the database.
- *
- * Also the fix for a leak that predates the sweep: deleting a roll by hand cleaned up its
- * cover and left every photograph in it behind, and deleting an account did not touch storage
- * at all — while both documents told people we remove the image files. Every path that
- * destroys a roll goes through here now.
- *
- * Cascades take care of guests and photos once the roll goes. What stays is a `DeletedRoll`,
- * written in the same transaction as the delete so a roll can never go without one.
+ * Removes a roll and everything it owns, from the bucket and the database. Every path that
+ * destroys a roll goes through here. Guests and photos cascade; a `DeletedRoll` summary is
+ * written in the same transaction.
  */
 export async function purgeRoll(rollId: string, deletedBy: DeletedBy): Promise<void> {
   const roll = await prisma.roll.findUniqueOrThrow({
@@ -55,29 +36,14 @@ export async function purgeRoll(rollId: string, deletedBy: DeletedBy): Promise<v
 
     const keys = [
       ...photos.flatMap((photo) => [photo.fullKey, photo.previewKey]),
-      /*
-        The cover as it was actually written, not as this process would write it.
-
-        It used to be recomputed from the roll id, and `storage.ts` builds every key under a
-        prefix chosen by NODE_ENV — `events` in production, `dev` everywhere else. That is
-        only safe while one database is only ever reached by one of those, which was not
-        true: a roll created against the shared database from a laptop stored its cover at
-        `dev/covers/…`, and the production sweep asked the bucket to delete
-        `events/covers/…`. The object survived its own roll's deletion, invisible to
-        everything that could have found it again, and billed for as long as the bucket
-        lives. The column has been there since the first migration.
-      */
+      // The stored key, not a recomputed one: a roll made from another environment has another prefix.
       ...(roll.coverKey ? [roll.coverKey] : []),
-      // The archive stays derived — it is a pure function of the roll, most rolls never have
-      // one, and deleting a key that was never written is free. Both spellings, because a
-      // roll may carry one built before the key became a capability, and photographs must not
-      // outlive the roll they were taken on.
+      // Both archive spellings; deleting a key that was never written is free.
       zipKey(rollId),
       legacyZipKey(rollId),
     ];
 
-    // Deliberately unguarded. If the bucket call throws, the row survives and tonight's pass
-    // simply has one more roll to do than it managed.
+    // Unguarded: if this throws, the row survives and the next pass retries.
     await deleteObjects(keys);
   }
 
@@ -95,26 +61,15 @@ export async function purgeRoll(rollId: string, deletedBy: DeletedBy): Promise<v
   ]);
 }
 
-/**
- * Every roll the given account owns, bytes included. Used when an account is deleted — whose
- * user row goes a line later and takes these `DeletedRoll`s with it, by cascade.
- */
+/** Every roll an account owns, bytes included. Used when the account is deleted. */
 export async function purgeRollsOfHost(hostId: string): Promise<void> {
   const rolls = await prisma.roll.findMany({ where: { hostId }, select: { id: true } });
   for (const roll of rolls) await purgeRoll(roll.id, "HOST");
 }
 
 /**
- * Reservations nobody is ever coming back for.
- *
- * A `PENDING` row spends its guest's shot the moment it is written, and nothing has ever
- * taken one back — the schema said so out loud, and the index it needed was already there.
- * The queue releases its own the instant it decides a photograph will never land; this is for
- * the client that simply never runs again, whose guest is otherwise short a shot for the life
- * of the roll and whose half-uploaded bytes sit in the bucket unnamed by any row.
- *
- * Bytes first, as everywhere else here: a throw leaves the rows behind and tomorrow retries,
- * rather than stranding objects nothing knows the keys of.
+ * Reservations nobody is coming back for. The queue releases its own; this is for clients that
+ * never run again, whose guest would otherwise be a shot short for the life of the roll.
  */
 async function purgeAbandonedUploads(now: Date): Promise<number> {
   const stale = await prisma.photo.findMany({
@@ -143,10 +98,8 @@ interface RetentionReport {
 }
 
 /**
- * One pass. Safe to run twice in a night and safe to miss a night.
- *
- * The query reaches a week past the horizon so warnings and purges come out of the same
- * indexed read, and `retentionAction` sorts out which is which.
+ * One pass. Safe to run twice in a night and safe to miss a night. One indexed read reaches a
+ * week past today, and `retentionAction` sorts warnings from purges.
  */
 export async function runRetention(now: Date = new Date()): Promise<RetentionReport> {
   const rolls = await prisma.roll.findMany({
@@ -163,8 +116,7 @@ export async function runRetention(now: Date = new Date()): Promise<RetentionRep
 
   const report: RetentionReport = { purged: [], warned: [], released: 0, failed: [] };
 
-  // Before the rolls, so a reservation inside one that is about to be purged is not counted
-  // twice. Its own try/catch for the same reason every roll below has one.
+  // Before the rolls, so a reservation in a roll about to be purged is not counted twice.
   try {
     report.released = await purgeAbandonedUploads(now);
   } catch (error) {
@@ -184,8 +136,6 @@ export async function runRetention(now: Date = new Date()): Promise<RetentionRep
 
         case "warn":
           await sendDeletionNotice(roll.host.email, roll.name, roll.keptUntil);
-          // After the send, so a failed email is retried tomorrow rather than swallowed.
-          // `sendDeletionNotice` never throws, though, so this is belt and braces.
           await prisma.roll.update({ where: { id: roll.id }, data: { warnedAt: now } });
           report.warned.push(roll.id);
           break;

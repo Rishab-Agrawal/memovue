@@ -24,16 +24,8 @@ export interface ViewerPhoto {
 const RUBBER = 0.35;
 
 /**
- * One photograph, full screen, with the rest of the roll either side of it.
- *
- * It used to take a single photo and show it, which meant leaving and re-entering for every
- * frame — on a screen whose entire purpose is looking through an album. It now holds the list
- * and moves within it.
- *
- * The drag is a real gesture rather than a tap target: the strip follows the finger, a flick
- * is projected forward the way iOS projects one, and the hand-off from drag to animation
- * carries the velocity across so there is no stall at the moment you let go. `spring.ts` was
- * written for exactly this and had no callers until now.
+ * One photograph full screen, swipeable through the rest of the roll. The strip follows the
+ * finger, and a flick carries its velocity into the spring (see `spring.ts`).
  */
 export function PhotoViewer({
   photos,
@@ -44,18 +36,13 @@ export function PhotoViewer({
   photos: ViewerPhoto[];
   startIndex: number;
   onClose: () => void;
-  /**
-   * Takes this photograph out of the album. Given only to the host, who is the person a
-   * subject actually asks and the only one here without a shot quota to game.
-   */
+  /** Takes this photograph out of the album. Given only to the host. */
   onDelete?: (photo: ViewerPhoto) => Promise<void>;
 }) {
   const [index, setIndex] = useState(startIndex);
   /*
-    The frame on screen is followed by id, not by number. A live wall takes new photographs at
-    its head while one is open, and an index held still would slide somebody else's under the
-    reader's thumb. Adjusted during render rather than in an effect, so the wrong frame is
-    never painted first.
+    The frame on screen is followed by id, not index: a live wall adds photos at its head while
+    one is open. Adjusted during render so the wrong frame is never painted.
   */
   const [seen, setSeen] = useState(photos);
   if (seen !== photos) {
@@ -71,8 +58,7 @@ export function PhotoViewer({
 
   const trackRef = useRef<HTMLDivElement>(null);
   const animation = useRef<ReturnType<typeof spring> | null>(null);
-  /* The live gesture, kept out of state: `dx` has to be exact at the moment of release, and
-     a flick can outrun a render. `id` is the one finger that owns it. */
+  /* The live gesture, kept out of state so `dx` is exact at release. `id` is the owning finger. */
   const drag = useRef<{
     id: number;
     startX: number;
@@ -93,14 +79,9 @@ export function PhotoViewer({
   useOverlay(onClose);
 
   /**
-   * Moves `delta` frames, from wherever the strip is at `at` and at whatever speed.
-   *
-   * The frame change is committed here and now, and the strip rebased around it so that not
-   * one pixel moves — rather than committed when the spring comes to rest. A settling spring
-   * is interruptible by construction: the next gesture stops it mid-flight, and the rest that
-   * would have committed the frame then never arrives. So a swipe taken before the last one
-   * landed was measured from the frame the reader had already left, sent back to it, and a
-   * fast hand ping-ponged between two photographs without ever reaching the third.
+   * Moves `delta` frames from wherever the strip is. The index is committed now and the strip
+   * rebased around it, not when the spring rests — an interrupted spring would otherwise never
+   * commit, and fast swipes would bounce between two frames.
    */
   const shift = useCallback((delta: number, at: number, velocity: number) => {
     animation.current?.stop();
@@ -122,19 +103,10 @@ export function PhotoViewer({
   );
 
   /*
-    Back closes the viewer rather than leaving the roll — the layer that was opened is the
-    layer the gesture should take away. One dummy entry while it is open, taken away again on
-    the way out so that leaving by the ✕ does not cost the reader a wasted press of Back.
+    Back closes the viewer: one history entry while it is open, removed on the way out.
 
-    Both halves are written to survive being torn down and rebuilt, because they were not.
-    The effect used to depend on `onClose`, which in the guest album is a fresh closure every
-    twenty seconds off the feed poll; and React's development double-invoke does the same
-    thing once, immediately. Either way the cleanup's `back()` — which is asynchronous —
-    landed after the rebuild and closed the photograph that had just been opened. In
-    development that meant the viewer could not be opened at all.
-
-    So: push only when we are not already standing on the entry, and defer the `back()` far
-    enough to see whether anybody still wants it.
+    Written to survive being torn down and rebuilt (StrictMode, or a parent re-rendering): push
+    only when not already on the entry, and defer the `back()` to see if the viewer came back.
   */
   useEffect(() => {
     live.current = true;
@@ -151,8 +123,6 @@ export function PhotoViewer({
     };
   }, []);
 
-  // Arrow keys, because this is a web page and half the people looking at a wedding album
-  // afterwards are doing it on a laptop.
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (event.key === "ArrowLeft") go(-1);
@@ -163,13 +133,10 @@ export function PhotoViewer({
   }, [go]);
 
   function onPointerDown(event: React.PointerEvent<HTMLDivElement>) {
-    // One finger owns the gesture. A second landing mid-swipe would restart the drag from
-    // its own position, which is a jump rather than a swipe. `isPrimary` rather than "a drag
-    // is already open", so a release we somehow never heard cannot lock the viewer shut.
+    // One finger owns the gesture; a second would restart the drag with a jump.
     if (!event.isPrimary) return;
 
-    // Take over a settling spring from where it actually is, so the strip stays under the
-    // finger instead of snapping back to the frame it was in the middle of leaving.
+    // Take over a settling spring from where it actually is.
     const at = animation.current?.value() ?? 0;
     animation.current?.stop();
     drag.current = {
@@ -178,8 +145,7 @@ export function PhotoViewer({
       dx: at,
       samples: [{ v: event.clientX, t: performance.now() }],
     };
-    // The track rather than the photograph under the finger: the track is always mounted, so
-    // the release is delivered here even once the finger has left the frame it started on.
+    // The track is always mounted, so the release arrives here even off the starting frame.
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 
@@ -188,8 +154,6 @@ export function PhotoViewer({
     if (!state || event.pointerId !== state.id) return;
 
     let dx = event.clientX - state.startX;
-    // Nothing to move towards at either end, so the strip resists instead of sliding into
-    // blank space — the same tell a phone gives you when a list is already at the top.
     const atStart = index === 0 && dx > 0;
     const atEnd = index === photos.length - 1 && dx < 0;
     if (atStart || atEnd) dx *= RUBBER;
@@ -215,20 +179,8 @@ export function PhotoViewer({
   }
 
   /**
-   * Saving, without leaving the cached domain.
-   *
-   * This used to open a route that redirected to a signed URL carrying a
-   * `Content-Disposition` — the only way to make a browser save a file rather than display
-   * it, and a signed URL is uncacheable by construction. So the one photograph everybody at
-   * the wedding wants was fetched from the bucket once per guest.
-   *
-   * Reading it into a blob puts the filename in our hands instead of in a header, which
-   * means the bytes can come from the same cached URL the viewer is already showing — very
-   * often out of the browser's own cache, with no request at all. The bucket allows this
-   * origin, which is why the cross-origin read is permitted.
-   *
-   * The fallback matters more than the happy path: if the fetch is refused for any reason,
-   * opening the picture is still better than a button that does nothing.
+   * Saves via a blob, so the bytes come from the cached URL already on screen and we name the
+   * file ourselves. If the fetch is refused, opening the picture beats a dead button.
    */
   async function save(target: ViewerPhoto) {
     if (saving) return;
@@ -244,8 +196,7 @@ export function PhotoViewer({
       document.body.append(link);
       link.click();
       link.remove();
-      // Not immediately: Firefox has historically dropped the download if the object URL is
-      // revoked in the same tick as the click.
+      // Not immediately: Firefox can drop the download if revoked in the same tick.
       setTimeout(() => URL.revokeObjectURL(href), 10_000);
     } catch {
       window.open(target.src, "_blank");
@@ -254,14 +205,7 @@ export function PhotoViewer({
     }
   }
 
-  /**
-   * The link rather than the file.
-   *
-   * The photograph is already being read from the cached domain, so the same URL handed to
-   * somebody outside the roll is served from the edge and costs us nothing beyond the first
-   * read. Sharing the picture and sharing the bytes would be the same thing at a much higher
-   * price.
-   */
+  /** Shares the cached URL rather than the file: served from the edge, it costs nothing. */
   async function share(target: ViewerPhoto) {
     if ((await shareOrCopy({ url: target.src })) !== "copied") return;
     setCopied(true);
@@ -271,22 +215,10 @@ export function PhotoViewer({
   const photo = photos[index];
   if (!photo) return null;
 
-  // Only the neighbours are mounted. An album can hold hundreds of frames and none of the
-  // others are one gesture away from being seen.
+  // Only the neighbours are mounted.
   const window_ = [index - 1, index, index + 1].filter((i) => i >= 0 && i < photos.length);
 
-  /*
-    Portalled to the body rather than left where it was opened from.
-
-    Both walls render this inside the stack that holds the grid, and those stacks are
-    `space-y-4` — which puts a 16px bottom margin on every child but the last. A margin on a
-    `fixed inset-0` element shortens it, so the overlay stopped 16px above the bottom of the
-    screen and left a strip of the album showing underneath a photograph that is meant to be
-    the whole screen. Out here nothing a parent does to its children can reach it, including
-    a transform, which would break `fixed` far more thoroughly than a margin.
-
-    No SSR guard: every call site mounts this from a click, so there is always a document.
-  */
+  // Portalled, so no parent margin or transform can shorten or break the `fixed` overlay.
   return createPortal(
     <div className="fixed inset-0 z-50 flex flex-col bg-void">
       <header className="flex items-start justify-between gap-4 px-5 pt-[calc(var(--safe-top)+1.25rem)]">
@@ -337,8 +269,7 @@ export function PhotoViewer({
         ))}
       </div>
 
-      {/* A grid rather than a row, so Save sits in the middle of the bar whether or not the
-          host's Remove is there to balance it: two columns for a guest, three for the host. */}
+      {/* A grid, so Save stays centred with or without the host's Remove. */}
       <div
         className={`grid ${onDelete ? "grid-cols-3" : "grid-cols-2"} justify-items-center px-5 pt-4 pb-[calc(var(--safe-bottom)+2rem)]`}
       >
@@ -366,10 +297,6 @@ export function PhotoViewer({
           {saving ? "Saving…" : "Save"}
         </Pill>
 
-        {/* The viewer is a stacking context of its own, so the box lands over the photograph
-            rather than behind it. It used to be the browser's own confirm on the grounds that
-            a second overlay was not worth unwinding — but the one screen in the product where
-            a picture is the entire frame is the last place to hand somebody a system font. */}
         {onDelete ? (
           <Pill
             variant="quiet"

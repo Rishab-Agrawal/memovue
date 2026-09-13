@@ -3,18 +3,8 @@ import { cn } from "@/lib/cn";
 import type { Stock } from "@/lib/imagery";
 
 /**
- * One photograph-shaped thing.
- *
- * It draws in two modes, and the difference matters. Given a `photo` it shows that
- * photograph — the covers a host can pick from, and the sample frames the marketing page and
- * the wizard use to demonstrate the reveal. Given only an `index` it draws a wash: a
- * deliberate stand-in for a picture that exists but which nobody is allowed to see yet, which
- * is what the host's own roll grid shows before the reveal. Putting stock photography there
- * would tell a host their guests' pictures had loaded when they had not.
- *
- * Each wash also carries three hard-edged forms. Without them `sealed` was nearly invisible —
- * blurring something already soft changes almost nothing — and the single mechanic the whole
- * product rests on could not be seen. A real photograph needs no such help, so it gets none.
+ * One photograph-shaped thing: a stock `photo`, or given only an `index`, an abstract wash.
+ * A wash carries three hard-edged forms so that blurring it (`sealed`) is visible.
  */
 const WASHES = [
   "radial-gradient(120% 100% at 30% 25%, #6b3d12, #1a1108 70%)",
@@ -56,14 +46,8 @@ export function Plate({
   className?: string;
   sealed?: boolean;
 }) {
-  /*
-    When sealed, the blur sits on an oversized inner layer rather than on the plate itself, so
-    the haze has material to pull from at the edges instead of fading to the background — a
-    plate blurred directly reads as a soft rectangle, not as a photograph you can't see yet.
-
-    Only when sealed. Overscanning a sharp picture just crops it, and at the size of a cover
-    thumbnail — 58px wide — a 24px bleed on each side throws away most of the frame.
-  */
+  // Sealed blurs an oversized inner layer, so the edges stay hazy rather than fading out.
+  // Only when sealed: overscanning a sharp thumbnail just crops it.
   const wash = photo ? photo.wash : WASHES[index % WASHES.length];
 
   return (
@@ -71,8 +55,7 @@ export function Plate({
       <div
         className={cn("absolute bg-cover bg-center", sealed ? "-inset-6" : "inset-0")}
         style={{
-          // Two layers. CSS skips a background layer whose URL fails to load, so the wash
-          // below it is what shows if the JPEG isn't there.
+          // A layer that fails to load is skipped, leaving the wash.
           backgroundImage: photo ? `url("${photo.src}"), ${wash}` : wash,
           filter: sealed ? "blur(16px) saturate(0.55)" : undefined,
         }}

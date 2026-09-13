@@ -7,18 +7,8 @@ import { BackButton, Pill } from "@/components/roll/Chrome";
 import { Dialog } from "@/components/roll/Dialog";
 
 /**
- * The one question this product ever stops to ask, drawn the way the rest of it is.
- *
- * There were eight `window.confirm` calls scattered across the wizard, the settings forms and
- * the photo viewer — the only chrome in MemoVue drawn by somebody else. A native confirm uses
- * the system font, the system buttons and the browser's own words for Cancel, so the moment a
- * host is asked whether to throw away five steps of work is the moment the app stops looking
- * like itself. It also cannot say which of the two answers is the destructive one.
- *
- * A hook rather than a component because `window.confirm` was synchronous and these are not:
- * the caller keeps its handler and hands over what to do if the answer is yes, and renders
- * `dialog` wherever it likes. Two of the call sites are `onNavigate` handlers that cancel a
- * link and re-issue it on confirmation, which is exactly this shape.
+ * An in-app confirm, in place of `window.confirm`. A hook: call `confirm` with what to do on yes,
+ * and render the returned `dialog` wherever you like.
  */
 interface Question {
   title: string;
@@ -49,8 +39,7 @@ export function useConfirm(): [(question: Question) => void, ReactNode] {
             variant={asking?.danger ? "quiet" : "flame"}
             className={asking?.danger ? "bg-danger text-void hover:bg-danger" : undefined}
             onClick={() => {
-              // Read before closing: clearing the question is what unmounts the box, and the
-              // callback belongs to the question rather than to the box.
+              // Read before clearing, which unmounts the box.
               const go = asking?.onConfirm;
               setAsking(null);
               go?.();
@@ -68,13 +57,7 @@ export function useConfirm(): [(question: Question) => void, ReactNode] {
   return [setAsking, dialog];
 }
 
-/**
- * Backing out of an edit screen that has unsaved changes.
- *
- * All four settings forms asked the same question in the same place with the same words, and
- * a fifth would have copied it again. The link stays a real link — a clean form leaves without
- * a word, and a modifier-click still opens the settings sheet in a new tab.
- */
+/** Back out of an edit screen, confirming only when there are unsaved changes. */
 export function EditBackButton({ href, dirty }: { href: string; dirty: boolean }) {
   const router = useRouter();
   const [confirm, dialog] = useConfirm();

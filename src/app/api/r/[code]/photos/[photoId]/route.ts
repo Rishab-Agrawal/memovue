@@ -11,27 +11,14 @@ import { photoConfirmSchema, photoResignSchema } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
 
-/**
- * One budget across all three verbs, because they are one piece of work.
- *
- * The queue drains a photograph at a time — re-sign, upload, confirm — so what this bounds is
- * how fast a guest can march through their reservations, not how many times they may use one
- * particular method. That matters most for the confirm, which is the only route in the app
- * that asks R2 about an object, twice, on somebody else's schedule.
- *
- * Ninety a minute sits comfortably above the forty reservations a minute the route next door
- * allows, so a queue running flat out is never refused by this.
- */
+/** One budget across all three verbs, set above the reserve route's so a full queue never trips it. */
 function overBudget(guestId: string): Response | null {
   return limited(`photo:${guestId}`, 90, 60);
 }
 
 /**
- * Re-signs upload URLs for a shot that's already reserved.
- *
- * Upload URLs expire in ten minutes, and a phone that loses signal at a wedding can
- * easily be offline longer than that. Retrying through here reuses the existing
- * reservation instead of burning a second shot on the same photo.
+ * Re-signs upload URLs for a shot that is already reserved. URLs expire in ten minutes, and a
+ * phone can be offline longer; this reuses the reservation instead of spending a second shot.
  */
 export async function PUT(
   request: Request,
@@ -45,8 +32,6 @@ export async function PUT(
   const over = overBudget(context.guest.id);
   if (over) return over;
 
-  // The lengths again, because a presigned PUT pins one exact size and the retry is for the
-  // same two blobs. The queue still holds them, so it can say.
   const body = await request.json().catch(() => null);
   const parsed = photoResignSchema.safeParse(body);
   if (!parsed.success) return Response.json({ error: "bad_request" }, { status: 400 });
@@ -95,19 +80,8 @@ export async function POST(
   if (photo.status === "READY") return Response.json({ ok: true });
 
   /*
-    The ceiling, measured after the fact — a backstop now rather than the rule.
-
-    The rule moved to where the bytes arrive: the upload URL is signed for one exact length,
-    so R2 refuses a body of any other size and there is nothing left for this to catch. It
-    stays because it is two HEADs against a bucket, it is the only thing that would notice if
-    the signing ever quietly stopped pinning the length, and this is a path that costs money
-    when it is wrong. `bytes` in the request body is still only a claim, which is why R2's
-    number is preferred below.
-
-    Over the cap, the objects go back out: leaving them would bill us for storage on a
-    photograph the album will never show. This is also the reason there is no re-encode step
-    on the server — the resize already happened on the device that took the shot, which is
-    both cheaper and the only place the full-resolution frame ever exists.
+    A backstop: the signed URL already pins the exact length. This notices if signing ever
+    stopped doing so, and deletes oversized objects rather than paying to store them.
   */
   const measured = storageConfigured
     ? await Promise.all([headObject(photo.fullKey), headObject(photo.previewKey)])
@@ -128,8 +102,6 @@ export async function POST(
       // R2's number when we have it, the claim only as a fallback.
       bytes: measured[0]?.bytes ?? parsed.data.bytes,
       blurData: parsed.data.blurData,
-      // Left alone when the client did not send one: the row's reservation-time default is
-      // the older, worse answer, but it is still an answer.
       ...(parsed.data.takenAt
         ? { takenAt: takenAtWithin(new Date(parsed.data.takenAt), context.roll) }
         : {}),
@@ -137,18 +109,8 @@ export async function POST(
   });
 
   /*
-    A late arrival invalidates the host's cached archive.
-
-    The ZIP is built once, after the upload window closes, on the premise that a settled roll
-    cannot change. This route is the one thing that can still change it: a shot reserved before
-    that deadline may be confirmed at any time afterwards — by a phone that was off for a week
-    and has only now drained its queue — and nothing else re-examines the archive. Without
-    this, the download would be missing exactly the photograph that had the hardest journey,
-    silently and for good.
-
-    Only past the window, so the common case costs nothing: before it, there is no archive to
-    invalidate. Swallowed rather than fatal, because refusing the confirm would put us back to
-    losing the photograph outright, which is the worse of the two failures.
+    A confirm after the upload window closes invalidates the cached ZIP, which was built on the
+    premise that a settled roll cannot change. Swallowed: refusing the confirm would lose the photo.
   */
   if (!context.acceptsUploads && storageConfigured) {
     await deleteObjects([zipKey(context.roll.id)]).catch((error) => {
@@ -160,15 +122,8 @@ export async function POST(
 }
 
 /**
- * Releases a reserved shot. Called when a guest rejects a frame they'd already started
- * uploading, or when the client gives up on a failed upload — without this the shot would
- * stay spent on a photo that never existed.
- *
- * The second case is counted and the first is not. A guest deciding against a photograph is
- * the product working; the queue giving up on one is the product's most fragile path failing,
- * and it is the only failure in the app that destroys something a person meant to keep. The
- * row is gone by the end of this handler, so if it is not counted here it is not knowable at
- * all — which is exactly the test for whether something belongs in `Metric`.
+ * Releases a reserved shot, when a guest rejects a frame or the queue gives up on one.
+ * Only the second is counted: it is the one failure that destroys something a person meant to keep.
  */
 export async function DELETE(
   request: Request,

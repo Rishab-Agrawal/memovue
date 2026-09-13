@@ -1,37 +1,23 @@
 import { fromWall } from "./format";
 
 /**
- * One album that belongs to nobody.
- *
- * The Albums tab is empty until a host's first roll has closed, which for most people is days
- * after they sign up — so the screen explained an album in a paragraph rather than showing
- * one. This is one to open instead: three of the shipped frames, shot by two of the three
- * people who were there, on a wedding that ended in February.
- *
- * It is fiction and it never touches the database. Nobody hosts it, so there is no ZIP to
- * build and no Save on it, and there is nothing in it a host could take out.
+ * One album that belongs to nobody, so the Albums tab has something to open before a host's
+ * first roll closes. Fiction: it never touches the database.
  */
-/**
- * The film on the sample's camera, and what its invitation promises. One number, because an
- * invitation offering a different count from the camera behind it is the one detail somebody
- * would notice.
- */
+
+/** The film on the sample's camera, and what its invitation promises. */
 export const SAMPLE_SHOTS = 21;
 
 export const SAMPLE_ALBUM = {
   href: "/albums/sample",
   name: "Priya and Arjun's Wedding",
-  /** Whoever the invitation says invited you. Half of the couple, since it is their evening. */
+  /** Whoever the invitation says invited you. */
   host: "Priya",
   startsAt: fromWall(2026, 1, 14, 11, 0),
   finishesAt: fromWall(2026, 1, 15, 2, 0),
-  /** One more than the pair below: somebody came and shot nothing, as somebody always does. */
+  /** One more than the photographers below: somebody always shoots nothing. */
   guests: 3,
-  /*
-    Newest first, the way every other wall in the app is ordered. Two names across three
-    frames — an album is a room full of cameras, and one name on every photograph would be
-    the one thing a shared roll never looks like.
-  */
+  /** Newest first, like every other wall. */
   photos: [
     { id: "sample-walk", by: "Kabir", src: "/frames/wedding-walk.jpg" },
     { id: "sample-toast", by: "Meera", src: "/frames/wedding-toast.jpg" },

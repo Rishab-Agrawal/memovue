@@ -1,5 +1,7 @@
 "use client";
 
+import type { RevealMode } from "@prisma/client";
+
 import { Clock, Hourglass } from "@/components/roll/Icons";
 import { Plate } from "@/components/roll/Plate";
 import { cn } from "@/lib/cn";
@@ -8,8 +10,6 @@ import { FRAMES } from "@/lib/imagery";
 import { computeRevealAt } from "@/lib/roll-access";
 import { MAX_DELAY_HOURS, MIN_DELAY_HOURS } from "@/lib/roll-config";
 
-export type RevealMode = "DURING" | "AFTER" | "DELAY";
-
 const MODES: { mode: RevealMode; label: string }[] = [
   { mode: "DURING", label: "During\nEvent" },
   { mode: "AFTER", label: "After\nEvent" },
@@ -17,15 +17,8 @@ const MODES: { mode: RevealMode; label: string }[] = [
 ];
 
 /**
- * Choosing when the photographs become legible.
- *
- * The one control that has to demonstrate rather than describe: the two sample frames go
- * sharp or sealed as the mode changes, so a host can see what their guests will be looking
- * at before committing to it.
- *
- * Shared by the wizard's fourth step and the settings screen that edits the same two values
- * afterwards. Written once, because a host changing their mind should be looking at the
- * screen that sold them the decision, not at a second interpretation of it.
+ * Choosing when the photographs become legible. The sample frames go sharp or sealed as the
+ * mode changes. Shared by the wizard and the settings screen.
  */
 export function RevealPicker({
   finishesAt,
@@ -39,9 +32,8 @@ export function RevealPicker({
   delayHours: number;
   onChange: (mode: RevealMode, delayHours: number) => void;
 }) {
-  // Null for DURING, which is what makes the frames render sharp and hides the chip.
-  // computeRevealAt still returns a date for that mode — the column is never null — so the
-  // check has to be on the mode, not on the result.
+  // Null for DURING: frames render sharp and the chip hides. Checked on the mode, because
+  // `computeRevealAt` still returns a date for it.
   const reveals = mode === "DURING" ? null : computeRevealAt(finishesAt, mode, delayHours);
 
   return (

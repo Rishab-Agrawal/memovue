@@ -21,16 +21,10 @@ export default async function GuestRollPage({ params }: PageProps<"/e/[code]">) 
   // No session for this roll — the join screen is where a name gets attached to a camera.
   if (!context) redirect(`/join/${code}`);
 
-  // The shutter is closed, so this route has nothing to render. The album is its own page now
-  // and is what a roll becomes; sending people there beats a viewfinder that cannot shoot.
+  // The shutter is closed, so there is no camera to show.
   if (!context.capturing) redirect(`/e/${context.roll.code}/album`);
 
-  /*
-    The thumbnail beside the shutter, filled before the first tap. Without it a guest coming
-    back to a roll they have already shot half of is met by an empty square, which reads as a
-    camera that has lost their photographs. The blur is the whole record we keep inline, so
-    this costs one small row and no image fetch.
-  */
+  // The last shot's blur fills the thumbnail before the first tap: one small row, no image fetch.
   const [latest, pool] = await Promise.all([
     prisma.photo.findFirst({
       where: { guestId: context.guest.id },
@@ -45,20 +39,11 @@ export default async function GuestRollPage({ params }: PageProps<"/e/[code]">) 
       code={context.roll.code}
       rollName={context.roll.name}
       shotsLeft={context.shotsLeft}
-      // Their allowance, not the roll's flat rate: film taken from the pool is theirs, and
-      // film given away is not — so the rule under the counter measures against what they
-      // actually hold.
+      // Their allowance, including film drawn from or given to the pool.
       shotsTotal={context.roll.photosPerGuest + context.guest.fromPool}
       pool={pool}
-      /*
-        Asked with an empty camera rather than their current one. The dialog is raised by the
-        client the instant the last shot goes, off a page rendered while they still had film,
-        so the number it needs is the one that will apply then. Every move is re-checked
-        against the real count on the way in.
-      */
+      // Asked with an empty camera, since the dialog appears once the last shot is spent.
       takeMax={poolMoves(context.roll, { ...context.guest, shotsLeft: 0 }, pool).take}
-      // The camera closes itself on this, rather than only being refused entry next time the
-      // page is loaded.
       finishesAt={context.roll.finishesAt.getTime()}
       home={await rollHome(context.roll)}
       latestBlur={latest?.blurData ?? null}

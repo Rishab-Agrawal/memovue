@@ -3,12 +3,8 @@ import { type IDBPDatabase, openDB } from "idb";
 import type { ProcessedPhoto } from "./image";
 
 /**
- * Durable upload queue.
- *
- * Photos are written to IndexedDB the instant a guest taps "Use it", before any network
- * call. Venues have terrible wifi and people lock their phones mid-upload; a shot that
- * only lived in memory would be gone. Anything still queued is retried on the next app
- * open, or the moment the device comes back online.
+ * Durable upload queue. A photo is written to IndexedDB before any network call, and retried on
+ * the next app open or when the device comes back online — venue wifi is bad and phones lock.
  */
 
 const DB_NAME = "memovue";
@@ -31,33 +27,21 @@ interface QueuedPhoto {
 /** Enough of a queued photograph to draw it before it exists anywhere else. */
 export interface PendingShot {
   localId: string;
-  /** The ~32px inlined JPEG the camera made. The whole of what a tile needs. */
   blurData: string;
 }
 
 export interface QueueStatus {
   /** Which roll these counts are about. One queue, and a phone can hold two parties. */
   code: string | null;
-  /** The frames still to go out, newest last — drawn on the wall until they are on it. */
+  /** Frames still to go out, newest last. */
   pending: PendingShot[];
   /**
-   * Of those, the ones the server has not reserved a shot for yet.
-   *
-   * A quota is counted from `Photo` rows, so a frame that is captured but still sitting in
-   * IndexedDB is one the roll screens cannot see — which is how a spent camera went on
-   * offering a shot that no longer existed. Reserved items are excluded because the row is
-   * already in the server's count, and subtracting them again would spend the shot twice.
+   * Of those, the ones without a server reservation — spent film the server cannot count yet.
+   * Reserved items are excluded because their row is already in the server's count.
    */
   unreserved: number;
   uploading: boolean;
-  /**
-   * Photographs this roll's queue has given up on, and destroyed the only copy of.
-   *
-   * It replaces a `lastError` string that was published on every failure and rendered
-   * nowhere at all — so the one outcome worth interrupting somebody for, a frame that will
-   * never arrive, was the one thing the app kept entirely to itself. Transient failures are
-   * not counted here: those are still queued, and the line already says so.
-   */
+  /** Photographs this roll's queue has given up on for good. Transient failures stay queued. */
   dropped: number;
 }
 
@@ -74,19 +58,9 @@ function db(): Promise<IDBPDatabase> {
 }
 
 /**
- * One IndexedDB call, reopening the connection once if the browser has closed it.
- *
- * A phone may close this connection whenever it likes — iOS does it to a page left in the
- * background, and any browser short of memory may — and it says so only by failing the next
- * call with "The database connection is closing". The connection used to be opened once and
- * kept for the life of the page, so from that moment every call failed: photographs already
- * queued stopped being sent until the page was reloaded, and a shot taken in the meantime was
- * never written down at all, which is the one thing this file exists to promise cannot happen.
- * Coming back to the tab is exactly when the queue retries, so it was exactly when the dead
- * connection got found.
- *
- * Every call made through here is one get, put or delete, so making it twice is harmless.
- * Anything other than a closed connection is thrown exactly as before.
+ * One IndexedDB call, reopening the connection once if the browser closed it — iOS does that to
+ * backgrounded pages, and says so only by failing the next call. Every call here is a single
+ * get, put or delete, so repeating it is harmless.
  */
 async function withDb<T>(run: (database: IDBPDatabase) => Promise<T>): Promise<T> {
   try {
@@ -126,21 +100,17 @@ async function refreshPending(code: string) {
     code,
     pending: items.map(({ localId, blurData }) => ({ localId, blurData })),
     unreserved: items.filter((item) => !item.photoId).length,
-    // A different roll's losses are not this one's. Reset on the way in rather than left to
-    // accumulate across every roll a phone has ever held.
+    // A different roll's losses are not this one's.
     ...(code === status.code ? {} : { dropped: 0 }),
   });
 }
 
 /**
- * The film this device has spent that the server cannot see, as a high-water mark.
+ * Film this device has spent that the server cannot see, as a high-water mark.
  *
- * `previous` is the mark so far, `unreserved` what the queue is holding without a reservation
- * behind it, and `spent` how many frames this session has shot. The subtraction is the whole
- * point: a frame taken in this session sits in both counters, and adding them would take two
- * shots off the dial for one press. The maximum is the other half — a reservation landing
- * mid-session empties the queue without the page's `initialShots` being recounted, and
- * without this the camera would hand those shots straight back.
+ * A frame shot this session sits in both `unreserved` and `spent`, so they are subtracted, not
+ * added. The maximum keeps shots from coming back when a reservation lands mid-session and
+ * empties the queue before `initialShots` is recounted.
  */
 export function carriedForward(previous: number, unreserved: number, spent: number): number {
   return Math.max(previous, unreserved - spent);
@@ -176,19 +146,11 @@ async function putObject(url: string, blob: Blob): Promise<void> {
 }
 
 /**
- * Hands a reservation back before dropping the photograph it was for.
- *
- * A reserved shot is spent from the moment the row is written, so giving up on a photograph
- * without this left the guest a shot short with nothing to show for it — the counter said
- * three left, two frames were gone, and no screen anywhere could explain the difference.
- *
- * Best effort by design. The route refuses a photo that has already been confirmed, and a
- * session that is gone cannot call it at all; in both cases dropping the local copy is still
- * the right next move.
+ * Hands a reservation back before dropping its photograph, so the guest does not lose a shot
+ * to a frame that will never arrive. Best effort: dropping the local copy is right either way.
  */
 async function releaseShot(code: string, photoId: string): Promise<void> {
-  // `dropped`, so the route can tell this apart from a guest deleting a frame they simply did
-  // not like. Only one of the two is a failure, and only one of them is worth counting.
+  // `dropped` tells the route this is a failure, not a guest deleting a frame they disliked.
   await fetch(`/api/r/${code}/photos/${photoId}?reason=dropped`, { method: "DELETE" }).catch(
     () => {},
   );
@@ -219,8 +181,7 @@ export async function drainQueue(code: string): Promise<void> {
           const response = await fetch(`/api/r/${code}/photos`, {
             method: "POST",
             headers: { "content-type": "application/json" },
-            // Declared up front: the URL that comes back is signed for exactly these two
-            // lengths, so R2 refuses anything else rather than storing it.
+            // The URLs that come back are signed for exactly these lengths.
             body: JSON.stringify({
               contentType: "image/jpeg",
               fullBytes: item.full.size,
@@ -265,8 +226,7 @@ export async function drainQueue(code: string): Promise<void> {
             height: item.height,
             bytes: item.full.size,
             blurData: item.blurData,
-            // The shutter's own moment, not the upload's. Without it a photo taken at the
-            // party and sent from the taxi home is filed under the taxi.
+            // The shutter's moment, not the upload's.
             takenAt: new Date(item.createdAt).toISOString(),
           }),
         });
@@ -277,16 +237,13 @@ export async function drainQueue(code: string): Promise<void> {
         const reason = (error as { error?: string; message?: string }).error ?? "";
 
         if (TERMINAL.has(reason)) {
-          // The reservation outlives the local copy unless it is given back here, and a shot
-          // held by a photograph that will never arrive is a shot the guest simply loses.
           if (item.photoId) await releaseShot(code, item.photoId);
           await withDb((d) => d.delete(STORE, item.localId));
           publish({ dropped: status.dropped + 1 });
           continue;
         }
 
-        // Transient: leave it queued and stop for now. The next app open, the `online`
-        // event, or the next capture will pick it back up.
+        // Transient: leave it queued. The next app open, `online` event or capture retries.
         await withDb((d) => d.put(STORE, { ...item, attempts: item.attempts + 1 }));
         break;
       } finally {

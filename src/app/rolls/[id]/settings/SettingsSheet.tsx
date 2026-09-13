@@ -1,5 +1,6 @@
 "use client";
 
+import type { RevealMode } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
 
@@ -22,12 +23,12 @@ import { Sheet } from "@/components/roll/Sheet";
 import { Toggle } from "@/components/roll/Toggle";
 import { formatDateTime } from "@/lib/format";
 import {
+  GIVEAWAY_LABEL,
   GIVEAWAY_MIN_SHOTS,
   PARTICIPANT_TIERS,
   SHOT_TIERS,
-  giveawayLabel,
+  VISIBILITY_LABEL,
   shotsAvailable,
-  visibilityLabel,
 } from "@/lib/roll-config";
 
 import {
@@ -42,11 +43,6 @@ const REVEAL_LABEL = { DURING: "During", AFTER: "After", DELAY: "After + delay" 
 /** Every shot tier a host may pick today — the hundred is held back through the beta. */
 const SHOTS = SHOT_TIERS.filter(shotsAvailable);
 
-/**
- * The reference sells the size of a roll here as two paid upgrades. We sell neither, so both
- * rows step through the tiers in place rather than leading anywhere: the whole interaction is
- * one tap, and a sub-screen for a number with six values would be a screen to explain nothing.
- */
 export function SettingsSheet({
   rollId,
   name,
@@ -65,7 +61,7 @@ export function SettingsSheet({
   name: string;
   startsAt: Date;
   finishesAt: Date;
-  revealMode: "DURING" | "AFTER" | "DELAY";
+  revealMode: RevealMode;
   /** Whether the photographs are already legible. There is no way back from true. */
   open: boolean;
   /** Whether the event has not begun. Decided on the server, like the seal above it. */
@@ -84,6 +80,9 @@ export function SettingsSheet({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
+  const visibilityLabel = VISIBILITY_LABEL[everyoneCanSee ? "on" : "off"];
+  const giveawayLabel = GIVEAWAY_LABEL[giveaway ? "on" : "off"];
+
   const toggleVisibility = (next: boolean) => {
     setEveryoneCanSee(next);
     startTransition(async () => {
@@ -100,12 +99,7 @@ export function SettingsSheet({
     });
   };
 
-  /*
-    Written straight through rather than held in local state first. These two numbers are read
-    back by the camera and by the door, and a row that showed a new figure while the server
-    still held the old one would be the one place in the app where a host's own settings lie
-    to them.
-  */
+  // Not optimistic: the camera and the door read these numbers, so the row shows what the server holds.
   const resize = (next: { maxGuests?: number; photosPerGuest?: number }) => {
     setError(null);
     startTransition(async () => {
@@ -128,37 +122,21 @@ export function SettingsSheet({
             value={name}
             href={`/rolls/${rollId}/settings/info`}
           />
-          {/*
-            Movable only until the event begins. After that the start is history: guests are
-            mid-roll with cameras that would change under them, and a start pushed back into
-            the future would make a shot roll look unstarted to everything that reads it —
-            including the refund on deletion.
-          */}
+          {/* Movable only until the event begins. */}
           <SettingRow
             icon={<CalendarIcon className="h-5 w-5" />}
             label="Start date"
             value={formatDateTime(startsAt)}
             href={beforeStart ? `/rolls/${rollId}/settings/start` : undefined}
           />
-          {/*
-            Movable while the roll is sealed. Events run late; the shutter used to close on the
-            schedule regardless, with nothing on this screen to say otherwise. Once the album is
-            open there is nothing here left to change.
-          */}
+          {/* Movable while the roll is sealed. */}
           <SettingRow
             icon={<CalendarIcon className="h-5 w-5" />}
             label="Ending date"
             value={formatDateTime(finishesAt)}
             href={open ? undefined : `/rolls/${rollId}/settings/finish`}
           />
-          {/*
-            The reveal itself, not a button beside it. This row printed the mode as a fact and
-            the only thing a host could do about it was a "Reveal now" button underneath that
-            opened the roll for good — so someone who had simply picked the wrong option at
-            creation had one irreversible move available and no way to make a smaller one.
-            Opening early is `DURING` on the screen this leads to, which is the same screen
-            they chose the mode on.
-          */}
+          {/* Opening early is choosing `DURING` on the screen this leads to. */}
           <SettingRow
             icon={<Clock className="h-5 w-5" />}
             label="Reveal time"
@@ -172,7 +150,6 @@ export function SettingsSheet({
             noun="guests"
             tiers={PARTICIPANT_TIERS}
             value={maxGuests}
-            // Never below the people already standing in the roll.
             floor={guestCount}
             pending={pending}
             onPick={(next) => resize({ maxGuests: next })}
@@ -189,30 +166,18 @@ export function SettingsSheet({
 
           <SettingRow
             icon={everyoneCanSee ? <LockOpen className="h-5 w-5" /> : <Lock className="h-5 w-5" />}
-            label={visibilityLabel(everyoneCanSee)}
+            label={visibilityLabel}
             trailing={
-              <Toggle
-                on={everyoneCanSee}
-                onChange={toggleVisibility}
-                name={visibilityLabel(everyoneCanSee)}
-              />
+              <Toggle on={everyoneCanSee} onChange={toggleVisibility} name={visibilityLabel} />
             }
           />
 
-          {/* Not drawn at all on a roll too small to give film away on — see
-              `GIVEAWAY_MIN_SHOTS`. The row would have nothing to offer and no way to say so. */}
           {photosPerGuest >= GIVEAWAY_MIN_SHOTS ? (
             <SettingRow
               icon={<Photo className="h-5 w-5" />}
-              label={giveawayLabel(giveaway)}
+              label={giveawayLabel}
               after={<GiveawayHelp shots={photosPerGuest} />}
-              trailing={
-                <Toggle
-                  on={giveaway}
-                  onChange={toggleGiveaway}
-                  name={giveawayLabel(giveaway)}
-                />
-              }
+              trailing={<Toggle on={giveaway} onChange={toggleGiveaway} name={giveawayLabel} />}
             />
           ) : null}
         </div>
@@ -256,12 +221,8 @@ export function SettingsSheet({
 }
 
 /**
- * A settings row whose value is one of a handful of tiers, stepped in place.
- *
- * The tiers are a price list, not a range, so this walks the list rather than offering a
- * number field — there is no legal value between two of them to type. Both ends disable at
- * the edge of what is allowed, which is how the guest limit refuses to drop below the people
- * already inside it without needing a sentence to explain itself.
+ * A settings row stepping through a fixed list of tiers in place. Each end disables at the edge
+ * of what is allowed, which is how the guest limit refuses to drop below the people inside.
  */
 function TierRow({
   icon,

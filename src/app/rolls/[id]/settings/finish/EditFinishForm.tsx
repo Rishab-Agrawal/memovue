@@ -11,17 +11,7 @@ import { useNow } from "@/lib/useNow";
 
 import { updateFinishAction } from "../../actions";
 
-/**
- * Moving the closing time of a roll that is still sealed.
- *
- * The one control a host could not touch after creation, printed on the settings sheet as a
- * fact about their own event. Parties run late and the shutter closed anyway; the only lever
- * left was revealing early, which is the opposite of what somebody still shooting wants.
- *
- * The reveal and the deletion date both hang off this, so the copy says so — a host moving a
- * close by two hours is also moving when the album opens, and finding that out afterwards is
- * finding it out too late.
- */
+/** Moving the closing time of a sealed roll. The reveal and deletion date move with it, and the copy says so. */
 export function EditFinishForm({
   rollId,
   startsAt,
@@ -35,26 +25,17 @@ export function EditFinishForm({
   const [finishesAt, setFinishesAt] = useState(initialFinish);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  // Zero until mounted, which is what keeps the floor below out of the server render and off
-  // the hydration diff. It corrects on the microtask after mount, and ticks after that.
+  // Zero until mounted, keeping the floor out of the server render.
   const now = useNow();
 
-  /*
-    Never into the past, which the wizard's version of this floor does not have to think about.
-    On an `AFTER` roll the close *is* the reveal, so a finish backdated to this morning would
-    unseal a whole afternoon of photographs on one mistyped date — the thing the settings sheet
-    puts behind a confirm dialog and calls irreversible. Pulling the close in is still allowed,
-    as far as the present and no further, which is the legitimate "we're wrapping up" edit.
-  */
+  // Never into the past: on an `AFTER` roll a backdated close would unseal the album.
   const floor = new Date(Math.max(earliestFinish(startsAt).getTime(), now));
   const dirty = finishesAt.getTime() !== initialFinish.getTime();
 
   const save = () => {
     setError(null);
     startTransition(async () => {
-      // Clamped on the way out as well as in the picker. The server does this again against
-      // the row itself, so the only error worth showing here is a roll that opened while this
-      // screen was sitting there.
+      // The server clamps again against the row; the likely error is a roll that opened meanwhile.
       const result = await updateFinishAction(
         rollId,
         clampFinish(startsAt, finishesAt).toISOString(),
@@ -79,8 +60,7 @@ export function EditFinishForm({
       onSave={save}
     >
       <div className="mt-8">
-        {/* The range starts at the floor, not at the roll's own start, so a day already gone
-            renders as dead text rather than as a tap that silently jumps to now. */}
+        {/* The range starts at the floor, so past days render disabled. */}
         <DatePick
           value={finishesAt}
           onChange={setFinishesAt}

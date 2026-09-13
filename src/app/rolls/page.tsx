@@ -9,7 +9,7 @@ import { LiveRefresh } from "@/components/roll/LiveRefresh";
 import { canCreateRoll } from "@/lib/beta";
 import { cn } from "@/lib/cn";
 import { formatDuration } from "@/lib/format";
-import { type RollCard, coverUrlsFor, listRollsForUser } from "@/lib/rolls";
+import { type RollCard, coverUrlFor, listRollsForUser } from "@/lib/rolls";
 import { requireHost } from "@/lib/session";
 
 import { NewRollButton } from "./NewRollButton";
@@ -22,24 +22,16 @@ const destination = (roll: RollCard) =>
   roll.invitedBy ? `/e/${roll.code}` : `/rolls/${roll.id}`;
 
 /**
- * Home is what is running right now, and the two ways to start something.
- *
- * Albums moved to their own tab. They were the bottom half of this screen, competing for the
- * same scroll as the rolls still shooting — two lists on two different clocks, and the one
- * you open the app to check was the one you had to scroll past the other to reach.
- *
- * The two controls move with the answer. On an empty screen there is nothing to do but start
- * something, so they take the middle at full size; once a roll is running they are no longer
- * the point and retreat into the header, leaving the covers the whole screen.
+ * Home is what is running right now, and the two ways to start something. With nothing running
+ * the two controls take the middle of the screen; otherwise they retreat into the header.
  */
 export default async function RollsHome() {
   const user = await requireHost();
   const [{ active }, canCreate] = await Promise.all([
-    // Albums are a screen of their own now, and their prints cost a query each.
+    // Albums are their own screen, and their prints cost a query each.
     listRollsForUser(user.id, { thumbs: false }),
     canCreateRoll(user),
   ]);
-  const covers = coverUrlsFor(active);
   const now = new Date();
   const running = active.length > 0;
 
@@ -62,19 +54,10 @@ export default async function RollsHome() {
           <section className="pt-4">
             <h2 className="marking text-[13px] tracking-[0.2em]">Active rolls</h2>
 
-            {/*
-              Two up, and portrait. The covers are portrait pictures — the shipped ones, and
-              anything a host uploads through the same picker — so a wide landscape card was
-              cropping away most of every one of them to show a letterbox slice.
-            */}
+            {/* Two up and portrait, because the covers are portrait pictures. */}
             <div className="mt-4 grid grid-cols-2 gap-3">
               {active.map((roll) => (
-                <ActiveCard
-                  key={roll.id}
-                  roll={roll}
-                  coverUrl={covers.get(roll.id)}
-                  now={now}
-                />
+                <ActiveCard key={roll.id} roll={roll} coverUrl={coverUrlFor(roll)} now={now} />
               ))}
             </div>
           </section>
@@ -94,10 +77,7 @@ export default async function RollsHome() {
   );
 }
 
-/**
- * The only two things anybody comes to this screen to do, at one of two sizes: the middle of
- * an empty screen, or a pair of pills in the corner of a busy one.
- */
+/** Create and Join, full size on an empty screen or as pills in the header. */
 function Actions({
   canCreate,
   hostName,
@@ -127,12 +107,7 @@ function Actions({
   );
 }
 
-/**
- * One running roll.
- *
- * Portrait at the covers' own proportions, so the picture a host chose is the picture they
- * see.
- */
+/** One running roll, at the covers' own proportions. */
 function ActiveCard({
   roll,
   coverUrl,

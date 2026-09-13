@@ -10,9 +10,8 @@ import { photoInitSchema } from "@/lib/validation";
 export const dynamic = "force-dynamic";
 
 /**
- * Reserves one of the guest's shots and hands back presigned URLs so the browser can PUT
- * the image bytes straight to R2. The row is created PENDING up front — that reservation
- * is what stops a guest from issuing more upload URLs than they have shots.
+ * Reserves one of the guest's shots and hands back presigned URLs so the browser can PUT the
+ * bytes straight to R2. The PENDING row is what stops a guest issuing more URLs than shots.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
@@ -20,15 +19,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
   const context = await getGuestContext(code);
   if (!context) return Response.json({ error: "not_joined" }, { status: 401 });
 
-  /*
-    `acceptsUploads`, not `capturing`.
-
-    A reservation is made when the bytes reach us, which is not when the shutter fired — the
-    queue holds photographs in IndexedDB until the phone has signal. Gating this on `capturing`
-    refused every photo taken in the last minutes of an event and drained after it closed, and
-    because that refusal is permanent the client then deleted the only copy. The shutter is
-    still closed on time; the camera is what enforces that.
-  */
+  // `acceptsUploads`, not `capturing`: queued photos drain after the close. See `roll-access.ts`.
   if (!context.acceptsUploads) {
     return Response.json({ error: "not_shooting" }, { status: 403 });
   }
@@ -36,11 +27,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
     return Response.json({ error: "no_shots_left" }, { status: 409 });
   }
 
-  /*
-    The address used to be part of this key. It only ever weakened it: a guest is identified
-    by a signed cookie, so folding in an IP handed the same guest a fresh budget every time
-    their phone changed network, and gave a whole venue's worth of honest guests nothing.
-  */
+  // Keyed on the guest alone: an IP would reset the budget on every network change.
   const over = limited(`reserve:${context.guest.id}`, 40, 60);
   if (over) return over;
 
@@ -49,8 +36,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
   if (!parsed.success) return Response.json({ error: "bad_request" }, { status: 400 });
 
   const photoId = nanoid();
-  // The capability. Never derived from anything the client knows, and never sent to anyone
-  // the photograph is not already being shown to.
+  // The capability. Never derived from anything the client knows.
   const secret = nanoid();
   const fullKey = photoKey(context.roll.id, photoId, secret, "full");
   const previewKey = photoKey(context.roll.id, photoId, secret, "preview");
@@ -84,19 +70,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
 }
 
 /**
- * The photo grid, in pages of 48. Both phases of a roll come through here.
+ * The photo grid, in pages of 48.
  *
- * **Sealed**, this returns blur placeholders and nothing else: no preview URL, no name, no
- * timestamp. **Open**, each item additionally carries a URL for the 1080px preview and the
- * original. `visiblePhotoWhere` decides which frames exist in both cases, so the wall a guest
- * watches fill up is exactly the album they end up with.
- *
- * The seal is one branch, checked once, here — and since the full-resolution URL travels in
- * this payload, this is now the only place it is checked at all. That is worth saying plainly.
- * A photo id is not a capability: `previewUrl` and `fullUrl` are the only fields that lead to
- * image data, neither is constructed on the sealed path, and the keys they carry each hold a
- * random segment. So an id guessed off the sealed grid has nothing to be exchanged for —
- * there is no route left to present it to, and the address cannot be derived from it.
+ * Sealed, it returns blur placeholders only. Open, each item also carries its preview and full
+ * URLs — this is the only place the seal guards them, since the keys are unguessable and no
+ * other route hands them out.
  */
 export async function GET(request: Request, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
@@ -104,8 +82,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
   const context = await getGuestContext(code);
   if (!context) return Response.json({ error: "not_joined" }, { status: 401 });
 
-  // Higher than the feed's, because the grid pages: opening a five-hundred-photo album and
-  // scrolling to the bottom is eleven of these in a burst, and doing that twice is normal.
+  // Higher than the feed's, because scrolling a large album pages in bursts.
   const over = limited(`grid:${context.guest.id}`, 120, 60);
   if (over) return over;
 
@@ -115,19 +92,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
   const take = 48;
 
   /*
-    The ownership filter comes from `visiblePhotoWhere`, not from this route, and it applies
-    sealed as well as open.
-
-    Sealed used to mean "every frame in the roll", on the reasoning that a placeholder is not
-    a photograph. It is not, but it is a promise: on a roll where only the host sees
-    everything, a guest watched three hundred tiles fill up all evening and then, at the one
-    moment the whole product exists for, was left with the twelve that were theirs. The wall
-    shrinking at the reveal reads as loss, and the seal lifting is the worst possible time to
-    look like we have lost something.
-
-    A guest may still narrow the list to one photographer with `?guestId=`, but they cannot
-    widen it: the base clause already restricts them to their own frames when visibility is
-    off, and spreading the query param afterwards can only ever intersect with that.
+    Ownership applies sealed as well as open, so the wall a guest watches fill is exactly the
+    album they get at the reveal. `?guestId=` can narrow the list to one photographer but
+    never widen it past `visiblePhotoWhere`.
   */
   const where = {
     ...visiblePhotoWhere(context.roll, { kind: "guest", guestId: context.guest.id }),
@@ -172,16 +139,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
       guestId: photo.guest.id,
       guestName: photo.guest.name,
       previewUrl: publicUrl(photo.previewKey),
-      /*
-        The full-resolution capability, handed over in the same breath as the preview.
-
-        The viewer used to reach a route of its own for this, which re-derived the guest
-        session and re-checked the seal — four Postgres queries and a dynamic render for
-        every frame swiped past, on the screen people spend the whole evening in. The
-        authorisation has already happened, once, in the query above: `visiblePhotoWhere`
-        decides which rows exist here at all, and the sealed branch returns before this line.
-        Asking the same question a second time cost far more than it was worth.
-      */
       fullUrl: publicUrl(photo.fullKey),
     };
   });

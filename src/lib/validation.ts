@@ -22,11 +22,7 @@ const shotCounts: number[] = [...SHOT_TIERS];
 
 /* ------------------------------------------------------------------ rolls */
 
-/**
- * The calendars in the wizard already refuse out-of-range dates. This is the rule; that is
- * a convenience. A form post is trivially replayed with different values, so anything the
- * client clamps has to be clamped again here.
- */
+/** The wizard clamps these too, but a form post is trivially replayed, so this is the rule. */
 const rollFields = z.object({
     name: z.string().trim().min(1, "Give your roll a name").max(80),
 
@@ -62,12 +58,6 @@ export const createRollSchema = rollFields.superRefine((data, ctx) => {
       });
     }
 
-    /*
-      The floor, not merely "after the start". The calendar and the clock are chosen
-      separately, so "finish after start" left a 3am start and a 2am finish on the same day
-      looking perfectly reasonable on both screens and arriving here as a roll that closed
-      before it opened.
-    */
     if (finishesAt.getTime() < earliestFinish(startsAt).getTime()) {
       ctx.addIssue({
         code: "custom",
@@ -94,36 +84,26 @@ export const createRollSchema = rollFields.superRefine((data, ctx) => {
     }
   });
 
-/** Editing after creation. Deliberately narrower: shots per person are fixed once sold. */
+/** Name and cover. Size, dates and reveal each have their own schema below. */
 export const editRollSchema = z.object({
   name: z.string().trim().min(1, "Give your roll a name").max(80),
   coverPreset: z.number().int().min(0).max(8),
 });
 
-/**
- * A new closing time. Only the shape is checked here; whether it fits around the start is a
- * question about a roll this schema has never seen, and `clampFinish` answers it server-side
- * against the row itself rather than against anything the post carried.
- */
+/** Shape only; `clampFinish` holds it to the roll's own start server-side. */
 export const editFinishSchema = z.object({
   finishesAt: z.iso.datetime({ offset: true }),
 });
 
-/** The same, for the opening time. `updateRollStart` holds it to the roll's own state. */
+/** Shape only; `updateRollStart` holds it to the roll's own state. */
 export const editStartSchema = z.object({
   startsAt: z.iso.datetime({ offset: true }),
 });
 
-/**
- * A bigger — or smaller — roll. Both fields are the wizard's own, held to the same tier list
- * and the same beta ceiling, so a hundred-shot roll cannot be bought here either.
- */
+/** The wizard's own tiers and beta ceiling, so a hundred-shot roll cannot be bought here either. */
 export const editSizeSchema = rollFields.pick({ maxGuests: true, photosPerGuest: true }).partial();
 
-/**
- * A new reveal. The same two fields the wizard sends, held to the same rule — the moment
- * itself is derived server-side from the roll's own closing time, never posted.
- */
+/** The wizard's two reveal fields. The moment itself is derived from the roll, never posted. */
 export const editRevealSchema = rollFields
   .pick({ revealMode: true, revealDelayHours: true })
   .refine((data) => data.revealMode !== "DELAY" || data.revealDelayHours >= MIN_DELAY_HOURS, {
@@ -133,11 +113,6 @@ export const editRevealSchema = rollFields
 
 /* ------------------------------------------------------------------ guests */
 
-/**
- * A name and nothing else. The old schema also collected which side of a wedding a guest
- * was on, or how they knew the birthday person — questions that existed because rolls had
- * types. They don't any more.
- */
 export const joinRollSchema = z.object({
   name: z.string().trim().min(1, "Please enter your name").max(40),
 });
@@ -145,12 +120,8 @@ export const joinRollSchema = z.object({
 /* ------------------------------------------------------------------ photos */
 
 /**
- * The sizes an upload URL is signed for.
- *
- * A presigned PUT cannot carry a length *range*, only an exact length, so the client declares
- * what it is about to send and R2 refuses anything else. The ceiling here is what stops the
- * declaration itself being the abuse: without it a caller would simply declare five gigabytes
- * and be handed a URL good for exactly that.
+ * The sizes an upload URL is signed for. The ceiling stops the declaration itself being the
+ * abuse: otherwise a caller declares five gigabytes and gets a URL good for exactly that.
  */
 const uploadBytes = z.number().int().positive().max(UPLOAD_LIMITS.maxBytes);
 
@@ -178,13 +149,7 @@ export const photoConfirmSchema = z.object({
   bytes: z.number().int().positive(),
   // Tiny inline placeholder; a real one is ~600-1200 chars.
   blurData: z.string().max(4000),
-  /*
-    When the shutter fired, from the queue's own record of it.
-
-    Optional because a photograph queued before this existed still has to be able to confirm —
-    there may be one sitting in somebody's IndexedDB right now — and because the row already
-    carries a reservation-time fallback. Trusted only as far as `takenAtWithin` allows.
-  */
+  // When the shutter fired. Optional for photos queued by older clients; clamped by `takenAtWithin`.
   takenAt: z.iso.datetime({ offset: true }).optional(),
 });
 
@@ -203,7 +168,7 @@ export const grantAccessSchema = z.object({
 
 export const adjustAccessSchema = z.object({
   id: z.string().min(1),
-  /** One step per tap. A free-form number here would be an admin typo away from 900 rolls. */
+  /** One step per tap, so an admin typo cannot grant 900 rolls. */
   delta: z.union([z.literal(1), z.literal(-1)]),
 });
 
@@ -211,13 +176,7 @@ export const revokeAccessSchema = adjustAccessSchema.pick({ id: true });
 
 /* ------------------------------------------------------------------ beta requests */
 
-/**
- * What somebody without access fills in to ask for it.
- *
- * No email field: the address that matters is the one they are signed in with, which is the
- * one an admin has to add, and a form that let them type a different one would collect
- * addresses that grant access to nothing.
- */
+/** Asking for access. No email field: the signed-in address is the one an admin must allow. */
 export const betaRequestSchema = z.object({
   name: z.string().trim().min(1, "Please enter your name").max(60),
   phone: z.string().trim().max(30).optional(),
@@ -235,21 +194,10 @@ export function fieldErrors(error: z.ZodError): Record<string, string> {
   return out;
 }
 
-/**
- * The first thing wrong, for a screen with one place to say it.
- *
- * Most server actions here answer a form that shows a single line rather than a message per
- * field, so eight of them had written the same reach-into-the-map-and-take-one by hand — along
- * with the same "Invalid" for the case Zod cannot happen but TypeScript insists on.
- */
+/** The first thing wrong, for a screen with one place to say it. */
 export function firstError(error: z.ZodError): string {
   return Object.values(fieldErrors(error))[0] ?? "Invalid";
 }
 
-/**
- * What a server action answers when the screen has one line to report it in.
- *
- * Four copies of this union had accumulated, one per actions file, each spelt identically and
- * none of them knowing about the others.
- */
+/** What a server action answers when the screen has one line to report it in. */
 export type ActionResult = { ok: true } | { ok: false; error: string };

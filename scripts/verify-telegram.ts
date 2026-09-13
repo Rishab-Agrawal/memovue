@@ -1,20 +1,7 @@
 /**
- * Proves that everything the owner is told actually lands in the group, in the right topic.
- *
- * The failure this exists for delivers perfectly. `TELEGRAM_CHAT_ID` read out of `getUpdates`
- * is whoever spoke to the bot most recently, and the bot is always spoken to before the group
- * exists — so the documented way to fill it in hands you your own user id, and every alert,
- * signal and digest arrives in a direct message with the bot instead. Telegram answers `ok`,
- * nothing is logged, and the only symptom is that the three topics are empty and one private
- * chat has everything in it, unsorted, because a private chat ignores `message_thread_id`.
- *
- * So the check has to be a real send. A shape test on the id would have caught the id, but not
- * a topic deleted in Telegram, a bot demoted out of the group, or a thread number copied from
- * the wrong topic — and each of those fails the same silent way.
- *
- * Four messages are posted, one per topic, and each reply is read back for the thread it
- * actually landed in. Run it after touching any `TELEGRAM_*` variable, in whichever
- * environment you touched.
+ * Proves each kind of owner notification lands in the group, in its topic. A misrouted send
+ * (wrong chat, deleted topic, bot removed) still answers `ok`, so this posts one real message
+ * per topic and reads back where it landed. Run after changing any `TELEGRAM_*` variable.
  *
  *   npm run verify:telegram
  */
@@ -23,9 +10,7 @@ import "./load-env";
 import { check, verdict } from "./checks";
 
 async function main() {
-  // Imported here rather than at the top, because `env.ts` reads the variables the moment it
-  // loads and a static import would hoist above it. It also throws outside production on
-  // exactly the misconfiguration this script is about, which is a report, not a stack trace.
+  // Imported after `load-env`. It throws locally on a bad chat id, which is reported, not crashed on.
   const env = await import("../src/lib/env")
     .then((module) => module.env)
     .catch((error: unknown) => {
@@ -83,8 +68,7 @@ async function main() {
     check(`${topic} accepted the message`, sent.ok, sent.description);
     if (!sent.ok) continue;
 
-    // The reply is the only proof: a wrong chat still answers ok, and a thread id that names
-    // a deleted topic comes back attached to whatever Telegram put it in instead.
+    // The reply says where it really landed.
     check(
       `${topic} landed in thread ${thread}`,
       sent.result?.message_thread_id === thread,

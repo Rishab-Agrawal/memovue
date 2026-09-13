@@ -15,39 +15,17 @@ type CreateRollResult =
   /** `noAccess` is what the wizard opens the request form on, rather than matching a string. */
   | { ok: false; error: string; noAccess?: boolean; fields?: Record<string, string> };
 
-/**
- * The wizard's only write.
- *
- * Everything the client clamped — the calendars, the tier lists — is re-checked here. A form
- * post is trivially replayed with different numbers, so the client's version of the rules is
- * a convenience and this is the rule.
- */
+/** The wizard's only write. Everything the client clamped is re-checked here. */
 export async function createRollAction(
   input: Record<string, unknown>,
 ): Promise<CreateRollResult> {
   const user = await requireHost();
 
-  /*
-    The allowance is what says how many rolls this account may have; this says how fast.
-
-    They are not the same bound. The allowance hands one back for a roll deleted before its
-    start, so create-and-delete does not cost it anything until the refund cap stops it — and
-    an admin, who is not on the list at all, is bounded by nothing else whatsoever.
-  */
+  // Rate, per account and per IP. The allowance bounds count, not speed, and admins have no
+  // allowance; accounts are free, so the address is counted too.
   if (!rateLimit(`create-roll:${user.id}`, 20, 3_600).ok) {
     return { ok: false, error: "That's a lot of rolls at once. Try again shortly." };
   }
-
-  /*
-    And the same bound on the address it came from.
-
-    The per-account budget is the one that matters to a person, and it is barely a bound at
-    all on a script: accounts are free and Google will mint as many as somebody has phone
-    numbers for. Now that the wizard is open to people who have not signed in, the walk up to
-    this action is unauthenticated right until the Create button — so the machine behind it
-    is worth counting as well as the account in front of it. Generous enough that a
-    household, an office or a venue sharing one address never meets it.
-  */
   if (!rateLimit(`create-roll-ip:${await callerIp()}`, 20, 3_600).ok) {
     return { ok: false, error: "That's a lot of rolls at once. Try again shortly." };
   }
@@ -71,18 +49,7 @@ export async function createRollAction(
       finishesAt: new Date(data.finishesAt),
     });
 
-    /*
-      Announced and counted, which it did not used to be.
-
-      `Roll` rows carry a `createdAt`, so counting the rows looked like counting the creations
-      — and it is not, because rows are deleted. A host who makes a roll and deletes it the
-      same evening leaves the digest saying nobody made anything yesterday, and the retention
-      pass eventually does that to every roll ever made. The tally is what the day actually
-      held; `digest.ts` says how the two are put back together.
-
-      The message is separate from either, and adds the one thing no query will — knowing on
-      the evening it happens that somebody is setting up a party.
-    */
+    // Tallied because roll rows get deleted (see `digest.ts`), and announced as it happens.
     after(() =>
       Promise.all([
         record("roll_created"),

@@ -1,15 +1,6 @@
 import { decode, processCover } from "./image";
 
-/**
- * Putting a host's own image on a roll, from the browser.
- *
- * Shared by the two places a cover can be set — the creation wizard and the roll's edit
- * screen — because they are the same three steps against the same endpoint, and a second
- * copy of them would be a second place for the upload and the confirm to drift apart.
- *
- * The bytes go browser → R2 directly, so a cover upload does not occupy the app server for
- * however long a phone on venue wifi takes to push a megabyte.
- */
+/** Putting a host's own image on a roll, from the browser, shared by the wizard and the edit screen. */
 
 export class CoverError extends Error {}
 
@@ -26,13 +17,8 @@ function fail(status: number): never {
 }
 
 /**
- * Decodes and shrinks a picked file, and hands back an object URL for the preview.
- *
- * The preview points at the *processed* blob rather than the original file, so what the host
- * approves is what actually gets uploaded — a 12MP original previewed and a resized copy
- * stored can differ in ways you only notice once it's live.
- *
- * The caller owns the returned URL and must revoke it when it is replaced or unmounted.
+ * Decodes and shrinks a picked file. The preview shows the processed blob, so the host approves
+ * exactly what is uploaded. The caller must revoke the returned URL.
  */
 export async function prepareCover(file: File): Promise<{ blob: Blob; previewUrl: string }> {
   let source;
@@ -52,7 +38,7 @@ export async function uploadCover(rollId: string, blob: Blob): Promise<void> {
   const init = await fetch(`/api/rolls/${rollId}/cover`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    // The upload URL is signed for this exact length, so it has to be declared up front.
+    // The upload URL is signed for this exact length.
     body: JSON.stringify({ bytes: blob.size }),
   });
   if (!init.ok) fail(init.status);
@@ -66,8 +52,7 @@ export async function uploadCover(rollId: string, blob: Blob): Promise<void> {
   });
   if (!put.ok) throw new CoverError("The upload didn't finish. Check your connection.");
 
-  // Nothing points at the object until this succeeds, so a half-finished upload leaves the
-  // roll on its preset rather than showing a broken image.
+  // Until this confirm, the roll keeps its preset.
   const confirm = await fetch(`/api/rolls/${rollId}/cover`, { method: "PUT" });
   if (!confirm.ok) fail(confirm.status);
 }

@@ -5,17 +5,8 @@ import type { Role } from "@prisma/client";
 import { prisma } from "./prisma";
 
 /**
- * Who is allowed to create a roll while MemoVue is invite-only.
- *
- * This replaced single-use coupon codes. A code had to be minted, copied out of an admin
- * screen, and handed to somebody over a channel we do not own — and if they lost it, or spent
- * it on a roll they immediately deleted, there was no way to give it back. An allowance on an
- * email address needs no handover at all: the person signs in with Google, and the address
- * they arrive with is the one already on the list.
- *
- * The gate stays on creating a roll rather than on holding an account, for the same reason it
- * always did — an account costs us nothing, a roll costs us storage. What has moved is where
- * it starts: the first roll is on the house, and the list is what the second one needs.
+ * Who may create a roll while MemoVue is invite-only. The gate is on rolls, not accounts: an
+ * account costs nothing, a roll costs storage. The first roll is free; more need the list.
  */
 
 export class BetaAccessError extends Error {}
@@ -43,13 +34,7 @@ export interface Account {
   role: Role;
 }
 
-/**
- * The owner is not on their own list.
- *
- * An allowance row for the admin would be one more thing to remember to top up, and the
- * account that hands out access refusing to create a roll at 2am is a support ticket from
- * yourself. `ADMIN` is set from `ADMIN_EMAIL` at sign-in, so this is not self-service.
- */
+/** The admin is not on their own list. `ADMIN` comes from `ADMIN_EMAIL`, not self-service. */
 function unlimited(user: Account): boolean {
   return user.role === "ADMIN";
 }
@@ -73,15 +58,8 @@ export async function canCreateRoll(user: Account): Promise<boolean> {
 }
 
 /**
- * Spends one roll from the allowance, atomically.
- *
- * `rollsLeft: { gt: 0 }` sits in the WHERE rather than in a check above it, and that is the
- * whole point: reading the row, deciding it looks positive, and then writing would let two
- * requests a millisecond apart both pass and both create a roll on one allowance. The
- * database decides.
- *
- * Called inside the same transaction that inserts the roll, so an allowance cannot be spent
- * without a roll to show for it.
+ * Spends one roll, atomically: `rollsLeft > 0` is in the WHERE so two concurrent requests
+ * cannot both spend one allowance. Called inside the transaction that inserts the roll.
  */
 export async function spendRoll(
   tx: Pick<typeof prisma, "betaAccess">,
@@ -91,9 +69,7 @@ export async function spendRoll(
 
   const email = normalizeEmail(user.email);
 
-  // The free roll is granted rather than special-cased, so the decrement below is still the
-  // only thing that decides — including under a double submit, where one insert wins the
-  // unique index and both requests then race for the same row.
+  // The free roll is granted as a row, so the decrement below stays the only decision.
   await tx.betaAccess.createMany({
     data: [{ email, rollsLeft: FREE_ROLLS }],
     skipDuplicates: true,
@@ -104,21 +80,12 @@ export async function spendRoll(
     data: { rollsLeft: { decrement: 1 } },
   });
 
-  // One message for "never added" and "ran out". Both mean the same thing to the person
-  // holding the phone, and both end at the same request form.
   if (spent.count === 0) throw new BetaAccessError(NO_ACCESS);
 }
 
 /**
- * Gives one back, for a roll deleted before its event began.
- *
- * Nothing was shot on it, so nothing was stored and it cost us nothing; making somebody ask
- * for access again because they fixed a typo by starting over is a penalty for no reason.
- * `updateMany` rather than `update` so an account with no allowance row — the admin, or
- * somebody whose access was withdrawn since — is a no-op instead of a throw.
- *
- * A roll deleted after its start, after it closed, or by the nightly sweep never reaches here
- * at all: that one was spent on what it was for.
+ * Gives one back, for a roll deleted before its event began. `updateMany` so an account with no
+ * row is a no-op rather than a throw.
  */
 export async function refundRoll(user: Account): Promise<void> {
   if (unlimited(user)) return;
@@ -136,14 +103,8 @@ export function listAccess() {
 }
 
 /**
- * Adds an address, or puts one roll back on an address that has run out.
- *
- * Deliberately not "set to 1": re-typing an address that already has four rolls left should
- * not quietly take three of them away. Adjusting is what the counter is for.
- *
- * Returns whether somebody just got in — the only case worth emailing about. Not the same as
- * "is the address new" any more: every account that has spent its free roll leaves a row
- * behind at zero, and typing one of those in is letting them back.
+ * Adds an address, or puts one roll back on an address at zero — never resets a higher count.
+ * Returns whether somebody just got in, the only case worth emailing about.
  */
 export async function grantAccess(email: string): Promise<boolean> {
   const address = normalizeEmail(email);
@@ -161,12 +122,7 @@ export async function grantAccess(email: string): Promise<boolean> {
   return topped.count > 0;
 }
 
-/**
- * The + and − beside the counter. Floored at zero; there is no such thing as owing a roll.
- *
- * Returns the address when this took it off zero, so the caller can tell them they are in.
- * Topping up somebody who still has rolls left is not news to them.
- */
+/** The + and − beside the counter, floored at zero. Returns the address when it left zero. */
 export async function adjustAccess(id: string, delta: number): Promise<string | null> {
   const row = await prisma.betaAccess.findUnique({
     where: { id },
@@ -179,16 +135,7 @@ export async function adjustAccess(id: string, delta: number): Promise<string | 
   return row.rollsLeft === 0 && rollsLeft > 0 ? row.email : null;
 }
 
-/**
- * Takes an address off the list entirely.
- *
- * `deleteMany` rather than `delete` so a stale id — a second tap, or a row another tab
- * already removed — is a no-op instead of a throw on a screen with nothing to do about it.
- *
- * Removing is not the same as setting the counter to zero, though both refuse the person the
- * same way. Zero is somebody we have let in who has used what they were given; gone is
- * somebody we would rather not keep a record of at all.
- */
+/** Takes an address off the list. `deleteMany` so a stale id is a no-op. */
 export function revokeAccess(id: string) {
   return prisma.betaAccess.deleteMany({ where: { id } });
 }

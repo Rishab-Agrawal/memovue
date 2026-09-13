@@ -11,20 +11,7 @@ import { CoverError, prepareCover } from "@/lib/cover-upload";
 
 import { useDraft } from "../DraftContext";
 
-/**
- * The roll's title and its cover, on one screen — the same pair, in the same order, that
- * `/rolls/[id]/settings/info` offers once the roll exists. Editing the two together and
- * creating them apart was the odd arrangement, not this one.
- *
- * There is no phone mockup: a cover shrunk to a third of its size inside a drawn bezel is
- * harder to judge than the same cover at the size the picker already shows it. What the
- * mockup was for lives on the Preview button, which puts the picture and the title together
- * at full size.
- *
- * The reference offers a SUGGESTIONS list under the field — "Sanjana's party", "Sanjana's
- * Birthday" and so on. Dropped: they are generated from a name we no longer collect, and a
- * host naming their own wedding does not need prompting.
- */
+/** Step 1: the roll's title and cover, the same pair `/rolls/[id]/settings/info` edits later. */
 export default function StepName() {
   const { draft, update, setCover, clearCover } = useDraft();
   const router = useRouter();
@@ -32,11 +19,7 @@ export default function StepName() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /*
-    The picked image is resized here but not uploaded — there is no roll yet to attach it to.
-    It rides along in the draft and goes up once the last step has created something for it
-    to belong to. See `StepGuests`.
-  */
+  // Resized now, uploaded once the roll exists (see `StepGuests`).
   const pick = async (file: File) => {
     setError(null);
     setBusy(true);

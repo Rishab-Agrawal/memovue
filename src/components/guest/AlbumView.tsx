@@ -21,7 +21,7 @@ interface FeedPhoto {
   takenAt?: string;
   /** The 1080px preview. Absent while the roll is sealed, which is the seal. */
   previewUrl?: string;
-  /** The full-resolution original, for the viewer. Absent while sealed, for the same reason. */
+  /** The full-resolution original, for the viewer. Absent while sealed. */
   fullUrl?: string;
 }
 
@@ -57,13 +57,8 @@ interface Feed {
 /**
  * What a guest sees of the roll.
  *
- * Two requests, deliberately separate. `/feed` is a small status poll every twenty seconds —
- * the countdown, the counts, whether the seal has lifted. `/photos` is the grid, in pages of 48,
- * fetched on scroll, and its first page again only when the poll's count says a frame landed.
- *
- * The seal is enforced on the server: while a roll is sealed `/photos` returns blur placeholders
- * and no preview URL, so this component does not have to be careful. It renders what it is
- * given.
+ * `/feed` is a small status poll every twenty seconds; `/photos` is the grid, paged on scroll
+ * and refetched at the head only when the poll's count moves. The seal is enforced by the server.
  */
 export function AlbumView({
   code,
@@ -71,12 +66,9 @@ export function AlbumView({
   cameraHref,
 }: {
   code: string;
-  /**
-   * Where the header's arrow goes. Decided by the page, which knows who is holding this —
-   * and null for a guest with no account, who has nothing of ours behind this screen.
-   */
+  /** Where the header's arrow goes; null for a guest with no account. */
   back: string | null;
-  /** The viewfinder, while the roll is still shooting. Absent once it has closed. */
+  /** The viewfinder, while the roll is still shooting. */
   cameraHref?: string;
 }) {
   const router = useRouter();
@@ -88,16 +80,14 @@ export function AlbumView({
   const [viewing, setViewing] = useState<number | null>(null);
   const now = useNow();
 
-  /* Bumped when the seal lifts, which throws the sealed page away: those items carry blur
-     data and no preview URL, so they cannot simply be upgraded in place. */
+  /* Bumped when the seal lifts: sealed items carry no preview URL, so the grid restarts. */
   const [generation, setGeneration] = useState(0);
 
   const loading = useRef(false);
   const sentinel = useRef<HTMLDivElement>(null);
-  /* Which request the grid currently belongs to. A reset bumps it, so a page that was already
-     in flight lands on a grid it no longer describes and is dropped instead of appended. */
+  /* Which request the grid belongs to. A reset bumps it, so an in-flight page is dropped. */
   const request = useRef(0);
-  /* Whether this roll has anything left to say. See where it is set, below. */
+  /* Open and no longer shooting: nothing left to poll for. */
   const settled = useRef(false);
   /* The roll's count at the last poll, and the wall as last drawn — what `loadNew` compares. */
   const lastTotal = useRef<number | null>(null);
@@ -107,13 +97,8 @@ export function AlbumView({
   }, [photos]);
 
   /**
-   * Frames that landed since this screen last looked, laid over the head of the wall.
-   *
-   * Merged rather than restarted: the grid used to be rebuilt whenever the count moved, which
-   * threw away every page scrolled to and landed the reader back at the top several times a
-   * minute. Only when the new first page shares nothing with the wall — more arrived than a
-   * page holds, typically a phone back out of a pocket — is it started again from the top,
-   * because prepending then would leave a hole in the middle that no scroll ever fills.
+   * Frames that landed since the last look, merged over the head of the wall so the reader keeps
+   * their scroll position. If the new first page shares nothing with the wall, it starts over.
    */
   const loadNew = useCallback(async () => {
     try {
@@ -146,17 +131,12 @@ export function AlbumView({
       const next = (await response.json()) as Feed;
       if (lastTotal.current !== null && next.totalPhotos !== lastTotal.current) void loadNew();
       lastTotal.current = next.totalPhotos;
-      /* Open, and no longer shooting: the seal has lifted and the counts are final, so there
-         is nothing left for the poll below to hear about. This is the state an album spends
-         the rest of its life in — the one people leave open on a phone and come back to. */
       settled.current = next.open && !next.capturing;
       setFeed((previous) => {
-        // The seal lifting while someone is looking at the wall is the moment the whole
-        // product exists for, so the page refreshes itself rather than waiting for a tap.
+        // The seal lifting while someone watches refreshes the page on its own.
         if (previous && !previous.open && next.open) {
           setGeneration((n) => n + 1);
-          // The server decided this page's back link and camera link from a roll that was
-          // sealed a moment ago, so they are re-derived rather than left stale.
+          // The server-rendered back and camera links were decided while sealed.
           router.refresh();
         }
         return next;
@@ -178,8 +158,7 @@ export function AlbumView({
         if (!response.ok) return;
 
         const page = (await response.json()) as { items: FeedPhoto[]; nextCursor: string | null };
-        // Superseded while we were waiting: this is page four of a grid that has since
-        // started again from the top, and appending it would show the album from the middle.
+        // Superseded by a restart while waiting.
         if (mine !== request.current) return;
 
         setPhotos((previous) => (after ? [...previous, ...page.items] : page.items));
@@ -195,16 +174,9 @@ export function AlbumView({
   );
 
   /**
-   * The wall, as the server has it now.
-   *
-   * This screen is opened straight out of the camera, seconds after the shutter — long
-   * before the photographs it is meant to show have finished uploading, so the grid it
-   * loaded on arrival is missing exactly the frames the guest came to look for. The queue
-   * calls this the moment it has handed the last one over.
-   *
-   * Invalidating first, because a page may be in flight: without it the reload is refused by
-   * the loading guard, and the wall stays wrong until somebody reloads the page by hand.
-   * Pages already scrolled past are dropped, the same as when the seal lifts.
+   * The wall as the server has it now. The queue calls this once it has handed over the last
+   * frame, since this screen usually opens before the guest's photos finish uploading.
+   * Invalidates first, so an in-flight page cannot block the reload.
    */
   const reloadWall = useCallback(() => {
     request.current += 1;
@@ -214,35 +186,15 @@ export function AlbumView({
     void loadStatus();
   }, [loadPage, loadStatus]);
 
-  /* The frames this phone is still holding, drawn at the head of the wall until the wall
-     itself has them. The photo list is what tells it that has happened. */
+  /* Frames this phone is still holding, drawn at the head of the wall until the wall has them. */
   const { shots, waiting, dropped } = useUploadQueue(code, photos, reloadWall);
 
   useEffect(() => {
-    /*
-      Polling, not push. The seal lifting is a server-side clock event with no request behind
-      it, so something has to ask — and twenty seconds is close enough that a guest watching
-      the wall at reveal time sees it open on its own.
-
-      What it no longer does is carry the photographs. This response is a few hundred bytes
-      whatever the roll holds; the grid below pages through `/photos` on its own schedule.
-
-      The rule below objects to state being set from an effect. That is exactly what a fetch
-      does, and there is no render-time way to read a value that does not exist yet.
-    */
+    // Polling, because the seal lifting is a clock event with no request behind it.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadStatus();
 
-    /*
-      Twenty seconds is the right cadence for a roll that is still moving, and the wrong bill
-      for one that is not. An album is a thing people leave open — on a phone in a pocket, on
-      a tab behind forty others — and an evening of that used to be three requests a minute
-      for as long as it stayed there, whether or not anybody was looking and whether or not
-      anything could still change. Both of those are askable before we ask the server.
-
-      A phone taken back out of a pocket asks the moment it is visible again, and costs nothing
-      until it is.
-    */
+    // Only while something can still change and somebody is looking.
     const poll = () => {
       if (!settled.current && document.visibilityState === "visible") void loadStatus();
     };
@@ -254,17 +206,8 @@ export function AlbumView({
     };
   }, [loadStatus]);
 
-  /*
-    The grid is rebuilt when the seal lifts, and at no other time.
-
-    It used to restart whenever the sealed photo count changed — which is every time anybody
-    at the event takes a picture. Every page that had been scrolled to was thrown away and the
-    reader landed back at the top of the wall, mid-scroll, several times a minute. New frames
-    are `loadNew`'s now, which lays them over the head of the wall and leaves the rest alone.
-  */
+  // The grid is rebuilt when the seal lifts and at no other time; new frames are `loadNew`'s.
   useEffect(() => {
-    // Invalidate anything in flight and take the lock off it, so the restart below is not
-    // refused by a request whose result is about to be thrown away.
     request.current += 1;
     loading.current = false;
 
@@ -276,11 +219,6 @@ export function AlbumView({
   }, [loadPage, generation]);
 
   useEffect(() => {
-    /*
-      Paging on scroll rather than on a button. At 48 a page, a 12,000-photo wedding is 250
-      taps to reach the end of, which is not a gallery — it is a chore. The observer is the
-      platform's own answer and costs less than a scroll listener.
-    */
     const target = sentinel.current;
     if (!target || exhausted) return;
 
@@ -295,8 +233,6 @@ export function AlbumView({
     return <p className="px-5 py-10 text-center text-[15px] text-ash">{error}</p>;
   }
   if (!feed) {
-    // Frames waiting to be filled, rather than a word. A bare "Loading…" on a black screen
-    // reads as a page that failed, which is the wrong thing to think about your photographs.
     return (
       <div className="grid grid-cols-2 gap-3 px-5 py-6" aria-busy="true" aria-label="Loading">
         {Array.from({ length: 6 }, (_, index) => (
@@ -319,8 +255,6 @@ export function AlbumView({
         open={feed.open}
         now={now}
         back={back ?? undefined}
-        // Who else turned up. The host's roster carries controls a guest has no business
-        // with; the screen behind this link is the same list with none of them.
         peopleHref={`/e/${code}/people`}
       />
 
@@ -333,8 +267,6 @@ export function AlbumView({
             code={code}
             shotsLeft={feed.me.shotsLeft}
             cameraHref={cameraHref}
-            // The same two tiles the host has. A QR printed on a table is already out of any
-            // one phone's hands, so a guest passing it on is the flow rather than a leak.
             inviteHref={`/e/${code}/invite`}
             poolHref={`/e/${code}/pool`}
             poolLeft={feed.poolLeft}
@@ -342,16 +274,7 @@ export function AlbumView({
           />
         ) : null}
 
-        {/*
-          An offer, not an alarm. This was a solid block of the accent orange — the loudest
-          thing on a screen of photographs, sitting above them every single time the album was
-          opened. It is the same tile as everything else here now, and it still says what it
-          has to say.
-
-          Only for guests who are not signed in. Telling someone with an account that they
-          are "currently on guest mode" and should make one is both wrong and the most
-          intrusive element on the screen.
-        */}
+        {/* Only for guests who are not signed in. */}
         {feed.me.linked ? null : (
           <Link
             href="/welcome"
@@ -374,10 +297,7 @@ export function AlbumView({
         {feed.everyoneCanSee ? null : <VisibilityNotice />}
 
         {photos.length === 0 && shots.length === 0 ? (
-          /* An empty grid means two different things. When everybody can see everything it
-             is the roll that is empty; when only the host can, it is only this guest's own
-             wall — and "nothing shot yet" is then a claim about other people's photographs
-             that this screen is in no position to make. */
+          // When only the host sees everything, an empty wall says nothing about other guests.
           <p className="py-10 text-center text-[15px] text-dust">
             {feed.everyoneCanSee
               ? "Nothing shot yet. Be the first."
@@ -416,8 +336,6 @@ export function AlbumView({
               id: photo.id,
               by: photo.by,
               takenAt: photo.takenAt,
-              // Preview as the fallback rather than nothing: a smaller picture beats a
-              // broken frame if a payload ever arrives without the full one.
               src: photo.fullUrl ?? photo.previewUrl ?? "",
             }),
           )}

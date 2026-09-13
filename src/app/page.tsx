@@ -4,14 +4,7 @@ import { PillLink } from "@/components/roll/Chrome";
 import { Logo, Mark } from "@/components/ui/Logo";
 import { cn } from "@/lib/cn";
 
-/*
-  The marketing page.
-
-  It diverges from the reference app in one structural way: every call to action here — header,
-  hero, closing — points at the welcome screen. The reference app replaces its marketing site
-  with its welcome screen entirely; ours cannot, because this page is what explains the
-  product. Unifying the calls to action is how the two meet.
-*/
+/* The marketing page. Every call to action points at the welcome screen. */
 
 const STEPS: { title: string; body: string; shot: string }[] = [
   {
@@ -27,14 +20,8 @@ const STEPS: { title: string; body: string; shot: string }[] = [
 ];
 
 /*
-  A screenshot of the app, in a phone.
-
-  Not next/image, for the same reason as everywhere else here: these are fixed local files and
-  the optimiser would proxy them through our own server to no benefit.
-
-  `half` drops the top edge, so the frame runs off the top of whatever holds it. The step
-  screenshots are themselves crops of a screen, and a closed bezel drawn around a cropped
-  screen reads as a broken phone rather than a phone you are looking partway into.
+  A screenshot of the app, in a phone. Not next/image: fixed local files gain nothing from the
+  optimiser. `half` drops the top edge, for screenshots that are themselves crops.
 */
 function Phone({ src, className, half }: { src: string; className?: string; half?: boolean }) {
   return (
@@ -99,15 +86,7 @@ export default function MarketingHome() {
               </div>
             </div>
 
-            {/*
-              The camera a guest is handed and the album a host gets back — the two ends of the
-              product, overlapped the way two phones on a table are. The album sits in front,
-              because it is the thing being sold; the camera is only how it fills up.
-
-              The tilt sits on the phones
-              rather than on the wrapper because `animate-rise` finishes on `transform: none`,
-              which would wipe a rotation sharing that element.
-            */}
+            {/* Camera and album, overlapped. The tilt is on the phones because `animate-rise` ends on `transform: none`. */}
             <div className="order-first flex justify-center lg:order-last lg:justify-end">
               <div
                 className="animate-rise flex w-full max-w-[23rem] items-start"
@@ -143,11 +122,7 @@ export default function MarketingHome() {
 
         {/* ---------------------------------------------------------------- reveal */}
         <section className="border-t border-hair px-6 py-20 sm:px-10 sm:py-28">
-          {/*
-            Both columns size to their content rather than splitting the row, so the phone sits
-            beside the sentence instead of at the far edge of the container. `1fr` for the text
-            left a hole in the middle: the prose is capped at `max-w-md` and cannot fill it.
-          */}
+          {/* Both columns size to content, so the phone sits beside the capped-width prose. */}
           <div className="mx-auto grid max-w-5xl gap-12 lg:grid-cols-[auto_auto] lg:items-center lg:justify-start lg:gap-40">
             <div>
               <h2 className="display max-w-md text-[clamp(2rem,7vw,3rem)] text-chalk">
@@ -158,7 +133,6 @@ export default function MarketingHome() {
               </p>
             </div>
 
-            {/* The sealed roll as a host actually sees it, rather than a drawing of one. */}
             <Phone
               src="/frames/roll-pre-reveal.jpg"
               className="mx-auto w-full max-w-[15rem] lg:max-w-[17rem]"

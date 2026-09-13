@@ -1,12 +1,8 @@
 // MemoVue data model.
 //
-// A ROLL is one shared, time-boxed photo collection — the thing guests shoot on. The EVENT
-// is the occasion it happens at, and exists only in prose. A guest is a browser: the signed
-// cookie tied to a Guest row is the whole identity, and the name on it is only a caption.
-// They may optionally attach that row to an account later.
-//
-// Hosts sign in with Google. There are no passwords anywhere in this schema, deliberately:
-// a password column kept "for tests" is a backdoor with a friendly name.
+// A ROLL is one shared, time-boxed photo collection. A guest is a browser: the signed cookie
+// tied to a Guest row is the identity, and the name is only a caption. Hosts sign in with
+// Google; there are no passwords anywhere in this schema.
 
 generator client {
   provider = "prisma-client-js"
@@ -52,8 +48,7 @@ model User {
   email String @unique
   name  String
 
-  /// Google's stable `sub` claim. Nullable so a row can exist before its first sign-in —
-  /// which is how test fixtures and the email-matched admin migration work.
+  /// Google's stable `sub` claim. Nullable so a row can exist before its first sign-in.
   googleId  String? @unique
   avatarUrl String?
 
@@ -80,34 +75,20 @@ model Roll {
   coverKey    String?
   coverPreset Int     @default(0)
 
-  /// Bumped each time a cover is adopted, and appended to the cover's URL as `?v=`.
-  ///
-  /// `coverKey` is a fixed key overwritten in place — deliberately, so a replaced cover
-  /// leaves behind no orphan object that nothing will ever delete. What that costs is a new
-  /// cover having the identical URL to the one it replaced, and covers are served through
-  /// the cached public domain like everything else, so the edge and the browser both went
-  /// on handing back the previous picture until their TTL ran out. A version in the query
-  /// string is a different cache key, so the swap is visible at once and purges nothing.
+  /// Bumped on each cover upload and appended as `?v=`, since `coverKey` is overwritten in
+  /// place and the CDN would otherwise keep serving the old picture.
   coverVersion Int @default(0)
 
   maxGuests      Int
   photosPerGuest Int
 
-  /// false: a guest sees only their own frames, the host sees all. Defaults on, because a
-  /// shared album is what somebody sets a roll up for; the other way round is a deliberate
-  /// choice, and the wizard sends an explicit value either way.
+  /// false: a guest sees only their own frames; the host sees all.
   everyoneCanSee Boolean @default(true)
 
-  /// Whether guests may hand their own film to the shots pool.
-  ///
-  /// false, because it is the host's roll and the quiet guest who gives half their shots away
-  /// has no way of knowing they were about to be the one taking the photographs. Drawing from
-  /// the pool is unaffected either way: that film belongs to guests who never turned up, and
-  /// nobody chose to keep it.
+  /// Whether guests may hand their own film to the shots pool. Drawing from it is unaffected.
   giveawayAllowed Boolean @default(false)
 
-  /// Capture runs startsAt..finishesAt. The reveal is a separate moment — which is the
-  /// change from the previous model, where closing and revealing were one control.
+  /// Capture runs startsAt..finishesAt. The reveal is a separate moment.
   startsAt   DateTime
   finishesAt DateTime
 
@@ -115,23 +96,14 @@ model Roll {
   revealDelayHours Int        @default(0)
 
   /// Derived from finishesAt + mode + delay on every write, never accepted from input.
-  /// Stored rather than computed so the retention job can query it without loading rows.
+  /// Stored so jobs can query it.
   revealAt      DateTime
   revealedEarly Boolean  @default(false)
 
-  /// How many times the host has downloaded this roll as a ZIP.
-  ///
-  /// A lifetime tally, not a rate. The archive of a settled roll never changes again, so a
-  /// host reaching for an eleventh copy is not being slow — something is wrong that another
-  /// download will not fix. Persisted because the ceiling it feeds only means anything if it
-  /// survives a deploy; the rate limiter it replaced lived in a Map that did not.
+  /// Lifetime count of ZIP downloads, against the ceiling in `constants.ts`.
   downloads Int @default(0)
 
-  /// First time anybody loaded this roll's album after it opened.
-  ///
-  /// A column rather than a tally because the question it answers is per-roll and permanent —
-  /// how many albums are ever opened at all, which is whether the product's one payoff moment
-  /// actually happens. Written once and never again.
+  /// First time anybody loaded this roll's album after it opened. Written once.
   albumOpenedAt DateTime?
 
   status RollStatus @default(ACTIVE)
@@ -155,39 +127,26 @@ model Guest {
   rollId String
   roll   Roll   @relation(fields: [rollId], references: [id], onDelete: Cascade)
 
-  /// A label, not an identifier. Two people called Riya join the same wedding and both keep
-  /// their own name and their own camera — which is what the browser holding the cookie is
-  /// for. Nothing in this schema compares one guest's name to another's.
+  /// A label, not an identifier. Duplicate names in one roll are fine.
   name String
 
-  /// Set if the guest later creates an account. How a roll they attended reaches their
-  /// own home screen. Null for the overwhelming majority, who never sign up.
+  /// Set if the guest has an account, so the roll reaches their own home screen.
   userId String?
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  /// Shots moved between this guest and the roll's shared pool: positive drawn out of it,
-  /// negative handed back. Their allowance is `photosPerGuest + fromPool`.
-  ///
-  /// The pool itself is derived from these rather than stored — see `poolFrom` in
-  /// `roll-config.ts`. A roll's size is still editable after it exists, and a pool written
-  /// as a column when it was a different size would disagree with the roll it belongs to.
+  /// Net shots moved from the shared pool: positive drawn, negative given. Their allowance is
+  /// `photosPerGuest + fromPool`; the pool itself is derived (see `poolFrom`).
   fromPool Int @default(0)
 
-  /// How many times this guest has refilled from the pool. Only draws count — handing film
-  /// back and reclaiming it again are not refills, and must not spend one.
-  ///
-  /// A tally rather than something derived from `fromPool`, because the ceilings are on the
-  /// number of times rather than on the total: ten is five allowances, and the first quarter
-  /// of the event allows two. See `refillsLeft` in `roll-config.ts`.
+  /// How many times this guest has drawn from the pool. Giving and reclaiming do not count.
+  /// See `refillsLeft`.
   refills Int @default(0)
 
   createdAt DateTime @default(now())
 
   photos Photo[]
 
-  /// One identity per account per roll. Nullable columns do not collide in Postgres, so
-  /// anonymous guests are unconstrained while an account holder cannot end up with two
-  /// rows in the same roll and two separate shot quotas.
+  /// One row per account per roll. Nulls do not collide, so anonymous guests are unconstrained.
   @@unique([rollId, userId])
   @@index([rollId])
   @@index([userId])
@@ -209,36 +168,21 @@ model Photo {
   height Int
   bytes  Int
 
-  /// PENDING once upload URLs are issued, READY once the client confirms both objects
-  /// landed. Both count against quota, which is what stops one photo costing two shots — but
-  /// only quota: everything a host is shown counts READY alone, so no screen claims a
-  /// photograph the album cannot produce.
-  ///
-  /// A reservation is given back rather than held forever. The queue releases its own the
-  /// moment it decides a photograph will never land, and the sweep takes the rest a week on
-  /// — which is what the `[status, createdAt]` index below has always been for.
+  /// PENDING once upload URLs are issued, READY once the client confirms. Both count against
+  /// quota; everything shown counts READY only. Abandoned PENDING rows are swept after a week.
   status PhotoStatus @default(PENDING)
 
   takenAt   DateTime @default(now())
   createdAt DateTime @default(now())
 
-  /// Every hot read of this table asks for one roll's READY frames, newest first: the wall,
-  /// the guest album's pages, the archive, and — three times a minute for every phone at the
-  /// event — the feed's count of them. `status` sits in the middle so the count is answered
-  /// from the index alone; with `(rollId, takenAt)` it had to read every row in the roll off
-  /// the heap to find out. This replaces that index rather than joining it, so an insert
-  /// during a party still maintains two.
+  /// Every hot read is one roll's READY frames, newest first, and the count is index-only.
   @@index([rollId, status, takenAt])
   @@index([guestId])
   @@index([status, createdAt])
 }
 
-/// What a roll leaves behind once it is deleted, for the query topic.
-///
-/// Rolls are hard-deleted and take their guests and photos with them, so without this a host
-/// who deleted everything and one who never made anything look the same. Settings and counts
-/// only — no photos and no guest names, which is what the privacy page promises — and it goes
-/// when the host's account does.
+/// What a deleted roll leaves behind: settings and counts only, no photos or guest names.
+/// Goes when the host's account does.
 model DeletedRoll {
   /// The roll's own id.
   id     String @id
@@ -256,36 +200,23 @@ model DeletedRoll {
   @@index([hostId])
 }
 
-/// Who may create a roll while the product is invite-only, and how many are left to them.
-///
-/// Keyed on the email address rather than on a User row because access is granted before the
-/// person has ever signed in — an admin types an address in, and a User row only appears when
-/// Google hands one over. Always stored lower-cased, so this and `User.email` compare directly.
-///
-/// A row nobody typed in is the ordinary case now: the first roll needs no permission, and
-/// spending it writes the row every question after it is answered from.
+/// Who may create rolls while invite-only, keyed on lower-cased email because access can be
+/// granted before the person ever signs in. Spending the free first roll writes the row.
 model BetaAccess {
   id    String @id @default(cuid())
   email String @unique
 
   /// Spent when a roll is created, given back when an unstarted roll is deleted.
-  /// Zero is a live row that has run out, which looks the same to the person as never having
-  /// been added — deliberately, so an admin tops someone up rather than re-adding them.
   rollsLeft Int @default(1)
 
-  /// How many give-backs this account has had. Capped in `beta.ts`, because an uncapped
-  /// refund is a free roll on tap: create, delete before the start, repeat.
+  /// Give-backs so far. Capped in `beta.ts`, or create-and-delete is a free roll on tap.
   refunds Int @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-/// Somebody asking to be let in.
-///
-/// Stored as well as emailed, because the email is best-effort — `send` swallows its own
-/// failures so a submission never 500s — and a request that existed only inside a dropped
-/// SMTP call is a customer we never knew asked.
+/// Somebody asking to be let in. Stored as well as emailed, because email is best-effort.
 model BetaRequest {
   id String @id @default(cuid())
 
@@ -302,19 +233,9 @@ model BetaRequest {
   @@index([createdAt])
 }
 
-/// A day's tally of the handful of things that leave no row of their own.
-///
-/// Everything else worth counting is already in this schema with a `createdAt` on it — rolls,
-/// hosts, guests, photographs — so the digest derives those, and they stay correct across a
-/// deploy, a backfill and a restore. What is left is what happens and then vanishes: an
-/// invitation shown and not accepted, an upload the queue gave up on, a crash.
-///
-/// A tally, deliberately, and not an event log. There is no identifier of any kind in this
-/// table and nothing joins to it, so it cannot be turned back into one person's evening —
-/// which is the only shape of analytics this product can honestly ship.
+/// A day's tally of things that leave no row of their own. No identifiers; nothing joins to it.
 model Metric {
-  /// The wall-clock day in Kolkata, as `YYYY-MM-DD`. Text rather than a `date`, so that
-  /// nothing between here and Postgres can shift it by a timezone. See `format.ts`.
+  /// The Kolkata wall-clock day as `YYYY-MM-DD`, as text so no driver can shift it.
   day   String
   name  String
   count Int      @default(0)

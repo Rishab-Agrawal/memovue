@@ -8,35 +8,18 @@ import { prisma } from "./prisma";
 import { openRollWhere } from "./roll-access";
 
 /**
- * Yesterday, in one message you can read at a traffic light.
+ * Yesterday, in one short message: usage, today, cost, health.
  *
- * The shape answers five questions in the order they matter in: did anybody use it, is
- * anything happening today, what is it costing, is it working at all, and is it broken.
- * Anything serving none of those is left out — a digest nobody finishes reading measures
- * nothing, and a number with no denominator beside it is decoration.
- *
- * Cost is the one line that is not a database query. It is here because it is the only
- * number in the message that can go wrong while every other one stays pleasant, and because
- * the alarm for it lives elsewhere on purpose — `scripts/cost.ts` watches the thresholds
- * every four hours, so what belongs in a morning message is the reading, not the alarm.
- *
- * Almost every figure is a query over rows that already existed rather than a counter. That is
- * what makes this safe to change: a line added here months from now will be correct about last
- * March too. The tallies are the exceptions, and they are exceptions only because the thing
- * they count leaves nothing behind — or, in a roll's case, stops leaving anything behind the
- * moment somebody deletes it. See `metrics.ts`.
- *
- * The one thing in here that is an alarm rather than a number comes back separately, in
- * `missing`. Everything else in this message is worth reading and none of it is urgent, so the
- * digest has to be safe to skip — and it is not safe to skip if the only warning that a nightly
- * job stopped running is a word near the bottom of it.
+ * Figures are queries over existing rows where possible, so a line added later is right about
+ * the past too; tallies cover what leaves no row (see `metrics.ts`). The digest is safe to skip,
+ * so the one real alarm — a missing nightly job — comes back separately in `missing`.
  */
 
 function pct(part: number, whole: number): string {
   return whole > 0 ? `${Math.round((part / whole) * 100)}%` : "—";
 }
 
-/** "1 roll", "2 rolls". Two lines, read three hundred and sixty-five times a year. */
+/** "1 roll", "2 rolls". */
 function count(n: number, noun: string): string {
   return `${n} ${noun}${n === 1 ? "" : "s"}`;
 }
@@ -85,8 +68,7 @@ export async function buildDigest(now: Date = new Date()): Promise<Digest> {
     prisma.roll.count({ where: createdYesterday }),
     prisma.user.count({ where: createdYesterday }),
     prisma.photo.count({ where: { status: "READY", ...createdYesterday } }),
-    // The same rows the line above counts. Without the status these disagree, and the digest
-    // says a number of photographs arrived from more people than took them.
+    // The same READY rows as the line above, so the two cannot disagree.
     prisma.photo.groupBy({ by: ["guestId"], where: { status: "READY", ...createdYesterday } }),
     prisma.roll.count({ where: { albumOpenedAt: { gte: yesterday.from, lt: yesterday.to } } }),
     tallies(day),
@@ -99,22 +81,12 @@ export async function buildDigest(now: Date = new Date()): Promise<Digest> {
     prisma.roll.count(),
     prisma.photo.count({ where: { status: "READY" } }),
     prisma.roll.count({ where: openRollWhere(now) }),
-    // No clause about the clock beside it: `albumOpenedAt` is only ever written while the
-    // album is open, so the column already carries the condition the denominator applies.
+    // `albumOpenedAt` is only written while an album is open, so it needs no clock clause.
     prisma.roll.count({ where: { albumOpenedAt: { not: null } } }),
     /*
-      Every guest figure in the message, with the hosts taken out of them.
-
-      A host is enrolled in their own roll the moment it is created, so a `Guest` row stopped
-      being the same thing as somebody having accepted an invitation. Counted straight, each
-      roll created added a phantom join to a funnel whose top its host never passed through —
-      a day with no invitations shown and three rolls made read "0 shown → 3 joined" — and put
-      the host's own untouched quota into "used their whole film".
-
-      Raw because the rule compares two tables, a guest's `userId` against their roll's
-      `hostId`, which the query API cannot express. One statement rather than three round
-      trips, and it replaces the page of guest rows this used to load to do the arithmetic in
-      JavaScript.
+      Every guest figure, hosts excluded: a host is enrolled in their own roll, which is not
+      accepting an invitation. Raw SQL because it compares a guest's `userId` with its roll's
+      `hostId`, which the query API cannot express.
     */
     prisma.$queryRaw<[GuestCounts]>`
       select
@@ -136,29 +108,15 @@ export async function buildDigest(now: Date = new Date()): Promise<Digest> {
   ]);
 
   /*
-    Rolls made yesterday, from whichever of the two sources says more.
-
-    Neither alone is right. The rows lose a roll the moment it is deleted — a host changing
-    their mind an hour later, an evening spent testing, and eventually the retention pass,
-    which takes every roll thirty days after it finished — so counted straight, a day somebody
-    used the product can read as a day nobody did, and a figure from last March quietly shrinks
-    every time the sweep runs. The tally has no such hole, but it knows only about days since
-    it was added, and a `Metric` write that fails is swallowed on purpose.
-
-    Neither can count a roll that was never made, so the larger of the two is the nearer to the
-    truth — and the days before the tally existed need no backfill to stay right.
+    The larger of rows and tally. Rows lose deleted rolls; the tally misses days before it
+    existed and swallowed write failures. Neither over-counts, so the larger is nearer the truth.
   */
   const rollsMade = Math.max(counts.roll_created ?? 0, rollsCreated);
 
   const scans = counts.scan ?? 0;
   const heading = `${WEEKDAYS[toWall(yesterday.from).weekday]} ${formatDayYear(yesterday.from)}`;
 
-  /*
-    Read off today's row rather than yesterday's, because both jobs run in the small hours of
-    the morning this is sent. A missing tick means the job did not run at all — the one failure
-    neither a red cron run nor an exception could ever have reported, because a job that is no
-    longer scheduled does not fail. It simply never happens.
-  */
+  // Today's heartbeats, since the jobs run before this is sent. A job that stopped being scheduled never fails; it just never ticks.
   const missing = [
     heartbeats.backup_ok ? null : "backup",
     heartbeats.sweep_ok ? null : "sweep",

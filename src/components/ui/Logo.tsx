@@ -1,17 +1,8 @@
 import { cn } from "@/lib/cn";
 
 /**
- * The MemoVue mark, traced from the source artwork into paths so it scales crisply,
- * inherits colour, and can draw itself in.
- *
- * Four differently-sized circles on curving stems converging to a single root: many
- * viewpoints, one event. The asymmetry is deliberate and load-bearing — evenly spaced
- * identical circles would read as a generic logo grid.
- *
- * Coordinates are in the artwork's own proportions rather than a rounded grid, because
- * regularising them is exactly what would drain the character out of it. Each stem leaves
- * its circle shallow and steepens into the trunk, which is what gives the mark its
- * botanical rather than geometric feel.
+ * The MemoVue mark as paths, so it scales, inherits colour and can draw itself in. Four circles
+ * on stems converging to one root. Coordinates follow the source artwork; do not round them.
  */
 
 const STEMS = [
@@ -58,8 +49,7 @@ export function Mark({
             style={
               animate
                 ? {
-                    // Custom property drives the keyframe, so each stem's dash matches its
-                    // own length and they finish together rather than snapping.
+                    // Each stem's dash matches its own length.
                     ["--dash" as string]: stem.length,
                     strokeDasharray: stem.length,
                     animation: `mv-draw 900ms var(--ease-out-soft) ${index * 90}ms both`,

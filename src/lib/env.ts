@@ -1,19 +1,15 @@
-// Importing this from a client component is a build error rather than a runtime crash:
-// it reads secrets at module scope, and a browser bundle would both fail and leak.
+// A build error, not a runtime crash, if a client component imports this: it reads secrets.
 import "server-only";
 
-/**
- * Server-side runtime configuration.
- *
- * Values shared with the browser (image dimensions, quality targets) live in
- * `constants.ts` instead, precisely so they can be imported without dragging secrets along.
- */
+/** Server-side runtime configuration. Browser-safe values live in `constants.ts`. */
 
 function required(name: string, fallback?: string): string {
   const value = process.env[name] ?? fallback;
   if (!value) throw new Error(`Missing required environment variable: ${name}`);
   return value;
 }
+
+const appUrl = (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
 
 const r2AccountId = process.env.R2_ACCOUNT_ID;
 const r2AccessKeyId = process.env.R2_ACCESS_KEY_ID;
@@ -26,27 +22,15 @@ const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
 const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
 
+/** Injected into every deployed Railway service, web and cron alike, and nowhere else. */
+const isDeployed = Boolean(process.env.RAILWAY_ENVIRONMENT);
+
 /**
  * The notification group, or nothing if what is configured is not a group.
  *
- * Telegram numbers a group negatively and a person positively, and `getUpdates` hands you your
- * own id first if you ever opened the bot before making the group. So the documented way to
- * read this value is also the way to aim every alert, signal and digest at a private chat with
- * the bot — which delivers, quietly, and looks exactly like working.
- *
- * That is not a cosmetic difference. A private chat has no forum topics, so `message_thread_id`
- * is ignored there and three channels read at three different speeds collapse into one stream
- * nobody can triage. Every other misconfiguration here degrades toward "delivered, just less
- * sorted"; this one degrades toward "delivered somewhere nobody asked for", which is the one
- * direction a notification channel must not fall.
- *
- * Off a deployment this throws, because the only moment this value is ever wrong is the moment
- * somebody pastes it in, and that is the moment worth refusing to start. On one it only
- * switches the channel off and says so: a notification setting must not be able to take the
- * site down mid-party, and — the reason this is not keyed on NODE_ENV — the four cron services
- * run plain `tsx` with no NODE_ENV at all, so that test would have let a mistyped chat id stop
- * the nightly backup. `RAILWAY_ENVIRONMENT` is injected into every deployed service, web and
- * cron alike, and exists nowhere else.
+ * A positive id is a private chat with the bot: it delivers, but has no forum topics, so every
+ * channel collapses into one stream. Refused locally, where it is pasted in; on a deployment it
+ * only switches notifications off, so a config typo cannot take the site or a cron job down.
  */
 function telegramGroupChatId(): string | undefined {
   const id = process.env.TELEGRAM_CHAT_ID?.trim();
@@ -55,7 +39,7 @@ function telegramGroupChatId(): string | undefined {
   const complaint =
     `TELEGRAM_CHAT_ID is ${id}, which is a private chat with the bot rather than the ` +
     "notification group. A group's id is negative, and a supergroup with topics starts -100.";
-  if (process.env.RAILWAY_ENVIRONMENT) {
+  if (isDeployed) {
     console.error(`${complaint} Telegram notifications are off until it names the group.`);
     return undefined;
   }
@@ -68,21 +52,14 @@ const railwayApiToken = process.env.RAILWAY_API_TOKEN;
 const railwayWorkspaceId = process.env.RAILWAY_WORKSPACE_ID;
 const cloudflareApiToken = process.env.CLOUDFLARE_API_TOKEN;
 
-/**
- * A forum topic in the notification group, or undefined for the group's General thread.
- *
- * Individually optional, unlike the token and the chat id: a group works perfectly well
- * without topics turned on, and a message with no thread id lands in General rather than
- * failing. So an unset one degrades to "still delivered, just less sorted", which is the only
- * safe direction for an alarm channel to fall.
- */
+/** A forum topic id, or undefined for the group's General thread. */
 function topicId(name: string): number | undefined {
   const id = Number(process.env[name]);
   return Number.isSafeInteger(id) && id > 0 ? id : undefined;
 }
 
 export const env = {
-  appUrl: (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, ""),
+  appUrl,
 
   // Dev gets a stable throwaway secret so sessions survive a server restart.
   authSecret: required(
@@ -93,14 +70,7 @@ export const env = {
   /** Email that is auto-promoted to ADMIN on signup, so the owner never touches the DB. */
   adminEmail: (process.env.ADMIN_EMAIL ?? "").toLowerCase().trim(),
 
-  /*
-    All five or nothing, deliberately.
-
-    `R2_PUBLIC_URL` sits in the same conjunction as the credentials rather than optional beside
-    them, so a deploy cannot come up half-configured — with a bucket but no cached domain —
-    and quietly fall back to minting a signed URL per image. That failure would be silent and
-    would cost real money, which is the worst pair of properties a misconfiguration can have.
-  */
+  // All five or nothing: a bucket without its CDN domain must not boot half-configured.
   r2:
     r2AccountId && r2AccessKeyId && r2SecretAccessKey && r2Bucket && r2PublicUrl
       ? {
@@ -115,30 +85,22 @@ export const env = {
       : null,
 
   /**
-   * Google sign-in. Nullable like `r2` so a fresh clone still boots without credentials —
-   * the sign-in route reports it as unconfigured rather than the whole app failing to start.
-   *
-   * The redirect URI is derived from `appUrl` and must match the one registered on the
-   * OAuth client character for character, so changing APP_URL means adding the new URI in
-   * Google Cloud Console too.
+   * Google sign-in, nullable so a fresh clone boots without credentials. The redirect URI must
+   * match the one registered in Google Cloud Console, so changing APP_URL means updating it there.
    */
   google:
     googleClientId && googleClientSecret
       ? {
           clientId: googleClientId,
           clientSecret: googleClientSecret,
-          redirectUri: `${(process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "")}/api/auth/google/callback`,
+          redirectUri: `${appUrl}/api/auth/google/callback`,
         }
       : null,
 
   resendApiKey: process.env.RESEND_API_KEY || null,
   emailFrom: process.env.EMAIL_FROM || "MemoVue <hello@memovue.com>",
 
-  /**
-   * Where everything the owner needs to know is pushed. Both or neither: a token with nowhere
-   * to send and a chat id with nothing to send it are each a config that looks present and
-   * notifies nobody.
-   */
+  /** Owner notifications. Both token and chat id, or neither. */
   telegram:
     telegramBotToken && telegramChatId
       ? {
@@ -156,17 +118,8 @@ export const env = {
       : null,
 
   /**
-   * Read-only credentials for the two meters that bill us. See `cost.ts`.
-   *
-   * Independent of each other rather than one group, because they are two separate bills and
-   * losing sight of the small one must not cost us sight of the large one. Cloudflare reuses
-   * the R2 account id already configured above — it is the same account, and a second copy of
-   * it is a second thing to get wrong.
-   *
-   * Both are optional and neither is a secret this app spends: a missing one degrades to the
-   * cost watch saying so, out loud, every four hours. It is deliberately not possible for
-   * this to fail quietly, because a cost alarm that has gone blind looks exactly like a cheap
-   * month.
+   * Read-only credentials for the two bills. See `cost.ts`. Independent, so losing one does not
+   * blind the other; a missing one makes the cost watch say so rather than go quiet.
    */
   cost: {
     railway:
@@ -182,25 +135,12 @@ export const env = {
   isProduction: process.env.NODE_ENV === "production",
 
   /**
-   * Whether this is a deployed service or somebody's laptop.
-   *
-   * `NODE_ENV` cannot answer that: `next start` says production on a laptop too, and the four
-   * cron services run plain `tsx` with no NODE_ENV at all. `RAILWAY_ENVIRONMENT` is injected
-   * into every deployed service, web and cron alike, and exists nowhere else — the same
-   * discriminator `telegramGroupChatId` above already leans on.
-   *
-   * What it is for is `telegram.ts`. The bot token, the chat id and the three topic ids here
-   * are the same ones the deployment posts with, deliberately — a notification channel that
-   * cannot be exercised before it ships is one nobody discovers is broken until the night it
-   * matters. What that costs is that every development machine is also configured to write
-   * into the live group, and this is the line that stops it doing so.
+   * A deployed service rather than a laptop. NODE_ENV cannot tell: `next start` says production
+   * locally and cron services have none. `telegram.ts` uses it so dev machines, which share the
+   * live bot config, do not post into the live group.
    */
-  isDeployed: Boolean(process.env.RAILWAY_ENVIRONMENT),
+  isDeployed,
 
-  /**
-   * The bucket prefix every key is built under. See `storage.ts` for why this is stated
-   * rather than inferred; the inference is kept as the default so no deployed service needs
-   * to set it, and anything running against a database that is not production's should.
-   */
+  /** The bucket prefix. See `storage.ts`. */
   r2Prefix: process.env.R2_PREFIX?.trim() || (process.env.NODE_ENV === "production" ? "events" : "dev"),
 } as const;

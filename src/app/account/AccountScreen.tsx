@@ -15,19 +15,7 @@ import { deleteAccountAction, logoutAction, updateNameAction } from "./actions";
 const danger =
   "flex h-14 w-full items-center gap-3.5 border-b border-hair-bright/60 text-left text-[15px] text-danger last:border-b-0";
 
-/**
- * Your own screen.
- *
- * It opens on the person rather than on the word "Settings" over a white circle of initials,
- * and the rows below are separated by hairlines rather than each being its own filled tile —
- * which is what this app's own first design rule asks for and what the version copied from
- * the reference was ignoring.
- *
- * Two of the reference's sections never existed here. "Website" sat next to Instagram —
- * pointless for us, because the thing it would link to is the page you are already on. And
- * the PARTNER section, whose only row was "Have a discount code?", has nothing to hold:
- * access hangs on the address you signed in with, so there is nothing for anyone to type.
- */
+/** Your own screen: your name as the heading, then support, admin and account rows. */
 export function AccountScreen({
   name: initialName,
   email,
@@ -52,16 +40,10 @@ export function AccountScreen({
   return (
     <div className="flex h-dvh flex-col">
       <div className="flex-1 overflow-y-auto px-5 pt-[calc(var(--safe-top)+2rem)] pb-6">
-        {/*
-          The person is the heading, not the word "Settings" over a white circle holding their
-          initials. This screen is reached from a tab called You: it should open with who you
-          are, at the size everything else on this app gives to the thing it is about.
-        */}
         <section>
           <div className="flex items-start gap-4">
             {editing ? (
-              /* A real form, so the phone keyboard's Go key submits it — and a way back out,
-                 which a field whose only exit was Save did not have. */
+              /* A real form, so the keyboard's Go key submits it. */
               <form
                 onSubmit={(event) => {
                   event.preventDefault();
@@ -116,8 +98,6 @@ export function AccountScreen({
             <SettingRow
               icon={<Instagram className="h-5 w-5" />}
               label="Instagram"
-              // The account itself, not the front door — this row went to whichever profile
-              // the phone happened to be logged into.
               value="@memovue.official"
               href="https://instagram.com/memovue.official"
             />

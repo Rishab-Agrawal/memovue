@@ -3,17 +3,7 @@ import type { ReactNode } from "react";
 
 import { cn } from "@/lib/cn";
 
-/**
- * One row of a settings list: icon, label, current value, chevron. The value is what makes
- * these rows worth reading — a list of labels alone tells a host nothing about how their
- * roll is currently configured.
- *
- * A hairline between rows, not a filled tile per row. Every one of these used to be its own
- * rounded `surface` block with a gap under it — the reference's arrangement, and the thing
- * this app's own first design rule exists to forbid: no cards, structure from rules and
- * space. A stack of twelve identical grey lozenges also reads as twelve unrelated objects
- * rather than as one list.
- */
+/** One row of a settings list: icon, label, current value, chevron. Hairlines between rows, no cards. */
 export function SettingRow({
   icon,
   label,
@@ -27,11 +17,7 @@ export function SettingRow({
   label: string;
   value?: string;
   href?: string;
-  /**
-   * Sits against the end of the label rather than at the end of the row — for a row whose
-   * name needs a footnote. The giveaway row's question mark goes here so that its switch
-   * stays on the same right-hand edge as every other switch in the list.
-   */
+  /** Sits right after the label (e.g. a help icon), keeping `trailing` aligned with other rows. */
   after?: ReactNode;
   /** Replaces the chevron — used by the visibility row, which carries a switch. */
   trailing?: ReactNode;
@@ -40,8 +26,7 @@ export function SettingRow({
   const body = (
     <>
       <span className={cn("shrink-0", tone === "danger" ? "text-danger" : "text-ash")}>{icon}</span>
-      {/* Both label and value stay on one line: a settings row that grows to two lines
-          breaks the rhythm of the stack and, at this width, most of them would. */}
+      {/* Label and value each truncate to one line. */}
       <span className="flex min-w-0 flex-1 items-center gap-2">
         <span
           className={cn("truncate text-[15px]", tone === "danger" ? "text-danger" : "text-chalk")}
@@ -57,8 +42,7 @@ export function SettingRow({
 
   const className = cn(
     "flex h-14 w-full items-center gap-3.5 border-b border-hair-bright/60 text-left last:border-b-0",
-    // Only a row that leads somewhere answers to a press. A row carrying a switch is not
-    // itself the control, and dipping the whole thing would claim the tap the switch took.
+    // Only a row that navigates reacts to a press; on a switch row the switch is the control.
     href && "transition-[color,scale] duration-150 hover:text-flame active:scale-[0.99]",
   );
 

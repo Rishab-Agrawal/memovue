@@ -2,24 +2,12 @@
 
 import { useEffect, useRef } from "react";
 
-/**
- * The browser half of `bot-check`. The field a script fills in, and the clock it beats.
- *
- * Both live here so a form cannot pick up one and forget the other, and so the two of them
- * stay next to the module that judges what they report.
- */
+/** The browser half of `bot-check`: the hidden field and the form clock. */
 
 /**
- * The hidden field. Renders nothing anybody can reach.
- *
- * Off-screen rather than `display:none`, because the crudest form-fillers skip what the
- * browser reports as hidden and this one is meant to be filled in. `aria-hidden` and a
- * negative tab index keep it away from the people the trick is not for — a screen reader
- * never announces it and no keyboard lands on it.
- *
- * Controlled by the caller rather than owning its own state: these forms build their
- * submissions by hand instead of posting a `<form>`, so the value has to be somewhere the
- * caller can send from.
+ * The hidden field. Off-screen rather than `display:none`, since crude form-fillers skip hidden
+ * inputs; `aria-hidden` and `tabIndex={-1}` keep it from screen readers and keyboards.
+ * Controlled, because these forms build their submissions by hand.
  */
 export function Honeypot({
   value,
@@ -35,24 +23,14 @@ export function Honeypot({
         onChange={(event) => onChange(event.target.value)}
         tabIndex={-1}
         autoComplete="off"
-        // Not a field name any autofill heuristic recognises — a browser filling this in for
-        // somebody would lock them out of the form they were trying to send.
+        // A name no autofill heuristic recognises, so a browser never fills it in for a person.
         name="subject"
       />
     </div>
   );
 }
 
-/**
- * How long this form has been on screen, asked at submit time.
- *
- * Started from an effect rather than during the render that precedes it, which is both what
- * React requires of an impure call and the more honest reading: the clock should start when
- * there is something on screen to fill in.
- *
- * Zero until that has happened. Zero is refused — which is the right default for a caller
- * that never rendered the form at all, and unreachable for one that did.
- */
+/** How long this form has been on screen, asked at submit time. Zero until mounted, which is refused. */
 export function useFormAge(): () => number {
   const openedAt = useRef(0);
 

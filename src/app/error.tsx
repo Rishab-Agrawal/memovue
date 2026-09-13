@@ -6,27 +6,11 @@ import { Notice, Pill, PillLink } from "@/components/roll/Chrome";
 import { reportClientError } from "@/lib/report";
 
 /**
- * What a crash looks like, instead of what it looked like.
+ * The crash screen, with a retry and the reassurance that queued photos are safe.
  *
- * Without this file an uncaught exception anywhere below the root layout renders Next's own
- * fallback: a bare white page reading "Application error: a server-side exception has
- * occurred". On a phone at a wedding, mid-upload, that is indistinguishable from the app
- * being gone — and there was nothing on it to tap, so the photographs sitting in the queue
- * looked lost too. They are not: the queue is in IndexedDB and drains on the next open, which
- * is exactly what the retry below does.
- *
- * `unstable_retry` rather than `reset`: the former re-fetches the segment, which is what a
- * failed database read actually needs. `reset` only re-renders what it already has.
- *
- * The digest is printed on purpose. It is the only string that ties what somebody is looking
- * at to a line in the server log, and asking a guest to describe a blank screen instead is
- * how a bug survives a whole event.
- *
- * It is also reported, because this boundary is the one place a crash is *not* seen by the
- * global handlers in `instrumentation-client`: React catches a failed render before it ever
- * reaches `window`. A server error arrives here already stripped to its digest and is
- * announced from `onRequestError` with its message intact, so what this adds is the
- * client-side half — the render that only breaks on somebody else's phone.
+ * `unstable_retry` rather than `reset`, because it re-fetches the segment. The digest is printed
+ * so a screenshot matches the server alert. Reported here because React catches render errors
+ * before `instrumentation-client`'s global handlers can see them.
  */
 export default function ErrorScreen({
   error,

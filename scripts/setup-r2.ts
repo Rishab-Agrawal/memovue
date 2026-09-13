@@ -1,17 +1,12 @@
 /**
- * Applies the bucket-level configuration MemoVue needs on R2, then reads back the two
- * Cloudflare rules that keep reads off the bill.
+ * Sets the R2 bucket's CORS (browsers PUT photos straight to it), then checks the Cloudflare
+ * zone's cache and rate-limit rules. Re-run after adding a domain.
  *
- * Browsers PUT photo bytes straight at R2, so the bucket must allow cross-origin PUTs
- * from wherever the app is served. Re-run this after adding a new domain.
+ *   npx tsx scripts/setup-r2.ts           # CORS, then the rule check
+ *   npx tsx scripts/setup-r2.ts --rules   # the rule check only
  *
- *   npx tsx scripts/setup-r2.ts
- *
- * The rules are only ever *read* here, never written. They live on a zone, they are somebody's
- * considered choice about numbers, and — like Railway's spend limits in the cost watch — a
- * script that pushed them from a repo would eventually overwrite a change made on purpose.
- * What this asserts is that they exist and that their TTLs are long, which is the property
- * the bill depends on and the one nothing else would ever notice going missing.
+ * The rules are only read, never written: they are dashboard settings, and a script pushing
+ * them would eventually overwrite a deliberate change.
  */
 import "./load-env";
 
@@ -46,13 +41,7 @@ const client = new S3Client({
 
 const CLOUDFLARE_API = "https://api.cloudflare.com/client/v4";
 
-/**
- * Below this, a rule is not doing the job it exists for.
- *
- * A day is deliberately far under what should be set — the point is to catch a TTL that has
- * been cleared or dropped to Cloudflare's two-hour default, not to insist on a number. The
- * live values are printed either way, which is what a human actually reads.
- */
+/** Catches a TTL cleared or reset to Cloudflare's default; the live values are printed anyway. */
 const MIN_TTL_SECONDS = 86_400;
 
 interface Rule {
@@ -74,9 +63,7 @@ async function cloudflare<T>(token: string, path: string): Promise<T> {
     result?: T;
     errors?: { message: string }[];
   };
-  // Cloudflare answers 200 with `success: false` for a token that is alive but not permitted,
-  // so the status line alone would read a refusal as an empty ruleset — which is exactly the
-  // shape of the failure this is here to catch.
+  // A permitted-but-refused token answers 200 with `success: false`, which is not an empty ruleset.
   if (!body.success) {
     throw new Error(body.errors?.map((e) => e.message).join("; ") || `HTTP ${response.status}`);
   }
@@ -84,12 +71,8 @@ async function cloudflare<T>(token: string, path: string): Promise<T> {
 }
 
 /**
- * The rules in one phase of a zone, or why they could not be read.
- *
- * Per phase rather than for both at once, because the two need different permissions on the
- * token — cache rules and the WAF are separate grants — and a token holding one of them
- * should report what it can see instead of going blind on everything. Reading nothing is a
- * warning; reading an empty phase is a finding, and they must not collapse into each other.
+ * The rules in one phase of a zone, or why they could not be read. Per phase, because each needs
+ * its own token permission. Unreadable and empty are different answers and stay distinct.
  */
 async function rulesFor(
   token: string,
@@ -104,33 +87,16 @@ async function rulesFor(
     return ruleset.rules ?? [];
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    /*
-      A phase nothing has ever been configured in has no entrypoint ruleset to return, and
-      Cloudflare says so in prose — "could not find entrypoint ruleset in the http_ratelimit
-      phase" — rather than with an empty list. That is the finding, not a failure to look, and
-      reading it as one is how "you have no rate limiting at all" first got reported here as
-      "your token cannot see the rate limiting". A refusal reads nothing like this: it names
-      the actor and the permission it wants.
-    */
+    // A never-configured phase has no entrypoint ruleset, reported as "could not find": that means empty, not unreadable.
     if (/404|could not (be )?found?|could not find/i.test(message)) return [];
     return { unreadable: message };
   }
 }
 
 /**
- * That the cache rule and the rate limit are both still there, and still long.
- *
- * These two are the only things standing between a public image domain and an unbounded R2
- * bill, and neither lives in this repo — they are zone configuration, enforced at the edge
- * whether or not anything of ours is running, which is exactly why they are worth having and
- * exactly why nothing here would notice one being deleted. The cost watch would eventually:
- * a cache rule that has gone means every read reaching R2, which shows up as money four hours
- * later. This says so before the month does.
- *
- * Unreadable is a warning and missing is an error, deliberately. Not being able to look —
- * no token, or a token without `Zone > Cache Rules > Read` — is an absence of evidence, and
- * failing the whole setup over it would make a fresh clone look broken. A rule that is
- * genuinely not there is evidence of absence, and it exits non-zero.
+ * That the CDN's cache rule and rate limit still exist with long TTLs — zone config that keeps
+ * image reads off the R2 bill and that nothing in the repo would otherwise notice disappearing.
+ * Unreadable is a warning (a fresh clone has no token); a missing rule exits non-zero.
  */
 async function checkZoneRules(): Promise<void> {
   const token = process.env.CLOUDFLARE_API_TOKEN;
@@ -185,13 +151,8 @@ async function checkZoneRules(): Promise<void> {
 
   console.log(`\nZone "${zoneName}" rules covering ${host}:`);
 
-  /*
-    Edge TTL is what keeps a photograph out of R2 after the first person in a region opens the
-    album; browser TTL is what keeps it off the network at all on the second look. Both are
-    set here rather than as a `Cache-Control` header on the objects, because a header can only
-    ever apply to what is uploaded after it ships — every photograph already in the bucket
-    would keep whatever it was stored with, and the rule covers those too.
-  */
+  // Edge TTL keeps repeat reads off R2; browser TTL keeps them off the network. Set as a rule
+  // rather than object headers, so it also covers everything already uploaded.
   const cache = "unreadable" in cacheRules ? [] : forCdn(cacheRules);
   if ("unreadable" in cacheRules) {
     console.log(`  cache rule   UNREADABLE — ${cacheRules.unreadable}`);
@@ -229,12 +190,7 @@ async function checkZoneRules(): Promise<void> {
   } else {
     const limits = forCdn(rateLimits);
     console.log(`  rate limit   ${limits.length ? `${limits.length} rule(s)` : "NONE"}`);
-    /*
-      A warning and not a failure, because rate limiting is a paid add-on on this account and
-      not having it is a decision rather than a regression — see "Known and left alone" in the
-      README for what covers the gap. A check that fails every run for a reason nobody intends
-      to fix is a check that gets muted, and it would take the cache rule down with it.
-    */
+    // A warning, not a failure: rate limiting is a paid add-on we have chosen not to buy.
     if (!limits.length) {
       warnings.push(
         `No rate-limiting rule matches ${host} — it is a paid add-on. What bounds a flood`
@@ -245,9 +201,7 @@ async function checkZoneRules(): Promise<void> {
   }
 
   if (warnings.length) {
-    // Not "UNCHECKED": this list holds both what could not be read and what is deliberately
-    // absent, and the lines say which. A heading that called the second one unchecked would
-    // be the same kind of untrue claim this whole check exists to catch.
+    // Holds both unreadable and deliberately absent; each line says which.
     console.warn("\nNOTED:");
     for (const warning of warnings) console.warn(`  ${warning}`);
   }
@@ -286,8 +240,7 @@ async function main() {
     }),
   );
 
-  // Read it back rather than trusting the write, because this is the one piece of config
-  // that needs an account-scoped token — once that token is gone it can't be corrected.
+  // Read back rather than trusted: the account-scoped token this needs may not exist next time.
   const live = await client.send(new GetBucketCorsCommand({ Bucket: bucket }));
   const liveOrigins = live.CORSRules?.[0]?.AllowedOrigins ?? [];
 

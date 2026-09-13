@@ -4,26 +4,11 @@ import { BackButton, SettingsButton } from "@/components/roll/Chrome";
 import { formatDay, formatDuration } from "@/lib/format";
 
 /**
- * The top of a roll: what it is, what happens to it next, and the two figures worth glancing
- * at. Shared by the host's roll home and the guest's album, which are the same screen with
- * different permissions.
+ * The top of a roll, shared by the host's roll home and the guest's album: the name, one line
+ * of status, and two figures. No cover, so the first photographs stay above the fold.
  *
- * **No cover.** This screen's content is the photographs on it, and a 215px picture of
- * something else pushed the first row of them below the fold on every phone. The cover has
- * three other homes — the home card, the invitation, the settings screen — and the host has
- * already seen it in all of them.
- *
- * **The name is the masthead.** Below it, one line of status; below that, a quiet bar holding
- * the two figures — where the one that leads somewhere sits at the end of the row with a
- * chevron, rather than buried mid-sentence between two that do not. The version this replaces
- * stood `Moments`, `Left` and `People` in equal columns, which is a lie about how much each
- * one matters: the count creeps up over an evening, the guest list barely moves, and the
- * clock is the reason the screen was opened at all.
- *
- * **What the clock counts changes with the roll.** Still shooting: how long is left. Closed
- * but sealed: how long until it opens — which is the only question anybody is asking then,
- * and which the old header answered with the date it had already closed on. Open: the day it
- * ended, because there is nothing left to wait for.
+ * The status counts down to the close while shooting, to the reveal while sealed, and shows the
+ * end date once open.
  */
 export function RollHeader({
   title,
@@ -52,11 +37,8 @@ export function RollHeader({
   settingsHref?: string;
   peopleHref?: string;
 }) {
-  /* Still running is checked first: a host who revealed early has an open roll whose shutter
-     has not closed yet, and "ended" would be the one wrong word for it.
-
-     `lead` and `trail` rather than one label, because the figure does not sit in the same
-     place in all three sentences — "2d 4h until it closes" but "Ended 6 Sep". */
+  // Running first: a roll revealed early is open but still shooting. `lead`/`trail` because
+  // the figure moves within the sentence — "2d 4h until it closes" but "Ended 6 Sep".
   const timing =
     now < finishesAt
       ? { value: formatDuration(finishesAt - now), trail: "until it closes" }
@@ -65,12 +47,9 @@ export function RollHeader({
         : { value: formatDuration(revealAt - now), trail: "until it opens" };
 
   return (
-    /* The glow belongs to the whole header, not to the title block inside it: lit from below
-       the back and settings buttons it had a visible ceiling across the top of the screen,
-       which read as a banner rather than as light. */
+    // The glow spans the whole header, so it has no visible edge under the buttons.
     <div className="bloom shrink-0">
-      {/* `justify-end` needs something to push against when there is no back button, and a
-          row with neither still holds the top padding this header is measured from. */}
+      {/* The empty span keeps the settings button right-aligned and the row's padding when there is no back button. */}
       <div className="pad-safe-top flex items-start justify-between px-4">
         {back ? <BackButton href={back} /> : <span />}
         {settingsHref ? <SettingsButton href={settingsHref} /> : null}

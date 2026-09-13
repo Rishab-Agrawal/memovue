@@ -19,13 +19,10 @@ interface TimeFloor {
 }
 
 /**
- * Two scrolling columns with the centre row banded, matching the reference's picker.
+ * Two scrolling columns with the centre row banded.
  *
- * **Mount it only while it is open.** `hour` and `minute` seed a draft that the wheel edits
- * until Done or Cancel, and a draft is only correct for the opening it was seeded for — so
- * its lifetime has to be that opening. Rendering this permanently behind an `open` flag is
- * what previously froze the draft at whatever the time was on first render, which made the
- * picker appear to ignore the value it was given and made Cancel keep the change.
+ * **Mount it only while it is open.** `hour` and `minute` seed a draft that lives until Done or
+ * Cancel; kept mounted, the draft would be stale on the next opening.
  */
 export function TimeWheel({
   hour,
@@ -46,8 +43,7 @@ export function TimeWheel({
 
   useOverlay(onCancel);
 
-  // A column offers only what may be chosen, rather than showing numbers that would be
-  // refused on Done. Minutes narrow only in the floor's own hour; every later hour is whole.
+  // Only times at or after the floor are offered; minutes narrow only within the floor's hour.
   const hours = floor ? HOURS.filter((h) => h >= floor.hour) : HOURS;
   const minutes =
     floor && draftHour === floor.hour ? MINUTES.filter((m) => m >= floor.minute) : MINUTES;
@@ -86,22 +82,13 @@ export function TimeWheel({
 }
 
 /**
- * One column of the wheel, with a standing invariant: **the banded centre row is the selected
- * row**, however the column got there.
+ * One column of the wheel. Invariant: **the banded centre row is the selected row**.
  *
- * Three mechanisms, one for each way that can happen, and deliberately no timers.
+ *   - Scrolling selects whatever is nearest the centre, continuously.
+ *   - CSS scroll snapping makes a fling settle exactly on a number.
+ *   - A layout effect re-centres when the selection changed elsewhere (opening, or a tap).
  *
- *   - Scrolling picks whatever number is nearest the centre, continuously. Requiring a tap
- *     to commit meant a wheel spun to 21 and left a few pixels off still returned the old
- *     value, which is the picker quietly disagreeing with what it is showing.
- *   - CSS scroll snapping decides where a fling comes to rest, so the column always settles
- *     exactly on a number rather than between two. The browser's own momentum physics are
- *     better than anything reimplemented on a timer.
- *   - A layout effect re-centres when the selection changed from somewhere else — opening
- *     the picker, or a tap on an off-centre number.
- *
- * Offsets come from measured geometry rather than from repeating the 44px row height as a
- * constant, so restyling a row cannot quietly desynchronise the three.
+ * Offsets are measured from the DOM, so restyling a row cannot desynchronise them.
  */
 function Column({
   label,
@@ -119,29 +106,15 @@ function Column({
   /** Distinguishes opening the picker from choosing within it: the first must not animate. */
   const opened = useRef(false);
   /**
-   * The selection this column last aligned itself to.
-   *
-   * Only a change in *this* column's value is worth animating. Changing the hour re-filters
-   * the minutes — dropping out of the floor's hour puts thirty numbers back above the list,
-   * which leaves the column's scroll offset pointing at 00 — and the correction then glided
-   * from 00 back down to the minute that was never actually deselected. The number was right
-   * the whole time; the wheel just performed a change that had not happened.
+   * The value this column last aligned to. Only a change in this value animates; a re-filtered
+   * list (the hour changed) snaps back without gliding.
    */
   const aligned = useRef(value);
   const frame = useRef<number | null>(null);
-  /**
-   * Where a scroll *we* started is heading, while it is still heading there.
-   *
-   * Without it the column reads its own animation as a choice. Tapping 03 from 18 glides
-   * through every hour between, and each one on the way past was being committed — so a host
-   * who tapped a number and pressed Done before the glide finished got whichever hour
-   * happened to be under the band at that instant.
-   */
+  /** Where a scroll we started is heading, so our own glide is not read as a selection. */
   const gliding = useRef<number | null>(null);
 
-  // The scroll listener is attached once and reads through these, so it never has to be torn
-  // down and rebuilt — and so it cannot capture a stale value. Synced in an effect because a
-  // ref write during render is a side effect where React may run the same render twice.
+  // Read by a scroll listener attached once. Synced in an effect, since render may run twice.
   const valuesRef = useRef(values);
   const valueRef = useRef(value);
   const onSelectRef = useRef(onSelect);
@@ -177,14 +150,12 @@ function Column({
       if (next !== undefined && next !== valueRef.current) onSelectRef.current(next);
     };
 
-    // Coalesced to one read per frame: a fling fires scroll far more often than it can
-    // possibly change which number is under the band.
+    // At most one read per frame.
     const onScroll = () => {
       frame.current ??= requestAnimationFrame(read);
     };
 
-    // A hand on the wheel outranks anything we were animating, and is also the escape hatch
-    // if a glide is left a fraction of a pixel short of its target and never lands.
+    // A hand on the wheel cancels our glide, including one that stalls short of its target.
     const takeOver = () => {
       gliding.current = null;
     };
@@ -211,12 +182,7 @@ function Column({
 
     const top = option.offsetTop - (list.clientHeight - option.clientHeight) / 2;
 
-    /*
-      While a finger is on the wheel the selection is, by construction, the row nearest the
-      band — never more than half a row from it. Scrolling then would yank the column out
-      from under the drag, so alignment is only corrected when the change came from
-      elsewhere, which always leaves the selection a whole row or more out of place.
-    */
+    // Within half a row means the change came from dragging; re-aligning would fight the finger.
     if (Math.abs(list.scrollTop - top) < option.clientHeight / 2) return;
 
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;

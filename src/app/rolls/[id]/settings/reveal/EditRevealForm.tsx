@@ -1,24 +1,16 @@
 "use client";
 
+import type { RevealMode } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { useConfirm } from "@/components/roll/Confirm";
 import { EditScreen } from "@/components/roll/EditScreen";
-import { RevealPicker, type RevealMode } from "@/components/roll/RevealPicker";
+import { RevealPicker } from "@/components/roll/RevealPicker";
 
 import { updateRevealAction } from "../../actions";
 
-/**
- * Changing when a sealed roll opens.
- *
- * The same screen the wizard sells the decision on, so a host who wants to move their reveal
- * is looking at the frames going sharp or sealed exactly as they did when they chose it. It
- * replaces the "Reveal now" button that used to sit under these rows: opening a roll early is
- * `DURING` — a roll with no seal at all — and is now one of three things this screen can say,
- * rather than a separate irreversible button with its own dialog beside a row that displayed
- * the setting without letting anyone touch it.
- */
+/** Changing when a sealed roll opens. Opening early is choosing `DURING`. */
 export function EditRevealForm({
   rollId,
   finishesAt,
@@ -40,8 +32,7 @@ export function EditRevealForm({
   const dirty = mode !== initialMode || (mode === "DELAY" && delayHours !== initialDelay);
 
   const save = () => {
-    // The one choice here that cannot be taken back, so it is asked for rather than assumed.
-    // Every other mode is a date that can be moved again tomorrow.
+    // The one choice here that cannot be taken back, so it is confirmed.
     if (mode === "DURING") {
       confirm({
         title: "Open the roll as it is shot?",
@@ -92,7 +83,6 @@ export function EditRevealForm({
         />
       </div>
 
-      {/* Fixed to the viewport when it opens, so it costs nothing to leave in the flow. */}
       {confirmDialog}
     </EditScreen>
   );

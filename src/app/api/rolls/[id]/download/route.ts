@@ -19,27 +19,7 @@ interface ArchivePhoto {
   guest: { name: string };
 }
 
-/**
- * Streams the whole album as a ZIP.
- *
- * Two paths, and the difference is money rather than bytes. Once a roll can take no more
- * photographs the archive is built into R2 once and every download after that is a redirect
- * to a signed link — R2 charges nothing for egress at any volume, so a host who downloads
- * ten times costs the same as one who downloads once. Before that point the album can still
- * change, so there is nothing safe to cache and we stream it live as we always did, out
- * through the app server and its metered bandwidth.
- *
- * "Can take no more photographs" is `finishesAt` plus the upload grace, not `finishesAt`:
- * a phone that was out of signal has a day to drain its queue, and a ZIP built before that
- * window closes would be missing exactly the photographs that had the hardest journey.
- */
-/**
- * A refusal somebody reads, not one a program parses.
- *
- * The Save button is an anchor, so a browser lands on whatever this returns and renders it —
- * and `{"error":"rate_limited"}` on a white page is the app apparently breaking. Nothing
- * consumes these bodies; the status code is what the tests and the browser go by.
- */
+/** A plain-text refusal: Save is an anchor, so the browser renders whatever this returns. */
 function refuse(status: number, message: string, headers: HeadersInit = {}) {
   return new Response(message, {
     status,
@@ -47,6 +27,13 @@ function refuse(status: number, message: string, headers: HeadersInit = {}) {
   });
 }
 
+/**
+ * The whole album as a ZIP.
+ *
+ * Once no more uploads can arrive (close + upload grace), the archive is built into R2 once and
+ * every download is a redirect to a signed link, since R2 egress is free. Before that it can
+ * still change, so it streams live through the app server.
+ */
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
@@ -67,8 +54,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   });
   if (!roll) return refuse(404, "That roll no longer exists.");
 
-  // The host waits with everyone else unless they chose DURING — otherwise the promise
-  // the guests were shown on their own screen would not be true.
+  // The host waits for the reveal like everyone else.
   if (!isOpen(roll)) {
     return refuse(403, "This album opens at the reveal. Nothing to download yet.");
   }
@@ -84,19 +70,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   }
 
   /*
-    The most expensive request in the app, and the only one with a hard ceiling on it.
+    Ten downloads per roll, ever: a settled album never changes, so an eleventh copy means
+    something is wrong. Claimed with a conditional update so two tabs cannot both take the last.
 
-    Ten per roll, for the life of the roll — not ten an hour. A settled album is a fixed set
-    of bytes, so an eleventh copy is not a host being slow, it is a host whose downloads are
-    not arriving, and the answer to that is a person rather than another gigabyte.
-
-    Claimed with a conditional update rather than a read and a write, so two tabs racing at
-    the boundary cannot both find nine and both proceed. Last of the checks on purpose: a
-    sealed roll, a deleted one and an empty one all refuse above without spending anything.
-
-    ponytail: a build that dies halfway still spent its slot — the response has already
-    started streaming by the time we could know. Ten is generous enough to absorb that; if a
-    host ever burns through them on failures, give the count back when `buildArchive` errors.
+    ponytail: a build that dies halfway still spends its slot. Give it back on `buildArchive`
+    errors if hosts ever run out that way.
   */
   const claimed = await prisma.roll.updateMany({
     where: { id: roll.id, downloads: { lt: ZIP_DOWNLOAD_LIMIT } },
@@ -131,16 +109,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 }
 
 /**
- * Builds the archive, or joins the build already running.
+ * Builds the archive, or joins the build already running for a double tap or second tab.
  *
- * A roll has exactly one host, so this is never two people — it is one person double-tapping,
- * or holding two tabs, or retrying after a slow first attempt gave up. Without this each of
- * those starts its own pass over every photograph in the roll: same bytes at the end, twice
- * the reads and twice the memory getting there.
- *
- * In-process, like the rate limiter, and for the same reason — MemoVue runs as a single
- * container. If it ever runs as several, each would build at most once and the last would win,
- * which is still correct, just wasteful.
+ * ponytail: in-process, like the rate limiter. Several replicas would each build once; still correct.
  */
 const building = new Map<string, Promise<void>>();
 
@@ -156,24 +127,11 @@ function buildOnce(key: string, photos: ArchivePhoto[]): Promise<void> {
 }
 
 /**
- * One photo at a time, piped straight from R2, so peak memory stays at roughly one
- * photograph regardless of album size. Compression is off — JPEGs are already compressed,
- * and level 0 turns this into a pure copy.
+ * One photo at a time, piped straight from R2, uncompressed (JPEGs already are).
  *
- * Returns immediately; the appending runs behind it, which is what lets the same object be
- * piped to a client or handed to a multipart upload.
- *
- * Through a `PassThrough` rather than handing the archive out directly, and that hop is
- * load-bearing. Archiver builds on `readable-stream`, the userland copy — so its prototype
- * chain reads `Transform -> Duplex -> Readable` while `instanceof require("node:stream").Readable`
- * is false. `Readable.toWeb` accepts it anyway, which is why streaming a download always
- * worked; the S3 SDK's multipart upload checks the constructor and refused it outright with
- * "Body Data is unsupported format", so every archive built into R2 failed with a 500. A
- * `PassThrough` is a real core stream and satisfies both.
- *
- * Errors are forwarded by hand because `pipe` does not forward them. Without that, a build
- * that failed halfway would end the output cleanly and publish a truncated ZIP as if it were
- * the album.
+ * Through a core `PassThrough` because archiver's userland stream fails the S3 SDK's instanceof
+ * check. Errors are forwarded by hand, since `pipe` does not, so a failed build never publishes
+ * a truncated ZIP.
  */
 function buildArchive(photos: ArchivePhoto[]): Readable {
   const archive = new ZipArchive({ zlib: { level: 0 } });
@@ -190,9 +148,7 @@ function buildArchive(photos: ArchivePhoto[]): Readable {
         const body = await getObjectStream(photo.fullKey);
         if (!body) continue;
 
-        // Grouped by photographer — that's how hosts actually go looking for a shot, and the
-        // folder is where the credit belongs. Repeating it in every filename only made them
-        // long.
+        // A folder per photographer.
         const who = safeSegment(photo.guest.name);
         let name = `${who}/${timestamp(photo.takenAt)}.jpg`;
         // Two frames in the same second from the same person; the id only appears here.

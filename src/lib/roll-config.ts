@@ -1,12 +1,9 @@
 import { fromWall, startOfWallDay, toWall } from "./format";
 
 /**
- * The shape a host can give a roll: how many people, how many shots each, how far ahead it
- * can be scheduled, and what that costs.
+ * The shape a host can give a roll: people, shots, schedule and price.
  *
- * Client-safe — no secrets, no server imports — because the wizard renders these and the
- * server validates against the same values. Two lists that have to agree is a bug waiting
- * to happen; one list read from both ends cannot drift.
+ * Client-safe, so the wizard renders the same values the server validates against.
  */
 
 /** Participant caps, in the order the six boxes appear on the guests step. */
@@ -16,17 +13,8 @@ export const PARTICIPANT_TIERS = [25, 50, 100, 200, 350, 500] as const;
 export const SHOT_TIERS = [5, 10, 16, 24, 36, 100] as const;
 
 /**
- * Rupee pricing: ten a head, half again for the hundred-shot roll.
- *
- * Shots used to carry a multiplier of their own, on the theory that they are what costs us
- * storage. They are — and storage is around one percent of the price, so charging for them
- * only taught hosts to buy fewer of them. A thin album is the thing that stops the next host
- * ever hearing about us, so the shot count is now free to choose. The hundred is the one
- * exception, because it is not more of the same product: it is the only roll nobody can run
- * out of, and what the host is buying there is that nobody does.
- *
- * Two numbers rather than fourteen. A host can be told the whole rule in a sentence, which
- * is worth more than any curve fitted across a grid.
+ * Rupee pricing: ten a head, fifteen for the hundred-shot roll. Shot count is otherwise free,
+ * because storage is about one percent of the price and a thin album is what loses the next host.
  */
 export function priceFor(participantIndex: number, shotIndex: number): number {
   const guests = PARTICIPANT_TIERS[participantIndex];
@@ -41,13 +29,8 @@ export function formatPrice(rupees: number): string {
 /* ------------------------------------------------------------------ beta */
 
 /**
- * Beta holds two things back at once, so it is one flag rather than two.
- *
- * Nothing is charged yet — rolls are created on a beta allowance, not a payment — so the wizard
- * strikes the price it would charge rather than hiding it, which is the only way a host
- * learns what this will cost before it starts costing. And the hundred-shot roll is not
- * offered: it is four times the storage against a price nobody is paying, and it is the one
- * tier whose economics we have not watched a real event produce yet.
+ * Beta: nothing is charged (the wizard strikes the price rather than hiding it), and the
+ * hundred-shot roll is not offered until its economics have been seen at a real event.
  */
 export const BETA = true;
 
@@ -64,14 +47,7 @@ export const START_MAX_YEARS = 2;
 /** A roll that runs longer than a week is a mistake, not a plan. */
 export const FINISH_MAX_DAYS = 7;
 
-/**
- * The shortest a roll may run.
- *
- * Without a floor the finish only had to differ from the start, and since the calendar and
- * the clock are picked separately a host could set a 3am start and a 2am finish on the same
- * day and get a roll that closed before it opened. Half an hour is short enough never to
- * obstruct a real event and long enough that anything under it is a slip.
- */
+/** The shortest a roll may run, so a finish picked on a separate clock cannot precede the start. */
 export const MIN_ROLL_MINUTES = 30;
 
 /** The first instant a roll starting at `startsAt` is allowed to close. */
@@ -94,11 +70,8 @@ export function startDateRange(now: Date = new Date()): DateRange {
 }
 
 /**
- * Days on which a roll starting at `startsAt` may close.
- *
- * The floor is the day of the *earliest permitted finish*, not the day of the start. Those
- * differ for a roll starting in the last half hour before midnight: a 23:50 start cannot
- * close on its own day at all, so that day is not offered.
+ * Days on which a roll starting at `startsAt` may close. The floor is the day of the earliest
+ * permitted finish, so a 23:50 start does not offer its own day.
  */
 export function finishDateRange(startsAt: Date): DateRange {
   const wall = toWall(startsAt);
@@ -113,14 +86,7 @@ export function isWithin(day: Date, range: DateRange): boolean {
   return at >= startOfWallDay(range.min).getTime() && at <= startOfWallDay(range.max).getTime();
 }
 
-/**
- * A finish that still fits around its start, given one that may no longer.
- *
- * Editing the start after the finish can invalidate it from either end — moving it forward
- * past the finish, or back so far that the finish breaks the one-week ceiling. The wizard
- * runs this whenever the start moves so the pair it carries is always a legal one, rather
- * than letting the host discover it on the last screen of six.
- */
+/** A finish that still fits around its start. The wizard runs this whenever the start moves. */
 export function clampFinish(startsAt: Date, finishesAt: Date): Date {
   const earliest = earliestFinish(startsAt);
   if (finishesAt.getTime() < earliest.getTime()) return earliest;
@@ -137,16 +103,11 @@ export function clampFinish(startsAt: Date, finishesAt: Date): Date {
 }
 
 /**
- * A roll's window after its opening time is moved, or `null` if it may not be.
+ * A roll's window after its opening time is moved, or `null` if it may not be. Shared by the
+ * settings preview and the server write.
  *
- * One rule, asked by the settings screen to show what a move would do and by the server to
- * do it — the two cannot disagree about a date that is the difference between a guest having
- * a camera and not.
- *
- * The window is narrow on purpose. Once the event has begun the start is history: guests are
- * mid-roll, and a start pushed back into the future would make a shot roll look unstarted to
- * everything that reads it, including the allowance refunded when an unstarted roll is
- * deleted. Before the first moment nothing has been photographed and nothing derived.
+ * Only before the event begins, and never behind the present: once guests are shooting, the
+ * start is history.
  */
 export function movedStart(
   roll: { startsAt: Date; finishesAt: Date },
@@ -155,12 +116,9 @@ export function movedStart(
 ): { startsAt: Date; finishesAt: Date } | null {
   if (roll.startsAt.getTime() <= now.getTime()) return null;
 
-  // Never behind the present — that is a roll which opened at a moment nobody could have shot
-  // in. Pulling it forward as far as now is the legitimate "we're starting early".
   const startsAt = new Date(Math.max(wanted.getTime(), now.getTime()));
   if (!isWithin(startsAt, startDateRange(now))) return null;
 
-  // The close comes along when it has to, by the same pairing rule the wizard runs.
   return { startsAt, finishesAt: clampFinish(startsAt, roll.finishesAt) };
 }
 
@@ -168,35 +126,21 @@ export function movedStart(
 export const MIN_DELAY_HOURS = 1;
 export const MAX_DELAY_HOURS = 72;
 
-/* ------------------------------------------------------------------ visibility */
+/* ------------------------------------------------------------------ switches */
 
-/**
- * The two states of the one switch a host can flip after a roll exists, worded once.
- *
- * The wizard and the settings sheet had their own copies, and the settings sheet's was not a
- * pair at all — it hardcoded the "on" wording as a static row label, so turning visibility off
- * left the screen still reading "Everyone can see all photos" underneath a switch that was
- * plainly off. A label that does not move is worse than no label: it is a wrong one.
- */
+/** Both states of the visibility switch, worded once for the wizard and the settings sheet. */
 export const VISIBILITY_LABEL = {
   on: "Everyone can see all photos",
   off: "Only host can see all photos",
 } as const;
 
-export function visibilityLabel(everyoneCanSee: boolean): string {
-  return everyoneCanSee ? VISIBILITY_LABEL.on : VISIBILITY_LABEL.off;
-}
-
 /* ------------------------------------------------------------------ the shots pool */
 
 /**
- * A roll is bought as `maxGuests × photosPerGuest` frames, and a guest walking in is handed
- * `photosPerGuest` of them. What is left over is the pool: the film of everybody who never
- * turned up, plus whatever guests hand back because they are not going to shoot it.
+ * A roll is bought as `maxGuests × photosPerGuest` frames. The pool is what is left over: the
+ * film of everybody who never turned up, plus whatever guests hand back.
  *
- * Derived from the guest rows rather than kept as a column of its own. The host can still
- * resize a roll from the settings sheet, and a tally written when it was a different size
- * would quietly disagree with the roll it belongs to — where this cannot.
+ * Derived from the guest rows rather than stored, so resizing the roll cannot leave it stale.
  */
 export function poolFrom(
   roll: { maxGuests: number; photosPerGuest: number },
@@ -213,28 +157,16 @@ export function half(photosPerGuest: number): number {
 }
 
 /**
- * The smallest roll on which giving film away means anything.
- *
- * Half of five is two, and a guest choosing whether to part with two frames is not making a
- * decision — it is a screen, a dialog and a slider for something nobody would notice either
- * way. Below this the switch is not drawn at all, on either screen that offers it: a control
- * that is present and explains why it can do nothing is worse than one that was never there.
- *
- * `giveawayOffered` still asks, because a host can turn the switch on at twenty-four shots
- * and then drop the roll to five, which leaves the column true on a roll that must not offer
- * it. The screens decide what to draw; that decides what is allowed.
+ * The smallest roll on which giving film away means anything. Below it the switch is not drawn;
+ * `giveawayOffered` still checks, since a roll can be resized down after the switch is on.
  */
 export const GIVEAWAY_MIN_SHOTS = 10;
 
-/** The two states of the host's switch, worded once — the same pairing as `VISIBILITY_LABEL`. */
+/** Both states of the host's giveaway switch, worded once. */
 export const GIVEAWAY_LABEL = {
   on: "Shots giveaway allowed",
   off: "No shots giveaway",
 } as const;
-
-export function giveawayLabel(allowed: boolean): string {
-  return allowed ? GIVEAWAY_LABEL.on : GIVEAWAY_LABEL.off;
-}
 
 /** What the question mark beside that switch says. Only ever asked on a roll that offers it. */
 export function giveawayHelp(photosPerGuest: number): string {
@@ -255,20 +187,9 @@ export function giveawayOffered(roll: {
 /* ------------------------------------------------------- how often, and how soon */
 
 /**
- * The pool is shut for the first tenth of the event, thin for the first quarter, and capped
- * for good after that.
- *
- * The shape is about who the film reaches, not about how much of it there is. Somebody who
- * empties their camera in the first twenty minutes of a wedding is shooting the room filling
- * up; the people the pool exists for have not arrived yet, and without a floor the whole of
- * it would be gone before the ceremony. So nothing moves at all while the event is finding
- * its feet, and for the rest of the first quarter a guest may double their own allowance and
- * no more — two refills, because a refill is half an allowance.
- *
- * After that the clock stops mattering: the roll is well under way, whoever was going to turn
- * up has, and film left in the pool at the end helped nobody. What is left is a lifetime
- * ceiling of ten, which is five times a guest's own allowance drawn from the shared half —
- * past that somebody is not shooting an event, they are emptying a roll.
+ * The pool is shut for the first tenth of the event, capped at two refills for the first
+ * quarter, and at ten for good after that — so the film reaches people who arrive later, not
+ * whoever empties their camera while the room fills up.
  */
 export const REFILL_LOCKOUT = 0.1;
 export const REFILL_EARLY = 0.25;
@@ -278,8 +199,7 @@ export const REFILL_MAX = 10;
 /** How far through its shooting window a roll is. Negative before it opens, past 1 after. */
 export function eventElapsed(roll: { startsAt: Date; finishesAt: Date }, now: Date): number {
   const span = roll.finishesAt.getTime() - roll.startsAt.getTime();
-  // A roll cannot be shorter than `MIN_ROLL_MINUTES`, so this is a guard against corrupt
-  // dates rather than a real case — and "over" is the safe answer, not "not started".
+  // Only corrupt dates get here; "over" is the safe answer.
   if (span <= 0) return 1;
   return (now.getTime() - roll.startsAt.getTime()) / span;
 }
@@ -299,23 +219,12 @@ export function refillsLeft(
 /**
  * What one guest may move, in each direction, right now.
  *
- * Giving away is bounded by the half of their original allowance they have to keep — and
- * *keep* counts what they have already shot, which is the whole subtlety. Somebody who gave
- * six away, spent the rest, and then drew twelve out of the pool is holding twelve frames
- * they were never entitled to keep, and may hand back every one; a rule that simply capped
- * the lifetime total at half would have offered them six.
- *
- * Taking tops a guest up to half an allowance and no further, which is what stops the per-go
- * ceiling being a formality: the only way to take twice is to shoot what you took. Written as
- * a ceiling on what they may hold rather than as "only when empty" on purpose — a frame still
- * sitting in this phone's queue means the server has not heard about the last shot yet, and a
- * rule that reads exactly zero would refuse the guest who has just run out.
- *
- * Taking back is neither of those. It is undoing a gift, so it is bounded only by what was
- * given and by what is still there to give back — a guest who changes their mind should not
- * have to shoot their remaining film first, and if somebody else has already taken it, what
- * is left is what they get. It stays offered when the host turns the switch off, because
- * closing the door on giving must not trap film on the wrong side of it.
+ * - `give`: down to the half of their original allowance they must keep, counting what they
+ *   have shot — so film drawn from the pool can all be handed back.
+ * - `take`: tops them up to half an allowance and no further. A ceiling rather than "only when
+ *   empty", because a frame still in the phone's queue is not in the server's count yet.
+ * - `back`: undoing their own gift, bounded only by what they gave and what is still there.
+ *   Answers to neither the clock nor the switch, so closing giveaways cannot trap film.
  */
 export function poolMoves(
   roll: {
@@ -338,9 +247,6 @@ export function poolMoves(
     give: giveawayOffered(roll)
       ? Math.max(0, Math.min(guest.shotsLeft, allowance - keep))
       : 0,
-    // Net, so somebody who gave six and later drew twelve has given nothing back to reclaim.
-    // Neither gate touches it: reclaiming your own gift is not drawing on the shared half,
-    // so it answers to neither the clock nor the lifetime count.
     back: Math.max(0, Math.min(pool, -guest.fromPool)),
   };
 }

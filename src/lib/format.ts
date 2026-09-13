@@ -1,28 +1,15 @@
 /**
  * Date, time and duration display.
  *
- * Everything is stored as an instant and shown in **Asia/Kolkata**, a fixed +05:30 with no
- * daylight saving. Two consequences, both deliberate:
- *
- *   - Server and client render identically, so a date on a page cannot cause a hydration
- *     mismatch. That is why the zone is pinned rather than read from the browser.
- *   - The wall-clock accessors below are exact arithmetic rather than Intl round-trips,
- *     because India has no DST. A host who picks 6:00 PM gets a roll that opens at 6:00 PM
- *     their time — the picker and the formatter have to agree on what "6 PM" means, and
- *     mixing `getHours()` with a zone-pinned formatter is precisely how they stop agreeing.
+ * Everything is stored as an instant and shown in **Asia/Kolkata**, a fixed +05:30 with no DST.
+ * Pinned rather than read from the browser, so server and client render identically; and the
+ * wall-clock helpers are exact arithmetic, so the picker and the formatter agree on "6 PM".
  */
 const ZONE = "Asia/Kolkata";
 const LOCALE = "en-GB";
 const OFFSET_MINUTES = 330;
 
-/**
- * Month names are ours, not the platform's.
- *
- * Current CLDR abbreviates September as "Sept" in every English locale — four characters
- * where the other eleven are three, which breaks the alignment of any column of dates. More
- * to the point, locale data updates with the runtime, and the app's typography should not
- * change because Node shipped a new ICU.
- */
+/** Our own month names: CLDR's "Sept" breaks alignment and changes with the runtime's ICU. */
 export const MONTHS = [
   "Jan",
   "Feb",
@@ -86,13 +73,8 @@ export function startOfWallDay(date: Date): Date {
 }
 
 /**
- * The wall-clock date an instant falls on, as `YYYY-MM-DD`.
- *
- * A string, and that is the point. It is what `Metric` is keyed on, and a string cannot be
- * moved by a timezone on the way into Postgres or on the way back out — which a `date` column
- * demonstrably can: node-postgres renders a JS `Date` in the *process's* zone, so a tally
- * written from a laptop west of Greenwich would land on the day before. That is the same trap
- * the nightly backup transcribes dates to avoid, and the same answer works here.
+ * The wall-clock date as `YYYY-MM-DD`. A string, because node-postgres would shift a JS Date by
+ * the process's zone on the way into a `date` column. `Metric` is keyed on it.
  */
 export function wallDate(date: Date): string {
   const { year, month, day } = toWall(date);
@@ -112,18 +94,10 @@ export function sameWallDay(a: Date, b: Date): boolean {
   return x.year === y.year && x.month === y.month && x.day === y.day;
 }
 
-/**
- * The two edits a date picker makes: change the day, keep the time — or the reverse.
- *
- * They exist as named operations rather than as arithmetic inside a component because doing
- * this by hand is a trap. `new Date(instant).setUTCHours(h, m)` looks like "keep the day, set
- * the time", and is not: midnight in Kolkata is 18:30 UTC on the *previous* date, so writing a
- * UTC hour onto it silently moves the instant back a day. That is not a rounding error anyone
- * spots in review — it is a calendar that hands back yesterday.
- *
- * Both rebuild the instant from wall-clock fields, so the day and the time that come out are
- * the day and the time a person in India would have read off the screen.
- */
+/*
+  A date picker's two edits, rebuilt from wall-clock fields. Not `setUTCHours`: Kolkata midnight
+  is 18:30 UTC the previous day, so a UTC hour written onto it lands on yesterday.
+*/
 
 /** The time of day from `value`, moved onto the wall-clock day that `day` falls on. */
 export function withWallDay(value: Date, day: Date): Date {
@@ -194,15 +168,8 @@ export function formatRange(from: Date, to: Date): string {
 /* ------------------------------------------------------------------ durations */
 
 /**
- * "7h 32m", with no trailing word.
- *
- * The same span is read three ways — "7h 32m left", "Reveals in 7h 32m", and bare under the
- * word "Left" on a roll header — so the word lives at the call site. Baking "left" into the
- * only formatter produced "Reveals in 7h 32m left".
- *
- * Under a minute is said in words, never "0m". That includes a span already run out: every
- * caller that can get here with one is a sealed countdown on a phone whose clock has passed
- * the reveal before the server has told it so, and "Reveals in Ended" was the old answer.
+ * "7h 32m", with no trailing word — callers add "left" or "Reveals in". Under a minute,
+ * including an already-passed span, reads "less than a minute".
  */
 export function formatDuration(ms: number): string {
   if (ms < 60_000) return "less than a minute";

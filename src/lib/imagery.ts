@@ -1,22 +1,12 @@
 /**
- * The artwork the app ships with.
+ * The artwork the app ships with. `COVERS` stand behind a roll's title when the host uploaded
+ * none; `FRAMES` stand in for guest photos where the product is demonstrated.
  *
- * Two pools, because they do different jobs. `COVERS` are what stands behind a roll's title
- * when the host hasn't uploaded anything of their own — chosen from a picker, so each one
- * needs a name a person would recognise. `FRAMES` are stand-ins for guest photographs on the
- * screens that have to *show* the product before there is a real roll to show: the marketing
- * page, and the wizard steps that demonstrate the reveal.
+ * Each entry's `wash` is painted under the file as a CSS background, so a missing file shows a
+ * gradient instead of a broken image (and does not fail the build like a static import would).
  *
- * Every entry carries a `wash` as well as a file, and that is not decoration — it is the
- * fallback. Both are handed to CSS as a two-layer `background-image`, and a layer that fails
- * to load is silently skipped, so a missing file shows the gradient underneath it rather than
- * a broken frame. This is also why these are backgrounds rather than static `next/image`
- * imports: a static import of a file that isn't there fails the build, and these assets are
- * regenerated and replaced independently of the code that references them.
- *
- * Source files live in `public/covers` and `public/frames`. Run `npm run images` after adding
- * any — it re-encodes to JPEG and lowercases the names, which matters because we develop on
- * Windows and deploy to Linux.
+ * Run `npm run images` after adding files to `public/covers` or `public/frames`: it re-encodes
+ * and lowercases names, which matters when developing on Windows and deploying to Linux.
  */
 export interface Stock {
   /** Absolute path under `public/`. */
@@ -25,19 +15,12 @@ export interface Stock {
   wash: string;
 }
 
-/** A cover carries a name too, because the picker needs something to announce. Frames don't:
-    nothing lets you choose one, so a name on them would be a caption nobody ever reads. */
+/** A cover carries a label for the picker to announce. */
 type Cover = Stock & { label: string };
 
 /**
- * Order is load-bearing at index 0: `coverPreset` defaults to it in the schema, so it is the
- * cover every roll starts with and the one most hosts will never change. The painted lake
- * leads because it belongs to no particular occasion — a wedding cover on a birthday roll
- * reads as a mistake, this one never does. Weddings follow, being what the product is mostly
- * booked for; the last three are the other occasions it suits.
- *
- * Inserting here renumbers everything after it, so a change to this order needs a migration
- * shifting `Roll.coverPreset` to match — see `20260905193000_default_cover_nature`.
+ * Index 0 is the default `coverPreset`, so it suits any occasion. Rolls store the index, so
+ * reordering needs a migration shifting `Roll.coverPreset` — see `20260905193000_default_cover_nature`.
  */
 export const COVERS: Cover[] = [
   {

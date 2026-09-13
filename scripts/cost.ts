@@ -1,47 +1,21 @@
 import "./load-env";
 
 /**
- * The cost watch. A fourth Railway cron service off this same repo, every four hours.
+ * The cost watch: a Railway cron every four hours. It stops nothing — Railway's hard limit does
+ * that (see `src/lib/cost.ts`) — it makes sure we are told, in order:
  *
- * It stops nothing. Railway does that itself, at its own meter, when the cycle's usage reaches
- * the hard limit set on the account — see the long note at the top of `src/lib/cost.ts` for
- * why the switch has to live there and not in a script that can fail to run. Everything here
- * is about being *told*, on the channel that is actually read.
+ * 1. Railway still has both an email alert and a hard limit set. Their values are Railway's.
+ * 2. Both meters could be read. A blind cost alarm looks exactly like a cheap month.
+ * 3. Whether spend is over the line. This repeats every run while it stays over.
  *
- * Three things, in the order they matter:
- *
- * 1. Whether the account still has both limits at all. A stop that has been removed from a
- *    dashboard is a stop that reports nothing when it fails to happen, and this is the only
- *    place that would ever notice. It checks that they *exist*, never what they say — the
- *    numbers are Railway's to hold and are read back live, so raising the limit for a busy
- *    month is a dashboard edit and not a deploy.
- * 2. Whether either meter could be read at all. A blind cost alarm looks exactly like a cheap
- *    month, so silence is never allowed to mean "nothing to report".
- * 3. Whether the money is over the line.
- *
- * Separate from the digest rather than a section in it, for the same reason the digest's own
- * heartbeat alert is separate: the digest is deliberately safe to skip, and nothing that needs
- * acting on today can live in a message whose whole design is that missing one costs nothing.
- *
- * It repeats while the money is over the line, on purpose. Six messages a day is the right
- * amount of nagging about a bill that is still climbing, and the way to stop it is to fix the
- * spend or raise the email alert in Railway — not to be told once and forget by lunchtime.
- *
- * Every four hours rather than nightly for two reasons: it puts a ceiling of four hours on how
- * long a runaway can go unannounced, and it guarantees a tick inside every Kolkata day
- * whatever hour the digest runs at, so the digest can tell that this job has stopped.
+ * Separate from the digest, which is safe to skip. Every four hours also guarantees a heartbeat
+ * inside every day, so the digest can tell if this stopped.
  *
  *   npm run cost           # read both meters, alert if anything is wrong
  *   npm run cost -- --dry  # print the same reading and send nothing
- *
- * There is deliberately no command here that writes a limit. Both are set on the Workspace
- * Usage page, which takes ten seconds and is the only place they take effect; a `--set-limits`
- * that pushed numbers from a text editor would, the first time the two disagreed, quietly
- * *raise* a limit somebody had tightened on purpose.
  */
 async function main() {
-  // Imported here rather than at the top: `env.ts` reads process.env the moment it loads
-  // and throws on anything missing, so nothing may be imported before `load-env`.
+  // Imported after `load-env`, because `env.ts` reads process.env the moment it loads.
   const { env } = await import("../src/lib/env");
   const { R2_ALERT_USD, costLines, costs } = await import("../src/lib/cost");
   const { record } = await import("../src/lib/metrics");
@@ -52,7 +26,6 @@ async function main() {
 
   const cost = await costs(env.cost);
   console.log(costLines(cost).join("\n"));
-  // The account's own two numbers, which is where they live and the only place they act.
   console.log(
     `  Railway: emails at ${dollars(cost.limits?.soft)}`
       + `, stops everything at ${dollars(cost.limits?.hard)}`,
@@ -61,22 +34,10 @@ async function main() {
 
   if (process.argv.includes("--dry")) return;
 
-  /*
-    A heartbeat, so the digest can notice this job having quietly stopped. Written for having
-    run, not for having liked what it found — the three alerts below say what it found.
-  */
+  // A heartbeat for having run; the alerts below say what it found.
   await record("cost_ok");
 
-  /*
-    That both limits exist — never what they say.
-
-    Whatever numbers are on the account are somebody's considered choice, and this has no
-    business second-guessing them or nagging until a constant in a repo is edited to agree.
-    What is never a considered choice is *neither*: a limit that has been cleared, or an
-    account that never had one, leaves nothing anywhere that stops the bill, and the whole
-    design above rests on that switch being there. Only assertable when Railway answered;
-    otherwise the failure below already says so.
-  */
+  // That both limits exist, never what they say. Only checkable when Railway answered.
   if (cost.railway !== null && (cost.limits?.hard == null || cost.limits?.soft == null)) {
     const noStop = cost.limits?.hard == null;
     await alert("cost-limits", {
@@ -106,19 +67,11 @@ async function main() {
         + " an API token that has expired or been removed.",
       detail: cost.failed.join("\n"),
     });
-    // Non-zero so Railway marks the run red as well, rather than this being the only trace.
+    // Non-zero so Railway marks the run as failed too.
     process.exitCode = 1;
   }
 
-  /*
-    R2 on its own, because there is nothing at Cloudflare that can stop it.
-
-    Railway's hard limit does not reach here: `cdn.memovue.com` is served from Cloudflare's
-    edge with no part of Railway in the path, so reads and stored bytes go on being billed
-    after every workload is offline — and this watch is offline with them, which is precisely
-    why the threshold is low enough to fire long before that. Cloudflare offers no spend cap
-    and no usage notification for R2, so this message is the only warning there is.
-  */
+  // R2 on its own: Railway's hard stop does not reach Cloudflare, and R2 has no cap of its own.
   if (cost.r2 !== null && cost.r2 >= R2_ALERT_USD) {
     await alert("cost-r2", {
       what: `Photo storage (Cloudflare R2) has cost over $${R2_ALERT_USD} this month.`,
@@ -132,12 +85,7 @@ async function main() {
     });
   }
 
-  /*
-    The line is Railway's email alert, read live off the account — so the Telegram message and
-    Railway's own email fire at the same figure, and moving one moves both. No threshold to
-    compare against means no message: an account with no email alert set has already been
-    alerted about above, and inventing a number here would be the drift this design removes.
-  */
+  // The line is Railway's own email alert, read live, so Telegram and Railway fire together.
   if (cost.limits?.soft != null && cost.total >= cost.limits.soft) {
     await alert("cost-over", {
       what: `Hosting has cost over $${cost.limits.soft} this billing cycle.`,
@@ -152,8 +100,7 @@ async function main() {
 
 main().catch(async (error) => {
   console.error(error);
-  // Imported here too, because this runs outside `main` and therefore outside its imports —
-  // and because the thing most likely to have thrown is one of them.
+  // Imported here too: whatever threw may have been one of `main`'s imports.
   const { alert } = await import("../src/lib/telegram");
   const { messageOf } = await import("../src/lib/alert-text");
   await alert("cost", {

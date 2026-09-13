@@ -3,16 +3,8 @@ import type { Instrumentation } from "next";
 import { serverFault } from "./lib/alert-text";
 
 /**
- * Every server exception in the application, in one place.
- *
- * Next calls this for anything thrown out of a render, a route handler or a server action, so
- * there is nothing to remember at the call sites and no way for a new route to be added
- * unwatched. Before this, a crash went to stdout on Railway — which nobody is reading at nine
- * on a Saturday evening, which is exactly when a wedding is happening.
- *
- * The digest is carried into the message deliberately. It is the same string `error.tsx`
- * prints on the screen the guest is looking at, so a photograph of a phone and a line on a
- * lock screen name the same failure, and nobody has to describe a blank page.
+ * Every server exception, reported in one place: Next calls this for anything thrown from a
+ * render, route handler or server action. The digest matches the code `error.tsx` shows the user.
  */
 
 /** Control flow, not failure: `redirect()` and `notFound()` are thrown to unwind the render. */
@@ -28,13 +20,8 @@ function isFramework(error: unknown): boolean {
 }
 
 /**
- * What makes two crashes the same crash.
- *
- * The route rather than the URL, so five hundred guests hitting one broken page are one fault
- * and not five hundred: `/join/[code]` is the thing that is broken, `/join/K3F9QA` is only who
- * found out. The message is trimmed to its first line and cut short because a stack frame or
- * a row id inside it would make every occurrence unique, which is the same as no deduplication
- * at all.
+ * What makes two crashes the same: the route pattern (not the URL) and the message's first line,
+ * trimmed so ids and stack frames do not make every occurrence unique.
  */
 export function fingerprint(routePath: string, message: string): string {
   return `${routePath}|${message.split("\n", 1)[0].slice(0, 120)}`;
@@ -53,9 +40,7 @@ export const onRequestError: Instrumentation.onRequestError = async (
       ? String((error as { digest?: unknown }).digest)
       : undefined;
 
-  // Imported here rather than at the top of the file: this module is loaded while the server
-  // is still starting up, and neither the database client nor the configuration should be
-  // pulled in for a request that never fails.
+  // Lazy imports: this module loads at startup, and a request that never fails needs neither.
   const [{ record }, { alert }] = await Promise.all([
     import("./lib/metrics"),
     import("./lib/telegram"),

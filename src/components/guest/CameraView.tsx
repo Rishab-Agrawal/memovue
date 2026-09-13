@@ -16,25 +16,18 @@ type Phase = "idle" | "flash" | "hold" | "fly";
 const FLASH_MS = 55;
 const HOLD_MS = 600;
 const FLIGHT_MS = 420;
-/** Frames the travel between stops is spread over. See `zoom`. */
+/** Frames the travel between zoom stops is spread over. */
 const ZOOM_STEPS = 10;
 const PHOTO_TIMEOUT_MS = 3000;
 
-/**
- * The camera's own controls — `torch`, `zoom` — live in the optional half of the spec that
- * the DOM typings haven't caught up with. Android Chrome honours both; Safari neither.
- */
+/** `torch` and `zoom` are in the part of the spec the DOM typings lack. Android Chrome only. */
 type Hardware = { torch?: boolean; zoom?: number };
 const constrain = (settings: Hardware) => ({ advanced: [settings] }) as unknown as MediaTrackConstraints;
 type Capabilities = { torch?: boolean; zoom?: { min: number; max: number } };
 
 /**
- * The two stops the zoom control offers, or nothing at all.
- *
- * `min` is the widest thing the camera has rather than 1×: it is 1 on most phones, 0.5 where
- * there is an ultra-wide, and a handful of Android stacks report the whole scale in
- * hundredths. In all three, 1× is the neutral value — never below 1, never above what the
- * camera reports — and 2× is only offered when the camera can really reach it.
+ * The two zoom stops, or nothing. 1× is never below 1 (ultra-wides report 0.5) and 2× is
+ * offered only when the camera can reach it; some stacks report the scale in hundredths.
  */
 export function zoomStops(range?: { min: number; max: number }) {
   if (!range) return null;
@@ -43,10 +36,8 @@ export function zoomStops(range?: { min: number; max: number }) {
 }
 
 /**
- * A still from the camera's photo pipeline rather than a frame of video: the phone denoises
- * and sharpens a photo in ways it never does a frame. Only Android Chrome has `ImageCapture`,
- * and some phones answer smaller than the stream, so anything short of the frame's size comes
- * back null and the caller takes the frame instead.
+ * A still from the photo pipeline, which the phone denoises and sharpens, rather than a video
+ * frame. Null when unsupported, too slow, or smaller than the stream; the caller uses the frame.
  */
 async function takePhoto(track: MediaStreamTrack | undefined, video: HTMLVideoElement) {
   if (!track || typeof ImageCapture === "undefined") return null;
@@ -54,7 +45,7 @@ async function takePhoto(track: MediaStreamTrack | undefined, video: HTMLVideoEl
     const photo = await decode(
       await Promise.race([
         new ImageCapture(track).takePhoto(),
-        // Some camera stacks never answer, and a shutter that hangs is worse than a frame.
+        // Some camera stacks never answer.
         new Promise<never>((_, reject) => setTimeout(reject, PHOTO_TIMEOUT_MS)),
       ]),
     );
@@ -70,14 +61,8 @@ const painted = () =>
   new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
 
 /**
- * The slice of the sensor that was actually on screen, drawn into a canvas.
- *
- * A mirror of CSS `object-fit: cover`: the sensor is wider than the viewport, and handing
- * somebody a photo containing things that were never in their viewfinder feels broken.
- *
- * `width` caps the output. The photograph keeps every pixel it was given; the freeze only
- * has to look right at the size it is already being shown at, and encoding it at sensor size
- * would cost the very milliseconds it exists to save.
+ * The slice of the sensor that was on screen — a mirror of `object-fit: cover`. `width` caps
+ * the output, for the freeze frame that only has to look right at display size.
  */
 function crop(
   source: CanvasImageSource,
@@ -99,8 +84,7 @@ function crop(
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Canvas unavailable");
   if (mirrored) {
-    // The preview is mirrored, so the saved frame is too — otherwise the photo you get is
-    // not the one you framed.
+    // The preview is mirrored, so the saved frame is too.
     context.translate(canvas.width, 0);
     context.scale(-1, 1);
   }
@@ -110,34 +94,22 @@ function crop(
 
 interface CameraViewProps {
   shotsLeft: number;
-  /** This guest's whole quota, so the rule under the figure has something to be a fraction of. */
+  /** This guest's whole quota, which the bar under the figure is a fraction of. */
   shotsTotal: number;
-  /**
-   * The roll has ended. Separate from being out of film, because it is a different fact about
-   * a different thing and the two want different words on the screen.
-   */
+  /** The roll has ended — a different fact from being out of film. */
   closed?: boolean;
   onCaptured: (photo: ProcessedPhoto) => void;
   /** Leaves the camera for the roll. Absent for a guest who has no roll screen of their own. */
   onLeave?: () => void;
   /** Blur data for the last shot, which is all the thumbnail ever shows. */
   latestThumb?: string | null;
-  /**
-   * The shots pool. Given, the counter in the corner becomes the way there — the figure and
-   * the place you go to change it are the same object. The sample camera has no pool.
-   */
+  /** The shots pool; given, the counter links there. The sample camera has none. */
   poolHref?: string;
 }
 
 /**
- * The viewfinder.
- *
- * Two things it does that a naive implementation gets wrong. The frame is cropped to what
- * was actually on screen — the sensor is wider than the viewport, and handing someone a
- * photo containing things that were never in their viewfinder feels broken. And there is no
- * keep/retake step: the shutter spends a shot, holds the frame for a beat, then throws it
- * into the gallery thumbnail. That throw is the only confirmation, which is what makes the
- * number on the dial feel like it cost something.
+ * The viewfinder. The frame is cropped to what was on screen, and there is no keep/retake step:
+ * the shutter spends a shot, holds the frame for a beat, then flies it into the thumbnail.
  */
 export function CameraView({
   shotsLeft,
@@ -184,13 +156,8 @@ export function CameraView({
   }, []);
 
   /*
-    A pinch on a viewfinder means one thing, and the browser does the other: it zooms the
-    page, so the shutter and the counter slide off screen and the guest is left panning
-    around a magnified photograph of a camera. Refusing the second finger leaves the first —
-    and so every control here — exactly as it was.
-
-    Not `touch-action: none` in CSS: Safari honours that for panning and still zooms the page
-    on a pinch, and half of this audience is holding an iPhone.
+    Refuse a pinch, which would zoom the page and push the controls off screen. Not
+    `touch-action: none`: Safari still zooms the page on a pinch with it.
   */
   useEffect(() => {
     const pinch = (event: TouchEvent) => {
@@ -212,8 +179,7 @@ export function CameraView({
       stop();
 
       try {
-        // 4:3 is the whole sensor. Asking for 16:9 gets a cropped video mode, often only
-        // 1080p, and the viewfinder shows it stretched.
+        // 4:3 is the whole sensor; 16:9 gets a cropped, often 1080p, video mode.
         const size = { width: { ideal: 4096 }, height: { ideal: 3072 } };
         const wanted = { video: { ...size, facingMode: facing }, audio: false };
         let stream = await navigator.mediaDevices.getUserMedia(wanted);
@@ -246,14 +212,8 @@ export function CameraView({
         setHasTorch(Boolean(capabilities?.torch));
         setTorchOn(false);
 
-        /*
-          Zoom, asked of the camera rather than done to the picture.
-
-          The alternative — scaling the frame up afterwards — is the one thing this must not
-          be: it enlarges pixels rather than gathering more of them, and hands the guest a
-          soft photograph of the same detail. Driving the track instead means the phone does
-          whatever its own camera app would, which on a multi-lens phone is to change lens.
-        */
+        // Zoom is asked of the camera, which gathers real detail (or switches lens), rather
+        // than done by scaling the picture.
         setLens(zoomStops(capabilities?.zoom));
         setZoomed(false);
         setPermission("live");
@@ -282,21 +242,10 @@ export function CameraView({
   }
 
   /*
-    The travel between the two stops, rather than a cut.
-
-    A jump between stops is the one thing a camera never does, and doing it here made the
-    viewfinder look broken rather than zoomed. There is nothing to animate in CSS — scaling
-    the preview would be enlarging the very pixels this exists to avoid — so the ramp is real:
-    the lens is asked for a slightly longer focal length every frame it can manage one, and
-    what is on screen is a true frame at every step of it.
-
-    Geometric rather than linear, because a zoom is felt in stops. 1→1.5→2 is two thirds of
-    the way at the halfway mark and reads as a lurch that settles; 1→1.41→2 is even.
-
-    Counted in frames rather than milliseconds: every step waits for the one before it to be
-    painted, so the ramp is as long as the camera needs and never queues constraints behind a
-    lens that is still moving. `from` is read off the track rather than assumed, so a stop
-    pressed mid-travel carries on from where the lens actually is.
+    Travels between the two stops rather than cutting. Each step asks the lens for a slightly
+    longer focal length and waits for a paint, so every frame on screen is real. Geometric, so
+    the zoom feels even; `from` is read off the track so a press mid-travel continues from
+    where the lens actually is.
   */
   async function zoom(into: boolean) {
     const track = streamRef.current?.getVideoTracks()[0];
@@ -305,7 +254,6 @@ export function CameraView({
     // The ring moves now; the picture catches up over the next few frames.
     setZoomed(into);
 
-    // Travel is motion, and somebody who has asked for less of it gets the stop itself.
     const steps = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 1 : ZOOM_STEPS;
 
     const to = into ? lens.two : lens.one;
@@ -320,7 +268,7 @@ export function CameraView({
         if (step < steps) await painted();
       }
     } catch {
-      // A control the camera declines is worse than no control: take it off the screen.
+      // A control the camera declines comes off the screen.
       if (travel.current === run) setLens(null);
     }
   }
@@ -355,20 +303,9 @@ export function CameraView({
   }
 
   /**
-   * The shutter, which answers in about as long as it takes to blink.
-   *
-   * The order here is the whole point. The freeze comes off the frame that is already on
-   * screen — one small draw and one small encode, a few milliseconds — and goes up before
-   * anything slow has started. Only then does the photograph itself get taken.
-   *
-   * It used to be the other way round, and the two halves are not remotely the same length:
-   * `ImageCapture.takePhoto` is a real exposure and can take the better part of a second,
-   * and the three derivatives after it are encoded on the main thread. All of that happened
-   * with the viewfinder blacked out and nothing on screen, which is what made an instant
-   * shutter feel like a slow one — you pressed the button and the camera went dark.
-   *
-   * The photograph is still the photograph: the still is what gets uploaded, and this only
-   * changes when the animation is allowed to start.
+   * The shutter. The freeze comes off the frame already on screen — a few milliseconds — and
+   * goes up before the slow part (`takePhoto`, then encoding) starts, so the camera never goes
+   * dark while the real photograph is taken.
    */
   async function capture() {
     const video = videoRef.current;
@@ -390,7 +327,6 @@ export function CameraView({
         frame.clientWidth,
       ).toDataURL("image/jpeg", 0.7);
 
-      // Black for a beat, then the frame they took, on screen and already flying.
       await wait(FLASH_MS);
       runFlight(shown);
       await painted();
@@ -415,13 +351,8 @@ export function CameraView({
       setPhase("idle");
       setFrozen(null);
     } finally {
-      /*
-        Only now is the shutter armed again — not when the animation ends.
-
-        The two no longer finish together, and the gap is the dangerous direction: the last
-        frame of a quota could be taken twice, the server would refuse the second, and the
-        queue deletes what the server refuses. A photograph somebody took, gone.
-      */
+      // Re-armed only now, not when the animation ends: the last frame of a quota taken twice
+      // would be refused by the server and deleted by the queue.
       setWorking(false);
     }
   }
@@ -429,13 +360,6 @@ export function CameraView({
   const out = shotsLeft <= 0;
   const flying = phase === "hold" || phase === "fly";
 
-  /*
-    What is left, stated. This was a mechanical frame dial with the neighbouring numbers
-    half-visible either side, which is a lovely object and the wrong one: on a phone in a
-    dark room the number you need is the smallest thing in the widget, wrapped in two numbers
-    that are not true. Here the figure is the whole control, and the rule under it carries the
-    part the dial was really for — the sense that the film is running out.
-  */
   const counter = (
     <>
       <p className="tabular text-[38px] leading-none font-medium text-chalk" data-testid="shots-left">
@@ -456,9 +380,7 @@ export function CameraView({
 
   return (
     <div className="flex h-full flex-col bg-page">
-      {/* `min-h-0` + `max-h-full`: the frame keeps its 4:5 shape wherever there is room for
-          it and gives height back where there is not, rather than growing past the screen and
-          taking the shutter with it. */}
+      {/* `min-h-0` + `max-h-full`: the 4:5 frame gives height back rather than pushing the shutter off screen. */}
       <div className="flex min-h-0 flex-1 items-center px-4 py-4">
         <div
           ref={frameRef}
@@ -484,7 +406,6 @@ export function CameraView({
                     ? "This browser can’t open the camera."
                     : "MemoVue needs camera access. Allow it for this site in your browser’s settings, then try again."}
                 </p>
-                {/* Refusing once used to end the screen: a sentence, and nothing to press. */}
                 {permission === "denied" ? (
                   <Pill variant="quiet" className="mt-5" onClick={() => setAttempt((n) => n + 1)}>
                     Try again
@@ -494,8 +415,7 @@ export function CameraView({
             </div>
           ) : null}
 
-          {/* Black, not white. The frame going dark reads as a shutter closing; a white
-              wash reads as a camera-app screen flash, which is the cheap version. */}
+          {/* Black, not white: a shutter closing rather than a screen flash. */}
           {phase === "flash" ? <span className="absolute inset-0 bg-void" /> : null}
 
           {flying && frozen ? (
@@ -529,13 +449,7 @@ export function CameraView({
           {torchOn ? <Flash className="h-6 w-6" /> : <FlashOff className="h-6 w-6" />}
         </button>
 
-        {/*
-          Two stops rather than a pinch. A pinch on a viewfinder is a continuous gesture
-          answered by an asynchronous constraint, so it lags the fingers and lands somewhere
-          nobody chose; and the phones this runs on have two lenses, not a continuum. Absent
-          entirely where the camera has no zoom to give — an iPhone, or a front camera —
-          rather than present and dead.
-        */}
+        {/* Two stops rather than a pinch, which lags the fingers. Absent where there is no zoom. */}
         {lens ? (
           <div role="group" aria-label="Zoom" className="flex items-center gap-1">
             {([false, true] as const).map((into) => (
@@ -578,14 +492,7 @@ export function CameraView({
           <div className="w-[72px]">{counter}</div>
         )}
 
-        {/*
-          Disabled until the stream is actually live.
-
-          `capture` already refuses to run without a video frame, so tapping early did
-          nothing at all — no shot, no error, no flash. A control that silently declines is
-          worse than one that is visibly not ready yet, and the gap is widest on exactly the
-          phone this matters on, where the camera takes a moment to come up.
-        */}
+        {/* Disabled until the stream is live, so an early tap is visibly not ready rather than ignored. */}
         <button
           type="button"
           aria-label="Take photo"
@@ -594,12 +501,7 @@ export function CameraView({
           className="h-[88px] w-[88px] rounded-full border-4 border-chalk bg-surface disabled:opacity-40"
         />
 
-        {/*
-          The last shot, blurred — the same seal everything else in the roll is under, and the
-          only thing that makes this square read as a camera roll rather than a hole in the
-          layout. It is the flight's landing pad, so it keeps its ref whether or not it leads
-          anywhere: an anonymous guest has no roll screen to send them to.
-        */}
+        {/* The last shot, blurred. Also the flight's landing pad, so it keeps its ref even when it leads nowhere. */}
         <button
           ref={thumbRef}
           type="button"
@@ -620,9 +522,7 @@ export function CameraView({
         </button>
       </div>
 
-      {/* Only the roll ending gets a word. Running out of film closes the camera instead —
-          a spent viewfinder explaining itself is a screen nobody stays on long enough to
-          read, and it flashed up for a beat on the way out. */}
+      {/* Only the roll ending gets a word; running out of film leaves the camera instead. */}
       {closed ? (
         <p className="px-8 pb-6 text-center text-[14px] leading-relaxed text-flame">
           The roll has closed. Everything opens for everyone at reveal time.

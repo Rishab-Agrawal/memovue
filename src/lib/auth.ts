@@ -9,10 +9,8 @@ const secret = new TextEncoder().encode(env.authSecret);
 const HOST_COOKIE = "mv_host";
 const OAUTH_STATE_COOKIE = "mv_oauth_state";
 const HOST_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
-// This cookie is not a convenience, it *is* the guest — there is nothing else in the product
-// that knows which camera is theirs. So it outlives the event by a wide margin: they come
-// back weeks later for the revealed album, and an expiry in between would read as a roll that
-// had lost their photographs. A year and a bit, the ceiling browsers will store.
+// The guest cookie is the guest's whole identity, and they return weeks later for the album,
+// so it lasts 400 days — the most browsers will store.
 const GUEST_MAX_AGE = 60 * 60 * 24 * 400;
 
 const cookieBase = {
@@ -25,23 +23,14 @@ const cookieBase = {
 /* ------------------------------------------------------------------ oauth state */
 
 /**
- * CSRF protection for the Google round trip.
- *
- * The cookie is the secret: Google echoes `state` back on the callback, and if it does not
- * match what we set, the request did not start here. Without this the callback is an open
- * login endpoint — anyone could hand a victim a link that signs them into an account the
- * attacker controls.
+ * CSRF protection for the Google round trip: the callback's `state` must match this cookie, or
+ * anyone could sign a victim into an attacker's account.
  */
 export async function startOAuthState(next?: string): Promise<string> {
   const state = crypto.randomUUID();
   const jar = await cookies();
 
-  /*
-    Where to land afterwards rides in this cookie rather than in `state`, which Google echoes
-    back from the open internet and which anyone can therefore choose. The caller has already
-    checked it is a path on this site; keeping it out of `state` is what stops it being
-    swapped for one that is not.
-  */
+  // `next` rides in the cookie, not in `state`, which comes back from the open internet.
   jar.set(OAUTH_STATE_COOKIE, next ? `${state} ${next}` : state, {
     ...cookieBase,
     maxAge: 60 * 10,
@@ -84,9 +73,8 @@ export async function clearHostSession() {
 }
 
 /**
- * Reads the host cookie and validates the signature only — the caller still has to
- * confirm `tokenVersion` against the database, which is what makes password changes
- * actually revoke old sessions.
+ * Reads the host cookie and validates the signature only. The caller checks `tokenVersion`
+ * against the database, which is what makes "sign out everywhere" revoke old sessions.
  */
 export async function readHostClaims(): Promise<HostClaims | null> {
   const jar = await cookies();

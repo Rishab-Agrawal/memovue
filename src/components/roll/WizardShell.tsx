@@ -10,20 +10,8 @@ import { forgetDraft } from "@/app/new/DraftContext";
 const WIZARD_STEPS = 5;
 
 /**
- * Every step of the create-roll wizard shares this frame, so it is written once.
- *
- * Progress is a rule that fills and a counter that says `03 / 05`, not five dots — dots tell
- * you there are five of something without telling you which one you are on until you count
- * them. And the way forward is a button at the thumb rather than a small pill in the
- * bottom-right corner, which is the hardest place on a phone to reach one-handed.
- *
- * Beside it, the way out. The back button in the corner steps one screen at a time, so
- * abandoning a roll from step five meant five taps at the far end of the phone from the hand
- * holding it. Cancel is the same journey in one, and it asks first — five steps of work is
- * too much to lose to a mis-tap next to the button you meant to press.
- *
- * Note there is still no Skip anywhere. The reference offers one on its date screen; skipping
- * the date would leave a roll with no window to shoot in, which is not a state worth allowing.
+ * The frame every wizard step shares: a progress rule and `03 / 05` counter, then Cancel (which
+ * confirms and discards the draft) and Next at the bottom, within thumb reach.
  */
 export function WizardShell({
   step,
@@ -55,8 +43,7 @@ export function WizardShell({
       action: "Discard",
       danger: true,
       onConfirm: () => {
-        // The draft outlives the page it was typed on, so leaving without clearing it would
-        // seed the next roll somebody starts with the one they just abandoned.
+        // The draft is persisted, so it must be cleared or it seeds the next roll.
         forgetDraft();
         router.push("/rolls");
       },
@@ -92,13 +79,9 @@ export function WizardShell({
         </p>
       ) : null}
 
-      {/* Top-aligned, under the question it answers. Centring it in the leftover space put a
-          hand-sized hole between the title and the control, which read as the title having
-          come adrift rather than as breathing room. */}
       <div className="flex-1 pt-7">{children}</div>
 
-      {/* Equal halves. The forward action keeps the right — the side the thumb of a
-          right-handed grip lands on, and the side the step counter reads towards. */}
+      {/* Equal halves, forward on the right. */}
       <div className="grid grid-cols-2 gap-3 pt-6">
         <Pill variant="quiet" full className="h-14" onClick={cancel}>
           Cancel

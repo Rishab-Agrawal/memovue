@@ -4,11 +4,7 @@ import { messageOf } from "./alert-text";
 import { env } from "./env";
 import { alert } from "./telegram";
 
-/**
- * Email is optional infrastructure. Without RESEND_API_KEY the app still works end to end
- * — messages are logged instead of sent — so nothing about local development or the first
- * deploy is blocked on setting up a sending domain.
- */
+/** Optional: without RESEND_API_KEY messages are logged instead of sent. */
 
 let client: Resend | null = null;
 
@@ -27,24 +23,11 @@ async function send(to: string, subject: string, text: string): Promise<void> {
 
   try {
     const { error } = await service.emails.send({ from: env.emailFrom, to, subject, text });
-    // Resend reports a refusal in the body rather than by throwing, so a quota that has run
-    // out returns an ordinary resolved promise. Without reading this, the only failure mode
-    // that costs a host their photographs is also the only one that looks like success.
+    // Resend reports a refusal (e.g. quota) in the body, not by throwing.
     if (error) throw new Error(`${error.name}: ${error.message}`);
   } catch (error) {
-    /*
-      A failed notification must never break the action that triggered it — but it must not
-      pass in silence either, which is what this used to do.
-
-      Every message this app sends is one a person cannot find out by looking: a roll about to
-      be deleted, a roll that has filled up at the door. Console-logging that is the same as
-      losing it. The free Resend plan is 3,000 a month and 100 a day and refuses with a 429
-      rather than billing, so running out costs nothing and breaks quietly — the worst pair of
-      properties a failure can have, and the same pair `env.ts` refuses to allow R2 to have.
-
-      Deduplicated by `shouldAlert`, so a sweep night that cannot reach Resend at all reports
-      one fault rather than one per host.
-    */
+    // Never breaks the action that sent it, but never silent either: nobody can see an email
+    // that did not arrive. `shouldAlert` dedupes a night of failures into one alert.
     console.error("Failed to send email", error);
     await alert("email", {
       what: "An email the site tried to send did not go out.",
@@ -61,14 +44,8 @@ async function send(to: string, subject: string, text: string): Promise<void> {
 }
 
 /**
- * A beta access request, forwarded to whoever owns `ADMIN_EMAIL`.
- *
- * The address it carries is the one the person is signed in with, because that is the string
- * the admin screen needs typed back in — a request naming any other address would grant
- * access to an account that will never arrive.
- *
- * Returns quietly when no admin address is configured: the row is already in `BetaRequest`
- * and the admin screen lists it, so a missing env var costs a notification, not the request.
+ * A beta access request, forwarded to `ADMIN_EMAIL`. Without one it returns quietly: the
+ * request is already stored and listed on the admin screen.
  */
 export function sendBetaRequest(request: {
   email: string;
@@ -97,11 +74,7 @@ export function sendBetaRequest(request: {
   );
 }
 
-/**
- * Beta access granted, sent when the admin screen takes an address from no rolls to some —
- * a new address on the list, or a `+` on one sitting at zero. Not on a top-up: somebody who
- * still has rolls left already knows they are in.
- */
+/** Beta access granted: sent when an address goes from no rolls to some. */
 export function sendAccessGranted(to: string): Promise<void> {
   return send(
     to,
@@ -113,11 +86,7 @@ export function sendAccessGranted(to: string): Promise<void> {
   );
 }
 
-/**
- * Retention warning, sent once by the nightly sweep a week before a roll reaches its
- * `keptUntil`. The roll's `warnedAt` records the send, so a host hears about it once rather
- * than every night for a week.
- */
+/** Retention warning, sent once (recorded by `warnedAt`) a week before `keptUntil`. */
 export function sendDeletionNotice(to: string, eventName: string, deleteOn: Date): Promise<void> {
   return send(
     to,
@@ -129,12 +98,8 @@ export function sendDeletionNotice(to: string, eventName: string, deleteOn: Date
 }
 
 /**
- * The roll has taken its last guest, sent to the host by the join that filled it.
- *
- * That join is what makes this fire exactly once per limit without a column to remember it:
- * every later attempt is refused before it gets here, and raising the limit is what arms it
- * again. Worth interrupting a host for, because the alternative is people at the door being
- * turned away while the person who could fix it is holding a drink.
+ * The roll has taken its last guest. Sent by the join that filled it, so it fires once per
+ * limit with no column: later joins are refused first, and raising the limit re-arms it.
  */
 export function sendRollFullNotice(to: string, eventName: string, maxGuests: number): Promise<void> {
   return send(

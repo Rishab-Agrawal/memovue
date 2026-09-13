@@ -32,8 +32,7 @@ export async function GET(request: Request) {
   const state = url.searchParams.get("state");
   if (!code) return back("no_code");
 
-  // Checked before anything is spent on the code exchange: a callback that did not start
-  // here is not worth talking to Google about.
+  // Before the code exchange: a callback that did not start here is not worth a call to Google.
   const started = await consumeOAuthState(state);
   if (!started.ok) return back("bad_state");
 
@@ -44,13 +43,7 @@ export async function GET(request: Request) {
     return back("verification_failed");
   }
 
-  /*
-    Matched on googleId first, then on email.
-
-    The email fallback is what lets an account that predates Google sign-in adopt its Google
-    identity instead of quietly becoming a second account with the same address — which is
-    how the existing admin keeps its rolls and its role.
-  */
+  // By googleId, or by email so a row created before its first sign-in adopts the identity.
   const existing = await prisma.user.findFirst({
     where: { OR: [{ googleId: identity.googleId }, { email: identity.email }] },
     select: { id: true, tokenVersion: true, role: true, name: true },
@@ -83,23 +76,12 @@ export async function GET(request: Request) {
 
   await createHostSession(user);
 
-  /*
-    The pulse. A host signing up for the first time is the rarest event this app has and the
-    only one that means the product grew, so it is worth a line on a phone — and it is a fact
-    no query can reconstruct later with the same weight as knowing it on the day.
-    `after`, because nobody signing in should wait on Telegram to see their rolls.
-  */
+  // A new host is worth a signal. `after`, so sign-in does not wait on Telegram.
   if (!existing) {
     after(() => notify("signals", `New host — ${identity.name} · ${identity.email}`));
   }
 
-  /*
-    Any rolls this browser joined anonymously now belong to the account.
-
-    Wrapped, because it is a courtesy and not a credential: a failure here must not turn a
-    successful sign-in into an error screen. The worst case is that a roll stays anonymous,
-    which is exactly where it was a moment ago.
-  */
+  // Rolls this browser joined anonymously now belong to the account. Best effort: never fails the sign-in.
   try {
     const jar = await cookies();
     await linkGuestSessions(
@@ -110,7 +92,7 @@ export async function GET(request: Request) {
         .map((cookie) => cookie.value),
     );
   } catch {
-    // Nothing to do about it here, and nothing the person signing in can act on.
+    // The roll just stays anonymous.
   }
 
   return Response.redirect(`${env.appUrl}${started.next ?? "/rolls"}`, 307);

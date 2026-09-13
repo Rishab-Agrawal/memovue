@@ -1,24 +1,14 @@
 import type { RevealMode } from "@prisma/client";
 
 /**
- * Who can see a photograph, and when.
+ * Who can see a photograph, and when. The only place that decision is made.
  *
- * This module is the only place that decision is made. Every route that returns image bytes,
- * signed image URLs, or a list of photos calls into here — none of them re-derives the rule.
- * That is not tidiness: the rule used to be absolute (nothing before `revealAt`, for anyone)
- * and is now conditional on two independent axes, and the way this leaks is two call sites
- * disagreeing about one of them.
- *
- * The two axes:
- *
- *   1. Is the roll OPEN? Before that moment nothing is legible to anybody — not the host,
- *      not the guest who took the shot. `DURING` rolls are open from creation, because the
- *      host chose to have no seal at all.
+ *   1. Is the roll open? Before that, nothing is legible to anybody, host included.
+ *      `DURING` rolls are open from creation.
  *   2. Whose photo is it? Once open, `everyoneCanSee` decides whether a guest sees the whole
- *      roll or only their own frames. The host always sees all of an open roll.
+ *      roll or only their own frames. The host sees all of an open roll.
  *
- * Axis 2 never overrides axis 1. `everyoneCanSee` is a statement about ownership, not about
- * the clock.
+ * Axis 2 never overrides axis 1.
  */
 
 export type RollPhase = "scheduled" | "capturing" | "closed" | "revealed";
@@ -40,14 +30,7 @@ export function isOpen(roll: RollTimings, now: Date = new Date()): boolean {
   return now.getTime() >= roll.revealAt.getTime();
 }
 
-/**
- * The same rule as `isOpen`, written as a Prisma `where`.
- *
- * Here beside it rather than spelled out wherever open rolls are counted, because
- * `revealAt < now` is only one of its three arms: a `DURING` roll has no seal at all, and an
- * early reveal opens an album without moving the column. Counting on that column alone leaves
- * both out silently — the two-call-sites-disagreeing failure this module exists to prevent.
- */
+/** `isOpen` as a Prisma `where`. `revealAt` alone misses `DURING` and early reveals. */
 export function openRollWhere(now: Date) {
   return {
     OR: [
@@ -58,10 +41,7 @@ export function openRollWhere(now: Date) {
   };
 }
 
-/**
- * `closed` is the state the previous model could not express: shooting has finished but the
- * photos have not opened yet. It exists because capture and reveal became separate moments.
- */
+/** `closed`: shooting has finished but the photos have not opened yet. */
 export function rollPhase(roll: RollTimings, now: Date = new Date()): RollPhase {
   if (isOpen(roll, now)) return "revealed";
   if (now.getTime() < roll.startsAt.getTime()) return "scheduled";
@@ -76,46 +56,19 @@ export function isCapturing(roll: RollTimings, now: Date = new Date()): boolean 
   );
 }
 
-/**
- * How long after a roll closes its photographs may still arrive.
- *
- * Taking a photo and uploading it are not the same moment. Bytes go to IndexedDB the instant
- * the shutter fires and reach the server whenever the phone next has signal, which at a venue
- * with bad wifi can be hours later and is routinely after the roll has closed.
- */
+/** How long after a roll closes its queued photographs may still arrive. */
 export const UPLOAD_GRACE_HOURS = 24;
 
 /**
- * Whether an upload for this roll is still allowed in.
- *
- * Separate from `isCapturing` on purpose, and the distinction is the whole bug it fixes. The
- * reserve route used to ask `isCapturing`, so a photo taken at 11:58 and drained at 12:01 was
- * refused — and the client, correctly reading the refusal as permanent, deleted the only copy
- * of it. Ten photographs of somebody's evening were destroyed that way.
- *
- * The shutter still closes on time: the camera is gated on `isCapturing`, and a guest cannot
- * take a new photo during the grace window. This governs only whether bytes already captured
- * are allowed to finish their journey.
+ * Whether an upload for this roll is still allowed in. Outlives `isCapturing`: a photo taken at
+ * 11:58 on bad wifi drains after the close, and refusing it makes the queue delete the only copy.
  */
 export function acceptsUploads(roll: RollTimings, now: Date = new Date()): boolean {
   if (now.getTime() < roll.startsAt.getTime()) return false;
   return now.getTime() < roll.finishesAt.getTime() + UPLOAD_GRACE_HOURS * 3_600_000;
 }
 
-/**
- * When a photograph was actually taken, from a clock we do not control.
- *
- * The row's own timestamp is set when the shot is reserved, which is when the bytes reach us
- * rather than when the shutter fired — so a phone that was out of signal filed its evening
- * under the moment it found wifi, and with the upload grace that can be the next day. The
- * queue has known the real moment all along; it simply never sent it.
- *
- * Clamped to the capture window, because it arrives from a device whose clock is the user's to
- * set. A phone hours out of true, or someone editing the request, cannot place a photograph
- * outside the event it belongs to. Within the window it is taken at face value: a few minutes
- * of ordinary clock drift is invisible in an album ordered by time, and rejecting it would
- * throw away the only record of the order things happened in.
- */
+/** A device-reported shutter time, clamped to the capture window since the clock is the user's. */
 export function takenAtWithin(claimed: Date, roll: RollTimings): Date {
   if (Number.isNaN(claimed.getTime())) return roll.finishesAt;
   if (claimed.getTime() < roll.startsAt.getTime()) return roll.startsAt;
@@ -124,18 +77,10 @@ export function takenAtWithin(claimed: Date, roll: RollTimings): Date {
 }
 
 /**
- * Ownership, expressed as a Prisma `where` so filtering happens in the query rather than
- * after it. The only place the rule is written.
+ * Ownership as a Prisma `where`. The only place the rule is written.
  *
- * There was a predicate form of this too, asked a second time by `/photos/[id]/full` before
- * it redirected to the bytes. That route is gone: an image key now carries a random secret,
- * so holding the URL *is* the authorisation and there is no request left between a guest and
- * a photograph to check. The query below is what decides which rows exist at all, and a key
- * it never returned cannot be guessed.
- *
- * Deliberately says nothing about the seal: callers check `isOpen` first and return an
- * empty grid, because a sealed roll still has to render its blurred placeholders and its
- * count. Handing this a sealed roll and trusting it would publish the album.
+ * Says nothing about the seal: callers check `isOpen` first, because a sealed roll still renders
+ * its blurred placeholders. Handing this a sealed roll and trusting it would publish the album.
  */
 export function visiblePhotoWhere(
   roll: { id: string; everyoneCanSee: boolean },
@@ -153,8 +98,7 @@ export function computeRevealAt(
   delayHours: number,
 ): Date {
   if (mode === "DELAY") return new Date(finishesAt.getTime() + delayHours * 3_600_000);
-  // DURING stores the close so the column is never null; `isOpen` short-circuits before
-  // it is ever compared against.
+  // DURING stores the close so the column is never null; `isOpen` never compares it.
   return new Date(finishesAt);
 }
 
@@ -171,15 +115,9 @@ export const WARN_BEFORE_DAYS = 7;
 type RetentionAction = "purge" | "warn" | "leave";
 
 /**
- * What the nightly sweep should do with one roll.
- *
- * Here rather than in `retention.ts` beside the deletion itself, because that module is
- * `server-only` — it holds a Prisma client and a bucket — and this is a rule about dates that
- * wants testing without either. It sits with `computeKeptUntil`, which decides the date this
- * one reads.
- *
- * Purging is checked before warning, deliberately: a roll that shot past its date while the
- * job was switched off must still go, not fall into the warn branch and buy another week.
+ * What the nightly sweep does with one roll. Here rather than in the server-only `retention.ts`
+ * so it can be tested without a database. Purge is checked first, so a roll that slipped past
+ * its date while the job was off still goes.
  */
 export function retentionAction(
   roll: { keptUntil: Date; warnedAt: Date | null },
@@ -192,14 +130,7 @@ export function retentionAction(
 }
 
 /**
- * How long a reservation may sit unconfirmed before the sweep takes it back.
- *
- * A `PENDING` row costs its guest a shot from the moment it is written, and until now nothing
- * ever removed one — a phone that reserved and then went in a river held that shot for the
- * life of the roll. The queue gives its own reservations back the moment it decides a
- * photograph will never land; this is only for the client that never runs again.
- *
- * Well past the day-long upload grace, because a confirm is still accepted after it: a phone
- * switched off for a weekend drains on the Monday and must find its reservation still there.
+ * How long an unconfirmed reservation holds its shot before the sweep takes it back. Well past
+ * the upload grace, because a phone switched off for a weekend must still find it on Monday.
  */
 export const ABANDONED_UPLOAD_DAYS = 7;

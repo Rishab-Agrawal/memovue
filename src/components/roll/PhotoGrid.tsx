@@ -15,22 +15,15 @@ export interface GridPhoto {
   by: string;
   /** Preview link. Null while the roll is sealed, which is what keeps it sealed. */
   url: string | null;
-  /** The original, for the viewer. Null while sealed, for the same reason. */
+  /** The original, for the viewer. Null while sealed. */
   fullUrl: string | null;
-  /** The ~32px inlined JPEG. The whole tile while sealed, which is what sealed looks like. */
+  /** The ~32px inlined JPEG. The whole tile while sealed. */
   blurData: string;
 }
 
 /**
- * One frame on a wall, wherever the wall is.
- *
- * The host's grid and the guest's album had each written this out, and they had already begun
- * to disagree — one positioned the image absolutely and the other did not, one gave the byline
- * unconditionally and the other guarded it. They show the same photograph to the same people
- * on the same evening, so there is one of them now.
- *
- * `src` is the caller's to work out, because what a sealed tile shows differs: the host's wall
- * always has an inlined blur to fall back on, and a guest's may have nothing at all.
+ * One frame on a wall, shared by the host's grid and the guest's album. `src` is the caller's
+ * to choose, because what a sealed tile can show differs between them.
  */
 export function PhotoTile({
   src,
@@ -51,25 +44,11 @@ export function PhotoTile({
       type="button"
       disabled={sealed}
       onClick={onOpen}
-      /*
-        The name, not the seal, decides this. A guest's own frame is labelled "Photo by You"
-        on both sides of the reveal — that is how somebody picks their own out of a wall of
-        blurred tiles — while everybody else's is nameless until it opens. The host's wall
-        sends an empty name while sealed and gets "Hidden photo" from the same expression.
-        Reading `sealed` here instead cost the guest the one label that was theirs.
-      */
+      // The name decides this, not the seal: a guest's own sealed frame is still "Photo by You".
       aria-label={by ? `Photo by ${by}` : "Hidden photo"}
       className="relative block aspect-[4/5] overflow-hidden rounded-2xl bg-void"
     >
-      {/*
-        The guest's own photograph, blurred, exactly as the guest album shows it. This grid
-        used to draw a generated wash while sealed, so a host watching their roll fill up was
-        shown abstract art bearing no relation to anything anyone had shot.
-
-        Not next/image: these are already cached at the edge, and the optimiser would proxy
-        every frame through our own server to no benefit. An empty string is turned back into
-        nothing, because `src=""` is a browser re-requesting the page as an image.
-      */}
+      {/* Not next/image: already edge-cached. `src=""` would re-request the page, so it becomes undefined. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={src || undefined}
@@ -93,13 +72,7 @@ export function PhotoTile({
   );
 }
 
-/**
- * The host's wall of frames.
- *
- * Client-side because it owns the viewer now. Each tile used to be a `Link` pointing at the
- * roll screen it was already on, so tapping a photograph did nothing at all — the full-screen
- * viewer existed but only the guest album could reach it.
- */
+/** The host's wall of frames, with the viewer. */
 export function PhotoGrid({
   rollId,
   code,
@@ -109,8 +82,7 @@ export function PhotoGrid({
 }: {
   /** Absent on the sample album: nobody hosts it, so there is nothing to take out of it. */
   rollId?: string;
-  /** The roll's join code, which is what this phone's own queue is filed under. Absent on
-      the sample album for the same reason: nobody's camera belongs to it. */
+  /** The join code this phone's queue is filed under. Absent on the sample album. */
   code?: string;
   photos: GridPhoto[];
   sealed: boolean;
@@ -118,24 +90,12 @@ export function PhotoGrid({
 }) {
   const router = useRouter();
   const [viewing, setViewing] = useState<number | null>(null);
-  // A refusal from the server, in our own box. It was a `window.alert`, which is the browser
-  // reading our error message out in its own voice over the top of the album.
   const [notify, notice] = useNotice();
 
-  /* A host shoots their own roll like anybody else, and lands back here while the last
-     frames are still going out. The wall is the server's, and it was rendered before they
-     reached it — so those frames are drawn from this phone until it has been asked again. */
+  // The host shoots too; their still-uploading frames are drawn from this phone until the wall has them.
   const settle = useCallback(() => router.refresh(), [router]);
   const { shots, waiting, dropped } = useUploadQueue(code, photos, settle);
 
-  /**
-   * Taking a photograph out of the album.
-   *
-   * The host is the only person who can, and this is the only screen they can do it from —
-   * so the wiring lives here rather than in a prop the server component would have to thread
-   * through. On success the viewer closes and the page reloads: the list is the server's, and
-   * refreshing it is cheaper than keeping a second copy in sync with it.
-   */
   const remove = rollId
     ? async (photo: ViewerPhoto) => {
         const result = await deletePhotoAction(rollId, photo.id);

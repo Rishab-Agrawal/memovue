@@ -25,32 +25,17 @@ interface GuestAppProps {
   shotsTotal: number;
   /** Film nobody has claimed, as the server last counted it. */
   pool: number;
-  /**
-   * The most this guest could draw the moment they run dry — the ceilings as the server saw
-   * them when this page was rendered, with an empty camera assumed. Zero while the event is
-   * in its first tenth, or once they have spent their refills, and then no box is raised.
-   */
+  /** The most this guest could draw once they run dry, as the server saw it. Zero raises no box. */
   takeMax: number;
   /** When the shutter closes, in epoch milliseconds. */
   finishesAt: number;
-  /**
-   * The roll's own screen — the host's `/rolls/[id]`, or the album for everybody else. Both
-   * the arrow and the thumbnail lead here, because they are the same door.
-   */
+  /** The roll's own screen, where both the arrow and the thumbnail lead. */
   home: string;
   /** This guest's most recent shot, so the roll thumbnail is filled the moment they arrive. */
   latestBlur: string | null;
 }
 
-/**
- * The viewfinder, and nothing else.
- *
- * It used to carry the album inside it as a sheet over the live stream, to avoid tearing the
- * `MediaStream` down on every glance. That cost a screen with no URL, a hand-rolled back
- * stack, and a roll that anonymous guests could not reach at all. The album is a sibling route
- * now; the camera comes back up when they return, which is what every native camera app does
- * anyway.
- */
+/** The viewfinder, and nothing else. The album is a sibling route. */
 export function GuestApp({
   code,
   rollName,
@@ -74,19 +59,9 @@ export function GuestApp({
   const [closed, setClosed] = useState(false);
 
   /*
-    Film this device has already spent that the server has not been told about.
-
-    `initialShots` is counted from `Photo` rows, and a photograph sitting un-uploaded in
-    IndexedDB has no row — so a guest who shot their last frames offline and reopened the
-    viewfinder was handed the whole quota a second time. Every extra frame then came back
-    from the reserve route as `no_shots_left`, which is terminal, so the queue deleted the
-    only copy. The camera gave them shots that did not exist and destroyed what they took
-    with them.
-
-    A high-water mark, and `shot` is subtracted because the two counters overlap: a frame
-    taken in this session is in the queue *and* in `spent`, and counting it twice would take
-    two shots off the dial for one press. It only ever rises, so a reservation landing
-    mid-session cannot hand a shot back that was already spent.
+    Film this device has spent that the server has not counted: a photo waiting in IndexedDB
+    has no row yet, so without this a reopened camera offers shots that no longer exist, the
+    server refuses them, and the queue deletes the photos. See `carriedForward`.
   */
   const shot = useRef(0);
   const [carried, setCarried] = useState(0);
@@ -100,24 +75,11 @@ export function GuestApp({
   );
 
   const shotsLeft = Math.max(0, initialShots + taken - spent - carried);
-  // Whichever the server last said, or what is left of the pool if that is now the smaller
-  // of the two — the refill ceilings are the server's to enforce and it re-checks every move.
+  // The server re-checks refill ceilings on every move; this only caps the offer by the pool.
   const [offer, setOffer] = useState(initialTakeMax);
   const takeMax = Math.min(pool, offer);
 
-  /*
-    The camera has its own clock now, because the page only ever had one on the way in.
-
-    `/e/[code]` checks the shutter on load and never again, so a guest who left the viewfinder
-    open went on shooting long after the roll ended — and the reserve route lets those photos
-    through on purpose, because it cannot tell a frame captured at the party and drained from
-    a taxi from one taken the next morning. The grace window is for bytes that were captured
-    in time. This is what makes sure only those exist.
-
-    A timer rather than a countdown tick: the closing instant is known exactly, and a shutter
-    that keeps working for another twenty seconds is the same bug in miniature. It fires late
-    rather than never on a phone that was asleep, which is the correct direction to be wrong.
-  */
+  // Closes the shutter at the roll's end even if the page stays open. The upload grace is only for photos captured in time.
   useEffect(() => {
     const close = () => {
       setClosed(true);
@@ -127,49 +89,24 @@ export function GuestApp({
     return () => clearTimeout(timer);
   }, [finishesAt, home, router]);
 
-  /*
-    The queue keeps going, silently.
-
-    A line under the roll name used to count the photographs still going out, which is the
-    app narrating its own housekeeping to somebody holding a camera. The retries it was
-    quietly arming are the part worth keeping: whatever a previous session left behind goes
-    now, and a phone that finds signal again mid-party picks up without waiting for the next
-    shutter press. What is still owed is said on the roll screen instead, where a missing
-    photograph is a thing you can actually notice.
-  */
+  // Drain whatever a previous session left, and retry when signal returns.
   useEffect(() => {
     void drainQueue(code);
     return watchConnectivity(code);
   }, [code]);
 
-  /**
-   * No keep/retake step. The shot is spent the moment the shutter fires, the frame flies
-   * into the thumbnail, and the upload happens in the background — surviving a locked phone
-   * or a dead signal because it goes through the queue rather than straight to the network.
-   */
+  /** The shot is spent the moment the shutter fires; the upload goes through the durable queue. */
   function handleCaptured(photo: ProcessedPhoto) {
     shot.current += 1;
     setSpent(shot.current);
-    // What the frame flies into, and what stays there afterwards.
     setLatestThumb(photo.blurData);
     void enqueuePhoto(code, photo);
   }
 
-  /*
-    Out of film, with a pool that still has some.
-
-    Sitting on a dead viewfinder with a greyed-out shutter is the camera pretending it still
-    has a job. It used to close and hand them the roll; now it asks first, because the roll
-    still holds film that nobody has claimed and the moment somebody wants it is exactly this
-    one. Declining is the old exit, unchanged.
-
-    Derived rather than raised as an event, so it covers arriving here already spent — which
-    is now possible, since the roll's camera tile no longer goes dead on an empty quota.
-  */
+  // Out of film with a pool that still has some: offer it. Derived, so arriving already spent works too.
   const asking = !closed && shotsLeft <= 0 && takeMax > 0 && !declined;
 
-  // And an empty pool behind an empty quota is the old behaviour exactly: there is nothing
-  // to offer, so the screen leaves rather than explaining itself.
+  // Out of film with nothing to offer: leave.
   useEffect(() => {
     if (!closed && shotsLeft <= 0 && takeMax <= 0) router.push(home);
   }, [closed, shotsLeft, takeMax, home, router]);
@@ -177,14 +114,13 @@ export function GuestApp({
   async function take(shots: number) {
     const result = await movePool(code, "take", shots);
     if (!result.ok) {
-      // Nothing to be had after all — the pool emptied while they were shooting.
+      // The pool emptied while they were shooting.
       decline();
       return;
     }
     setTaken((had) => had + result.moved);
     setPool(result.pool);
-    // Their last refill may have been their last: the server hands back what is left. Not
-    // `take`, which is zero the instant after a refill because the camera is full again.
+    // The refills left, not `take`, which is zero right after a refill because the camera is full.
     setOffer(result.refill);
   }
 
@@ -198,8 +134,7 @@ export function GuestApp({
       <div className="h-full pt-[var(--safe-top)] pb-[var(--safe-bottom)]">
         <CameraView
           shotsLeft={shotsLeft}
-          // Their allowance grows as they draw on the pool, so the rule under the figure has
-          // to grow with it — otherwise the bar reads full from the moment they take any.
+          // The allowance grows with what they draw, so the bar grows with it.
           shotsTotal={shotsTotal + taken}
           closed={closed}
           onCaptured={handleCaptured}
@@ -220,8 +155,6 @@ export function GuestApp({
         onCancel={decline}
       />
 
-      {/* The same squircle every other screen backs out of, rather than a typed arrow on a
-          translucent square that matched nothing. */}
       <div className="absolute top-[calc(var(--safe-top)+0.25rem)] left-4 z-10">
         <BackButton href={home} label="Leave the camera" />
       </div>

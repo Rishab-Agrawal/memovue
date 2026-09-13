@@ -8,13 +8,7 @@ import { ShotsDialog } from "@/components/roll/ShotsDialog";
 
 import { type PoolMove, movePool } from "./actions";
 
-/**
- * The shots pool, and the one thing anybody can do to it from here.
- *
- * Taking film out is not offered on this screen. It is offered by the camera, at the only
- * moment it means anything — when the viewfinder has run dry — and keeping it there is what
- * stops the per-go ceiling being a formality.
- */
+/** The shots pool. Taking film is offered only by the camera, once it has run dry. */
 export function PoolScreen({
   code,
   back,
@@ -33,10 +27,7 @@ export function PoolScreen({
   give: number;
   /** What they gave earlier and can still get back — capped by what is left in the pool. */
   reclaim: number;
-  /**
-   * Whether this roll offers giving away at all. Separate from `give` being zero, which is
-   * the ordinary state of a guest who has already given everything they may.
-   */
+  /** Whether this roll offers giving away at all — distinct from `give` being zero. */
   offered: boolean;
 }) {
   const router = useRouter();
@@ -59,8 +50,7 @@ export function PoolScreen({
     });
     setAsking(false);
     setError(null);
-    // The camera and the roll behind this screen both count film, and both were rendered
-    // before any of it moved.
+    // The camera and roll screens count film too, and were rendered before this move.
     router.refresh();
   }
 
@@ -90,12 +80,7 @@ export function PoolScreen({
           You have {state.shotsLeft} of your own left.
         </p>
 
-        {/*
-          Offered only where it can do something. The giveaway is the host's to allow and
-          needs a roll with film to spare, so on most rolls this button is simply not here —
-          a permanently dead control explaining a setting the guest cannot change is worse
-          than the space it would take up.
-        */}
+        {/* Absent entirely on rolls that do not offer giving away. */}
         {offered ? (
           <>
             <Pill
@@ -118,12 +103,7 @@ export function PoolScreen({
           </>
         ) : null}
 
-        {/*
-          Undoing a gift, in one tap and with no slider: somebody reaching for this wants
-          their film back, not a negotiation about how much of it. The number on the button
-          is what is actually still there — give twelve away, have somebody take eight, and
-          this says four, which is the honest answer and the whole rule.
-        */}
+        {/* Undoing a gift in one tap, for as much of it as is still in the pool. */}
         {state.reclaim > 0 ? (
           <Pill variant="quiet" full className="mt-3" onClick={() => void move("back", state.reclaim)}>
             Take back {state.reclaim} you gave away

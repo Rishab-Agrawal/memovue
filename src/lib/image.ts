@@ -71,16 +71,8 @@ export async function decode(source: Blob): Promise<ImageBitmap | HTMLImageEleme
 }
 
 /**
- * A roll cover, from a photo the host picked out of their library.
- *
- * One derivative, not three: a cover has no archive copy to keep and nothing to seal, so
- * there is no full/preview/blur split. It is deliberately smaller than a captured photo —
- * covers are decoration behind a title, and every guest landing on the invitation pays for
- * whatever this weighs.
- *
- * No cropping. The cover renders at three different aspect ratios (a tall invitation, a
- * wide-ish header, a card in a list) and `object-fit: cover` centres it at each; baking one
- * crop in here would just be the wrong crop in the other two places.
+ * A roll cover from the host's library: one smaller derivative, since every guest downloads it.
+ * Not cropped, because it renders at several aspect ratios via `object-fit: cover`.
  */
 export async function processCover(
   source: CanvasImageSource & { width: number; height: number },

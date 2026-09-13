@@ -8,9 +8,7 @@ import { cn } from "@/lib/cn";
 import { SHOTS_HELD, SHOTS_SPENT, ZIP_DOWNLOAD_SPENT } from "@/lib/constants";
 import { subscribeQueue } from "@/lib/upload-queue";
 
-/**
- * The pieces below the cover, shared by the host's roll home and the guest's album.
- */
+/** The pieces below the cover, shared by the host's roll home and the guest's album. */
 
 /** Every control in the row is this shape and this width, whatever it does. */
 const tile =
@@ -31,59 +29,30 @@ export function RollControls({
   onCamera,
   cameraOff,
 }: {
-  /**
-   * Whether the shutter has closed. It is what splits this row: a roll still running wants a
-   * camera and a way to invite people to it; one that is over wants the album handed round or
-   * taken away.
-   *
-   * It used to split on whether the photographs were legible, which meant a roll set to
-   * reveal *during* the event lost its camera and its invite button the moment it opened —
-   * mid-party, with guests still arriving and film left in every pocket.
-   */
+  /** Whether the shutter has closed: a running roll offers camera and invite, a finished one Save. */
   ended: boolean;
   /** This roll's join code, so the queue's counts can be told apart from another roll's. */
   code?: string;
-  /**
-   * Film left, as the server counted it. Read together with the upload queue below, because
-   * a frame that has been shot but not yet handed over is not in that count.
-   */
+  /** Film left as the server counted it; read together with the upload queue below. */
   shotsLeft?: number;
-  /** Ignored when `onCamera` is given, which is how the guest app keeps its stream alive. */
+  /** Ignored when `onCamera` is given. */
   cameraHref?: string;
-  /** The invite sheet. Guests have one of their own now — the QR was never the host's alone. */
   inviteHref?: string;
-  /** The shots pool. Same screen for everybody, so the same link either side of the roll. */
   poolHref?: string;
-  /** Unclaimed film in the roll. Only ever read to tell the two refusals below apart. */
+  /** Unclaimed film in the roll. Only read to tell the two refusals below apart. */
   poolLeft?: number;
-  /**
-   * What this guest could draw from the pool once their own film is gone. Only a spent quota
-   * *and* nothing to refill with closes the camera — otherwise the tile stays live, because
-   * what is behind it is the offer.
-   */
+  /** What this guest could draw once their own film is gone. The camera stays live while > 0. */
   refill?: number;
   /** Where "Save" goes. Omitted by anyone who cannot download the album. */
   saveHref?: string;
   /** ZIP downloads this roll has left of its lifetime ten. Ignored without `saveHref`. */
   downloadsLeft?: number;
-  /** When given, the camera closes a sheet instead of navigating — the guest app keeps its
-      viewfinder alive underneath rather than tearing the stream down and back up. */
+  /** When given, the camera calls this instead of navigating. */
   onCamera?: () => void;
-  /**
-   * Why the camera cannot be used, when it cannot — a roll whose window is not open. A spent
-   * quota is worked out below instead. The camera stays put and says this when tapped, rather
-   * than disappearing.
-   */
+  /** Why the camera cannot be used, when the roll's window is not open. Said when tapped. */
   cameraOff?: string;
 }) {
-  /*
-    Shots still in this phone's pocket.
-
-    A guest walks out of the camera the instant they spend their last frame, onto a screen
-    that was rendered from a database which has not been told about it yet — so the camera
-    tile sat there lit, and tapping it handed back a viewfinder claiming a shot that was
-    already gone. The queue is the only thing that knows, so it is asked.
-  */
+  // Shots this phone has spent that the server has not counted yet.
   const [unreserved, setUnreserved] = useState(0);
   useEffect(
     () =>
@@ -91,44 +60,23 @@ export function RollControls({
     [code],
   );
 
-  /*
-    Out of film no longer closes the camera on its own.
-
-    Whoever runs dry is offered the roll's pool at the viewfinder, so the tile has somewhere
-    to lead — and tapping it is now how a guest gets there. It refuses only when there is
-    nothing behind it: no film of their own, and no refill they are allowed to draw. Which of
-    those it is decides which sentence it answers with.
-  */
+  // Refuses only with no film of their own and no refill allowed; which one decides the sentence.
   const filmSpent = shotsLeft !== undefined && shotsLeft - unreserved <= 0;
   const off =
     cameraOff ??
     (filmSpent && refill <= 0 ? (poolLeft > 0 ? SHOTS_HELD : SHOTS_SPENT) : undefined);
-  /*
-    One line of transient text for the whole row.
 
-    Every control here can be tapped and produce no visible result — a spent camera, a
-    download that is not available yet, a ZIP that takes a minute to build before the browser
-    shows anything. A control that silently declines is indistinguishable from a broken one,
-    so each of them answers.
-  */
+  // One line of transient text for the row, so no control declines silently.
   const [notice, setNotice] = useState<string | null>(null);
 
-  // Long enough to read what it says. The refusal past the download ceiling carries an email
-  // address, and a fixed 2.6 seconds took it away before anyone could write it down.
+  // Long enough to read, including the refusal that carries an email address.
   useEffect(() => {
     if (!notice) return;
     const timer = setTimeout(() => setNotice(null), Math.max(2600, notice.length * 70));
     return () => clearTimeout(timer);
   }, [notice]);
 
-  /*
-    Spent downloads, counted here as well as on the server.
-
-    The server holds the real ceiling — this is a number rendered once, and nothing reloads
-    the page between two taps of Save. Without the local count the tenth and eleventh clicks
-    in one sitting look identical from here, and the eleventh navigates the browser onto a
-    plain-text refusal instead of showing it as a message on the album.
-  */
+  // Downloads spent this sitting, so the ceiling shows as a notice rather than a plain-text page.
   const [spent, setSpent] = useState(0);
   const left = downloadsLeft === undefined ? Infinity : downloadsLeft - spent;
 
@@ -137,25 +85,7 @@ export function RollControls({
 
   return (
     <>
-      {/*
-        The camera across the top, and whatever else the roll offers on the row beneath it.
-
-        Every control is the same tile and every one is named rather than left to a glyph.
-        This was one wide white pill with a camera on it and two unlabelled squares beside it —
-        the reference's exact arrangement, and a row where two of the three controls could only
-        be guessed at. The words say what they do, and the one that matters is the one filled
-        in the accent colour and given the whole width.
-
-        Host and guest draw the same two rows. The host will get more control over the pool
-        later; a different shape of screen for the same three buttons is not what that is.
-
-        A finished roll offers only Save. It used to offer a Send beside it, which opened the
-        invite sheet — the join link. Handing that round is not the same as handing a photograph
-        round: a photograph is a public object on a CDN and costs the same whether one person or
-        a million open it, while the album is a dynamic page that polls every twenty seconds per
-        open tab and hands each new arrival a participant slot out of the roll's cap. So the
-        album travels as the ZIP, and single frames travel as their own cached links.
-      */}
+      {/* A finished roll offers only Save: the album travels as the ZIP, not as the join link. */}
       {ended ? (
         <div className="flex gap-2">
           {saveHref ? (
@@ -178,12 +108,7 @@ export function RollControls({
       ) : (
         <div className="space-y-2">
           <div className="flex">
-            {/*
-              The roll is not shooting yet, or there is no film left anywhere in it. Removing
-              the control would leave the row a different shape every time somebody spends
-              their last shot, and a live camera that leads somewhere that refuses the photo
-              is worse still — so it stays where it was and answers when tapped.
-            */}
+            {/* An unusable camera stays in place and explains itself when tapped. */}
             {off ? (
               <button
                 type="button"
@@ -271,8 +196,7 @@ function Control({
 }) {
   const className = cn(tile, "bg-surface text-chalk hover:text-flame");
 
-  // An API route serves a file, not a page. A client-side navigation would try to render the
-  // ZIP as one, so the download leaves through a plain anchor.
+  // An API route serves a file, not a page, so it leaves through a plain anchor.
   if (href.startsWith("/api/")) {
     return (
       <a href={href} onClick={onClick} className={className}>

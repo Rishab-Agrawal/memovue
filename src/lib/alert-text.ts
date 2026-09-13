@@ -1,22 +1,9 @@
 /**
- * What an alert says, and the rule that keeps it readable.
+ * What an alert says. Its headline is always prose written in this repo, chosen by the kind of
+ * fault — what happened, what it means, what to do. What the machine said goes last, labelled,
+ * so an error nobody has seen before is as readable as a familiar one.
  *
- * Three times a message reached the alerts topic that its reader could not make sense of —
- * `NEXT_REDIRECT`, a Jest worker, an IndexedDB connection closing — and each time the answer
- * was to recognise that one sentence. That can never be finished. Browsers, libraries and
- * servers can say anything at all, and a list of what they have said so far does nothing for
- * whatever they say next.
- *
- * So an alert is never *made of* what a machine said. Its opening lines are always prose
- * written in this repo — what happened, what it means for the people using the site, what to
- * do — chosen by the *kind* of fault, which is a short list this repo owns, rather than by the
- * text of the fault, which is an endless one nobody does. What the machine said still goes
- * along, because it is where a fix starts, but last, under a label, and never as the headline.
- * An error nobody has seen before arrives exactly as readable as one everybody has.
- *
- * `telegram.ts` renders every alert through here and is the only way into that topic, so
- * there is no call site that can skip it. No `server-only`: the rule is pure, and is tested
- * without a server.
+ * `telegram.ts` renders every alert through here. No `server-only`, so it is tested directly.
  */
 
 export interface Alert {
@@ -59,13 +46,7 @@ const IF_AGAIN =
 
 /* ------------------------------------------------------------------ the browser */
 
-/**
- * A crash on somebody's phone, from `/api/log`.
- *
- * `source` is which of the three nets in `report.ts` caught it, and it is the one thing known
- * for certain about what the person saw: only the error screen is ever shown to them.
- * Everything else — a rejected promise, an uncaught throw — happened out of their sight.
- */
+/** A crash on somebody's phone, from `/api/log`. Only the `boundary` source was seen by them. */
 export function browserFault(path: string, source: string, message: string): Alert {
   return {
     what: `The app hit an error on someone's phone, on ${path || "a page it did not name"}.`,
@@ -83,11 +64,7 @@ export function browserFault(path: string, source: string, message: string): Ale
 
 /* ------------------------------------------------------------------ the server */
 
-/**
- * `routeType` is Next's own closed list of the places a request can fail — see the
- * `onRequestError` reference — so the sentence for each is written once, here. One it adds
- * later falls back to the general case rather than to its own name.
- */
+/** One sentence per `onRequestError` route type; an unknown type falls back to the general case. */
 const DURING: Record<string, { when: string; meaning: string }> = {
   render: {
     when: "while loading a page for someone",

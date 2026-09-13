@@ -1,20 +1,15 @@
 "use client";
 
+import type { RevealMode } from "@prisma/client";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { fromWall, toWall } from "@/lib/format";
 import { PARTICIPANT_TIERS, SHOT_TIERS } from "@/lib/roll-config";
 
 /**
- * The roll being created, shared across the six wizard steps.
- *
- * It lives in the wizard's layout rather than in each page because App Router layouts keep
- * their state across navigations between the routes they wrap — so stepping forward and back
- * carries the draft with it. Nothing is written until the last step; a half-finished roll is
- * not a thing that should exist in the database.
+ * The roll being created, shared across the wizard steps. It lives in the wizard's layout, which
+ * keeps state across navigation; nothing is written until the last step.
  */
-export type RevealMode = "DURING" | "AFTER" | "DELAY";
-
 export interface Draft {
   name: string;
   startsAt: Date;
@@ -22,28 +17,17 @@ export interface Draft {
   revealMode: RevealMode;
   delayHours: number;
   coverPreset: number;
-  /**
-   * A cover the host picked, already resized, waiting for a roll to belong to.
-   *
-   * It is held here rather than uploaded on selection because there is nothing to upload it
-   * to yet — the roll is not written until the last step, and a staging area for covers of
-   * rolls that were never created is a bucket that fills up with nothing.
-   */
+  /** A resized cover waiting for a roll to belong to; uploaded once the roll exists. */
   coverBlob: Blob | null;
   coverPreviewUrl: string | null;
   /**
-   * Whether a photograph was chosen, which outlives the photograph itself.
-   *
-   * The blob and its object URL both die with the page that minted them, so a draft restored
-   * after a reload — or after the trip to Google — cannot tell a host who picked a cover from
-   * one who never did. This can, which is the difference between a roll quietly falling back
-   * to a gradient and one that says so.
+   * Whether a photograph was chosen. Outlives the blob, which dies with the page, so a draft
+   * restored after a reload or sign-in can say the cover was lost.
    */
   coverPicked: boolean;
   participantIndex: number;
   shotIndex: number;
   everyoneCanSee: boolean;
-  /** Whether guests may hand their own film to the pool. Off, the same as the column. */
   giveawayAllowed: boolean;
 }
 
@@ -63,10 +47,7 @@ type DraftContextValue = {
 
 const DraftContext = createContext<DraftContextValue | null>(null);
 
-/**
- * Opens on the coming Saturday at 6pm, closing the next night. A default in the past would
- * open the first calendar with its own selection already greyed out.
- */
+/** Opens on the coming Saturday at 6pm, closing the next night. */
 function defaultWindow() {
   const now = toWall(new Date());
   const today = fromWall(now.year, now.month, now.day);
@@ -81,16 +62,7 @@ function defaultWindow() {
 
 const STORE = "memovue.draft";
 
-/**
- * The draft, across a reload.
- *
- * Layout state survives navigation between the six steps but not a refresh, and losing it
- * dropped the host on the last step with a Create button that was inert and would not say
- * why — it was waiting on a name from a screen they could no longer see.
- *
- * The picked cover is left behind on purpose: it is a `Blob` behind an object URL, and both
- * die with the page that minted them. Everything else is JSON, with the two dates revived.
- */
+/** The draft across a reload or the trip to Google. The cover blob is not serialisable. */
 export function readDraft(): Draft | null {
   try {
     const saved = sessionStorage.getItem(STORE);
@@ -147,22 +119,12 @@ export function DraftProvider({
       coverPicked: false,
       participantIndex: 1,
       shotIndex: 3,
-      // On, because a shared album is what somebody sets a roll up for. The other way round
-      // is a deliberate choice — a surprise for the host — and deliberate choices are the
-      // ones worth making a host reach for.
       everyoneCanSee: true,
-      // Off by default: see the column in schema.prisma for why the host opens this door
-      // rather than finding it already open.
       giveawayAllowed: false,
     };
   });
 
-  /*
-    Restored in an effect, not in the initialiser: these screens are server-rendered, and
-    seeding state from storage during the first client render is a hydration mismatch. The
-    write below fires once with the defaults before the restore lands, which costs nothing —
-    the value was already read by then.
-  */
+  // Restored in an effect, not the initialiser, to avoid a hydration mismatch.
   const [restored, setRestored] = useState(false);
   useEffect(() => {
     const saved = readDraft();
@@ -182,11 +144,7 @@ export function DraftProvider({
       restored,
       update: (patch: Partial<Draft>) => setDraft((current) => ({ ...current, ...patch })),
 
-      /*
-        Revoking happens here, outside the updater, rather than inside it. A state updater is
-        supposed to be pure and React may run it twice; releasing a URL is a side effect and
-        belongs on the event, not on the render.
-      */
+      // Revoked outside the updater, which must stay pure.
       setCover: (blob: Blob, previewUrl: string) => {
         if (draft.coverPreviewUrl) URL.revokeObjectURL(draft.coverPreviewUrl);
         setDraft((current) => ({

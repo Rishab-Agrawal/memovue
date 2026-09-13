@@ -20,18 +20,8 @@ export interface Participant {
 }
 
 /**
- * Who turned up, how much film they have spent, and the two things a host needs to be able to
- * do about it.
- *
- * **Removing somebody.** The join link is a bearer token with no expiry — anyone who
- * photographs the QR on a table is in — and nothing could undo that. Their photographs go
- * with them, which is the point: a guest is removed because of what they shot.
- *
- * **Raising the limit**, and only once the roll has actually filled. A cap reached mid-event
- * turns people away at the door, and until now the host had no lever at all — the row that
- * would have raised it was left out of the settings sheet because the reference sold it as an
- * upgrade. Offered here rather than there because this is the screen that shows the number
- * running out.
+ * Who turned up and how much film each has spent. A host can remove a guest (with their photos,
+ * since the join link never expires) and, once the roll is full, raise the limit.
  */
 export function PeopleList({
   rollId,
@@ -71,9 +61,7 @@ export function PeopleList({
             key={person.id}
             person={person}
             hostSuffix="you"
-            /* The host's own row keeps the list honest about who holds film, and offers
-               nothing: removing yourself from your own roll deletes your photographs and
-               hands your slot back to an event you own. */
+            // The host's own row cannot be removed.
             action={
               person.isHost ? null : (
                 <button
@@ -91,8 +79,7 @@ export function PeopleList({
         ))}
       </ul>
 
-      {/* A roll whose only participant is the host has had nobody turn up yet, whatever the
-          list above shows. */}
+      {/* Only the host in the list means nobody has joined yet. */}
       {people.every((person) => person.isHost) ? (
         <p className="mt-5 text-[15px] text-dust">
           Nobody else has joined yet. Share the QR code and they&rsquo;ll appear here.
@@ -124,9 +111,6 @@ export function PeopleList({
 
       {error ? <p className="mt-4 text-[14px] text-danger">{error}</p> : null}
 
-      {/* The browser's own confirm box was the one piece of chrome in the product drawn by
-          somebody else — system font, system buttons, and no way to say what is about to be
-          deleted in our own words. Same card, same danger pill as deleting a roll. */}
       <Dialog
         open={confirming !== null}
         title={`Remove ${confirming?.name}?`}

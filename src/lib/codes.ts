@@ -18,17 +18,11 @@ export function normalizeCode(input: string): string {
 const CODE_LENGTH = 6;
 
 /**
- * Pulls a roll code out of whatever a guest arrived with — a scanned QR, a pasted link, or
- * the six characters read off a printed card.
+ * Pulls a roll code out of a scanned QR, a pasted link, or six typed characters. Shared by the
+ * scanner and the paste field.
  *
- * The scanner and the paste field share this so they cannot disagree about what counts as an
- * invitation, and so that **a scanned QR is never navigated to as a URL**. A QR code is
- * untrusted input from a sticker anyone can print; we take six characters out of it and route
- * internally to `/join/<code>`. Sending the browser to a scanned address instead would turn
- * the scanner into an open redirect that a stranger controls with a printer.
- *
- * Returns null for anything that isn't a plausible code, which is how the caller tells a
- * MemoVue invitation apart from the wifi QR taped to the same table.
+ * **A scanned QR is never navigated to as a URL**: it is untrusted input, so we extract the code
+ * and route internally, or the scanner becomes an open redirect. Null for anything else.
  */
 export function extractJoinCode(input: string): string | null {
   const raw = input.trim();
@@ -37,8 +31,7 @@ export function extractJoinCode(input: string): string | null {
   let candidate = raw;
 
   if (raw.includes("/")) {
-    // Parse rather than split: `.pop()` on a naive split returns the query string for
-    // `…/join/ABC123?utm=x`, which is the sort of link people actually forward.
+    // Parse rather than split, so a query string like `?utm=x` is dropped.
     let path = raw;
     try {
       path = new URL(raw.includes("://") ? raw : `https://${raw}`).pathname;
@@ -56,8 +49,7 @@ export function extractJoinCode(input: string): string | null {
 
   const code = normalizeCode(candidate);
   if (code.length !== CODE_LENGTH) return null;
-  // Characters outside the printed alphabet can't be a code we issued, so reject here
-  // instead of spending a navigation to find that out.
+  // Outside the printed alphabet, so not a code we issued.
   if (![...code].every((character) => UNAMBIGUOUS.includes(character))) return null;
 
   return code;

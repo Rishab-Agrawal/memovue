@@ -5,12 +5,8 @@ import { createRemoteJWKSet, jwtVerify } from "jose";
 import { env } from "./env";
 
 /**
- * Google sign-in, by hand.
- *
- * No auth library: the session layer here is provider-agnostic — `createHostSession` wants
- * an id and a token version and nothing else — so all that is actually needed is the OIDC
- * handshake. A library would bring its own session model, its own database tables and its
- * own opinions about redirects, to replace about a hundred lines.
+ * Google sign-in, by hand: only the OIDC handshake is needed, since sessions are our own. An
+ * auth library would bring its own session model and tables to replace about a hundred lines.
  */
 
 const AUTHORIZE = "https://accounts.google.com/o/oauth2/v2/auth";

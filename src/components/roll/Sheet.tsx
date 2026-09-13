@@ -8,22 +8,10 @@ import { cn } from "@/lib/cn";
 import { useOverlay } from "@/lib/useOverlay";
 
 /**
- * The reference's bottom sheet: a drag handle, a serif-scale title, then content. It sits
- * over whichever screen opened it, which is why every sheet route renders its parent screen
- * behind it rather than navigating away.
- *
- * Each of these is a route, so dismissing one is a navigation — and a navigation to a
- * `force-dynamic` page that re-reads the roll and re-signs its photographs is not instant.
- * Left as a plain link the sheet vanished on the click and the screen underneath arrived a
- * beat later, which reads as a page refresh rather than as a sheet closing.
- *
- * So the two are run at once: the panel leaves along the axis it arrived on while the
- * navigation is already in flight behind it. `animate-sheet-out` has existed since the guest
- * album got its sheet — quicker than the entrance and on the inverse curve, because leaving is
- * something the user asked for and making them watch it at arrival speed reads as lag.
- *
- * The anchor is real and keeps its href, so a click that lands before hydration still works,
- * and a modifier-click still opens the roll screen in a new tab.
+ * A bottom sheet over the screen that opened it. Each sheet is a route, so closing is a
+ * navigation; the panel animates out while that navigation is already in flight, so it reads
+ * as a sheet closing rather than a page reload. The anchor keeps its href for pre-hydration
+ * clicks and modifier-clicks.
  */
 export function Sheet({
   back,
@@ -31,7 +19,7 @@ export function Sheet({
   subtitle,
   children,
 }: {
-  /** Where dismissing lands. Every sheet here is a route, so closing one is a navigation. */
+  /** Where dismissing lands. */
   back: string;
   title: string;
   subtitle?: string;
@@ -44,13 +32,11 @@ export function Sheet({
   const close = useCallback(() => {
     if (closing) return;
     setClosing(true);
-    // A transition, so React keeps this tree on screen while the next route loads. Without
-    // it the sheet would unmount on the click and there would be nothing left to animate.
+    // A transition keeps this tree on screen while the next route loads.
     startTransition(() => router.replace(back));
   }, [back, closing, router]);
 
-  // Escape closes it, and the roll behind stops scrolling while it is open — an overlay that
-  // lets the screen underneath slide about leaves you somewhere else when it goes.
+  // Escape closes it, and the screen behind stops scrolling while it is open.
   useOverlay(close);
 
   function dismiss(event: MouseEvent<HTMLAnchorElement>) {
@@ -61,19 +47,9 @@ export function Sheet({
   }
 
   return (
-    /*
-      Fixed, not absolute. Every sheet route renders the roll screen behind it, and that
-      screen is taller than the viewport — so an absolute overlay stretched to the height of
-      the *document* and `justify-end` parked the panel at the bottom of the page. The sheet
-      only appeared once you had scrolled the screen underneath it all the way down. An
-      overlay belongs to the viewport, which is the one thing that is always on screen.
-    */
+    // Fixed, not absolute: the screen behind is taller than the viewport.
     <div className="fixed inset-0 z-30 flex flex-col justify-end">
-      {/*
-        The dimmed area is the dismiss target, which is the whole point of dimming it. It was
-        an inert div, so tapping away from a sheet did nothing and the only way out was the
-        hardware back button.
-      */}
+      {/* The dimmed area is the dismiss target. */}
       <Link
         href={back}
         replace
@@ -85,8 +61,6 @@ export function Sheet({
         )}
       />
 
-      {/* The last row of a sheet used to end inside the home-gesture strip, where the phone
-          takes the touch instead of us. */}
       <div
         className={cn(
           "pad-safe-bottom relative max-h-[85%] overflow-y-auto rounded-t-3xl bg-surface",

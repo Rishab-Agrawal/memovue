@@ -5,7 +5,7 @@ import { Cover } from "@/components/roll/Cover";
 import { Person } from "@/components/roll/Icons";
 import { cn } from "@/lib/cn";
 import { formatRange } from "@/lib/format";
-import { type RollCard, coverUrlsFor, listRollsForUser } from "@/lib/rolls";
+import { type RollCard, coverUrlFor, listRollsForUser } from "@/lib/rolls";
 import { SAMPLE_ALBUM, SAMPLE_PHOTOS } from "@/lib/sample-album";
 import { requireHost } from "@/lib/session";
 
@@ -18,18 +18,10 @@ const CELLS = 4;
 const destination = (roll: RollCard) =>
   roll.invitedBy ? `/e/${roll.code}` : `/rolls/${roll.id}`;
 
-/**
- * Everything that has finished shooting, on a screen of its own.
- *
- * A tile per album in two columns, each one a mosaic of the last four frames in it. The
- * fanned stack of prints this replaces put four photographs on top of each other to save the
- * horizontal room a shared screen did not have; with the screen to itself there is no reason
- * to hide three quarters of every picture, so none of them are hidden.
- */
+/** Everything that has finished shooting: a tile per album, a mosaic of its last four frames. */
 export default async function AlbumsPage() {
   const user = await requireHost();
   const { albums } = await listRollsForUser(user.id);
-  const covers = coverUrlsFor(albums);
 
   return (
     <div className="flex h-dvh flex-col">
@@ -44,7 +36,7 @@ export default async function AlbumsPage() {
         <div className="mt-6 grid grid-cols-2 gap-x-3 gap-y-6">
           {albums.map((roll) => (
             <Link key={roll.id} href={destination(roll)} className="block transition-[scale] duration-150 active:scale-[0.97]">
-              <Mosaic roll={roll} coverUrl={covers.get(roll.id)} />
+              <Mosaic roll={roll} coverUrl={coverUrlFor(roll)} />
 
               <p className="display-sm mt-2.5 line-clamp-2 text-[15px] text-chalk">
                 {roll.name}
@@ -61,11 +53,7 @@ export default async function AlbumsPage() {
             </Link>
           ))}
 
-          {/*
-            Last, and labelled. It is somebody else's evening — an empty tab explaining an
-            album in a paragraph teaches less than one tile you can open, and a host with
-            albums of their own still gets theirs first.
-          */}
+          {/* Last, and labelled: one tile you can open teaches more than an empty tab. */}
           <Link href={SAMPLE_ALBUM.href} className="block transition-[scale] duration-150 active:scale-[0.97]">
             <Mosaic
               roll={{ thumbs: SAMPLE_PHOTOS.map((photo) => photo.url), coverPreset: 1 }}
@@ -87,13 +75,7 @@ export default async function AlbumsPage() {
   );
 }
 
-/**
- * The tile: four frames from inside the album, or its cover when there are none to show.
- *
- * A sealed album, or one nobody put a frame in, has no previews signed for it — so it falls
- * back to the cover the host chose rather than to stock photography, which would tell them
- * their guests' pictures had loaded when they had not.
- */
+/** The tile: up to four frames from inside the album, or its cover when there are none. */
 function Mosaic({
   roll,
   coverUrl,
@@ -112,13 +94,7 @@ function Mosaic({
     );
   }
 
-  /*
-    The tile takes however many frames it was given rather than padding to four. Repeating a
-    photograph to fill the grid says the album holds two of something it holds one of, and
-    filling the gap with a wash puts a "you can't see this yet" tile inside an album that is
-    open. Three lays the newest across the top, which is the only arrangement of three that
-    isn't a hole.
-  */
+  // As many frames as it was given, never padded; three lays the newest across the top.
   const shown = roll.thumbs.slice(0, CELLS);
   const shape =
     shown.length === 1

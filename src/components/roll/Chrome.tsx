@@ -4,17 +4,9 @@ import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import { ArrowLeft, Close, Gear } from "@/components/roll/Icons";
 import { cn } from "@/lib/cn";
 
-/**
- * The small controls every screen shares: a squircle back button and pill buttons. Rounded
- * and filled, unlike the rest of MemoVue — on these screens the reference's geometry wins and
- * only the palette and typeface are ours.
- */
+/** The small controls every screen shares: squircle chrome buttons, steppers and pills. */
 
-/**
- * Both chrome buttons are the same square, so the square is written once. A typed "←" sat on
- * the font's baseline rather than on the middle of its button and changed shape per platform;
- * these are drawn, so they are centred by geometry and thin like everything else here.
- */
+/** Back, close and settings are the same square. */
 const chromeButton =
   "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-surface text-chalk " +
   "transition-[color,background-color,transform] duration-150 hover:bg-hair-bright hover:text-flame " +
@@ -39,9 +31,6 @@ function ChromeLink({
     </Link>
   );
 }
-
-/* Three names rather than one, because the icon is the whole meaning of these and a call site
-   passing its own would be free to draw a gear on the way back. */
 
 export function BackButton({
   href,
@@ -83,16 +72,11 @@ export function CloseButton({
   );
 }
 
-/** The other half of a roll's top row, so it matches the back button rather than resembling it. */
 export function SettingsButton({ href, label = "Roll settings" }: { href: string; label?: string }) {
   return <ChromeLink href={href} label={label} icon={<Gear className="h-[18px] w-[18px]" />} />;
 }
 
-/**
- * One end of a stepper. Circular, so it never reads as one of the rounded-rectangle tiles
- * everything else on these screens is made of — and shared, because the wizard was growing a
- * second, differently-shaped stepper per screen that needed one.
- */
+/** One end of a stepper. Circular, so it never reads as one of the rectangular tiles. */
 export function StepButton({
   label,
   glyph,
@@ -127,20 +111,16 @@ type PillVariant = "light" | "flame" | "quiet";
 
 const pillBase =
   "inline-flex h-12 items-center justify-center gap-2 rounded-full px-6 text-[15px] " +
-  // A wrapped label turns a pill into a rounded paragraph. Nothing here is long enough to
-  // need two lines, so nothing gets them.
   "font-medium whitespace-nowrap select-none active:scale-[0.97] " +
   "transition-[color,background-color,box-shadow,scale] duration-150 " +
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flame " +
   "disabled:pointer-events-none disabled:opacity-40";
 
 const pillVariants: Record<PillVariant, string> = {
-  // The reference's primary is a white pill. Ours stays white where it sits on a photograph,
-  // because orange on a warm cover loses too much contrast.
+  // White where it sits on a photograph, where orange loses contrast.
   light: "bg-chalk text-void hover:bg-white",
   flame: "bg-flame text-void hover:shadow-[0_0_28px_-4px_rgba(255,140,0,0.55)]",
-  // The hairline is not decoration: a quiet pill sitting on a `surface` panel is otherwise
-  // the same colour as the panel, and reads as bare text rather than as a control.
+  // The hairline keeps a quiet pill on a `surface` panel from reading as bare text.
   quiet: "border border-hair-bright bg-surface text-chalk hover:text-flame",
 };
 
@@ -167,16 +147,7 @@ export function Pill({
   );
 }
 
-/**
- * A screen that is only a sentence: the crash boundary, both kinds of 404, and a roll code
- * that names nothing. Three of them had written the same centred column out by hand, and the
- * one on the join screen had drifted — its prose ran the full width of a desktop window while
- * the other two were capped.
- *
- * `actions` is free-form rather than a row of pills, because these do not agree on what goes
- * under the sentence: one offers nothing, one offers a link home, and the crash screen offers
- * two buttons and then prints the digest under them.
- */
+/** A screen that is only a sentence: the crash boundary, 404s, an unknown roll code. */
 export function Notice({
   title,
   children,

@@ -1,3 +1,5 @@
+import type { RevealMode } from "@prisma/client";
+
 import { PillLink } from "@/components/roll/Chrome";
 import { RollHeader } from "@/components/roll/RollHeader";
 import { LiveRefresh } from "@/components/roll/LiveRefresh";
@@ -16,19 +18,18 @@ export interface BackdropRoll {
   startsAt: Date;
   finishesAt: Date;
   revealAt: Date;
-  revealMode: "DURING" | "AFTER" | "DELAY";
-  /** Only read by the settings screen that edits the reveal; the backdrop never draws it. */
+  revealMode: RevealMode;
+  /** Only read by the settings screen that edits the reveal. */
   revealDelayHours: number;
   revealedEarly: boolean;
   everyoneCanSee: boolean;
-  /** The host's giveaway switch. Only the settings sheet, which flips it, reads it. */
+  /** The host's giveaway switch. Only the settings sheet reads it. */
   giveawayAllowed: boolean;
   keptUntil: Date;
   photoCount: number;
   guestCount: number;
-  /** What the roll was set up to hold, which is what a joined count is worth comparing to. */
   maxGuests: number;
-  /** The other half of the roll's size. Only the settings sheet, which edits it, reads it. */
+  /** Only the settings sheet, which edits it, reads it. */
   photosPerGuest: number;
   /** What the host has left of their own film, for the camera control below. */
   shotsLeft: number;
@@ -40,15 +41,11 @@ export interface BackdropRoll {
   downloadsLeft: number;
 }
 
-/** The grid owns this shape; re-declaring it here is how the two drift apart. */
 export type BackdropPhoto = GridPhoto;
 
 /**
- * The host's view of one roll.
- *
- * Pulled out of the page so the invite, people and settings routes can render it behind
- * their sheet — those are overlays on this screen, not separate destinations, and the roll
- * stays visible under them.
+ * The host's view of one roll. Separate from the page so the invite, people and settings
+ * sheets can render it behind them.
  */
 export function RollBackdrop({
   roll,
@@ -81,11 +78,7 @@ export function RollBackdrop({
         peopleHref={`/rolls/${roll.id}/people`}
       />
 
-      {/*
-        Frames land, people join and both clocks run down with nobody touching this screen, so
-        it asks again for as long as any of that can happen. Open and finished shooting is the
-        state an album spends the rest of its life in, and it schedules nothing at all.
-      */}
+      {/* Refreshes while anything can still change; an open, finished album schedules nothing. */}
       {open && ended ? null : <LiveRefresh />}
 
       <div className="space-y-4 px-5 pt-4 pb-6">
@@ -93,13 +86,8 @@ export function RollBackdrop({
           ended={ended}
           code={roll.code}
           shotsLeft={roll.shotsLeft}
-          // The camera is the guest app, and a host shoots their own roll by joining it like
-          // anyone else — so this is the roll's code, not its id. Built from the id, it
-          // normalised to a 25-character string matching no roll and dead-ended.
+          // The host shoots by joining like anyone else, so the camera and pool go by code.
           cameraHref={`/e/${roll.code}`}
-          // The shutter is only open between the two dates the host picked. It was live from
-          // the moment the roll existed, so a host tapping it the week before their wedding
-          // was handed a camera the guest app then refused to give film to.
           cameraOff={
             isCapturing(roll, now)
               ? undefined
@@ -110,8 +98,6 @@ export function RollBackdrop({
           inviteHref={`/rolls/${roll.id}/invite`}
           poolLeft={roll.poolLeft}
           refill={roll.refill}
-          // By the roll's code, like the camera: the pool screen belongs to whoever is
-          // holding a camera on this roll, and the host is one of them.
           poolHref={`/e/${roll.code}/pool`}
           saveHref={open ? `/api/rolls/${roll.id}/download` : undefined}
           downloadsLeft={roll.downloadsLeft}
@@ -119,8 +105,7 @@ export function RollBackdrop({
 
         {roll.everyoneCanSee ? null : <VisibilityNotice />}
 
-        {/* `code` as well as `id`: a host shoots their own roll by joining it, so the wall
-            carries their phone's own queue at its head until the server has caught up. */}
+        {/* `code` too, so the host's own still-uploading frames head the wall. */}
         <PhotoGrid
           rollId={roll.id}
           code={roll.code}
@@ -129,11 +114,7 @@ export function RollBackdrop({
           revealsIn={revealsIn}
         />
 
-        {/*
-          Said out loud rather than left to be noticed. A wall that stops at a number without
-          explaining itself reads as photographs having gone missing, which on this product is
-          the worst thing a screen can imply.
-        */}
+        {/* Said out loud, so a wall that stops at a page does not read as photos missing. */}
         {moreHref ? (
           <div className="flex justify-center pt-1">
             <PillLink href={moreHref} scroll={false}>

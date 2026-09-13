@@ -11,17 +11,7 @@ import { useNow } from "@/lib/useNow";
 
 import { updateStartAction } from "../../actions";
 
-/**
- * Moving the opening time of a roll whose event has not begun.
- *
- * A host printing QR codes two weeks ahead is exactly the person who has to move a date, and
- * the wedding that shifts by a day is the ordinary case rather than the strange one. What
- * makes it safe is the window: before the first moment nobody has taken a photograph, so
- * there is no camera to change under anyone and nothing derived from the start to unpick.
- *
- * The finish comes along when it has to — `clampFinish` is the same pairing rule the wizard
- * runs on every keystroke — so the copy says so rather than letting a host find out afterwards.
- */
+/** Moving the opening time of a roll that has not begun. The close moves with it when it must, and the copy says so. */
 export function EditStartForm({
   rollId,
   startsAt: initialStart,
@@ -35,21 +25,14 @@ export function EditStartForm({
   const [startsAt, setStartsAt] = useState(initialStart);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  // Zero until mounted, which is what keeps the floor below out of the server render and off
-  // the hydration diff. It corrects on the microtask after mount, and ticks after that.
+  // Zero until mounted, keeping the floor out of the server render.
   const now = useNow();
 
-  /*
-    Never into the past: a start behind the present is a roll that opened at a moment nobody
-    could have shot in. Pulling it forward as far as now is the "we're starting early" edit.
-    Before mount `now` is 0, so the day the calendar opens on stands in — the same value on
-    both sides of hydration, and past by at most one day's worth of hours.
-  */
+  // Never into the past. Before mount, today's start of day stands in for now.
   const range = startDateRange();
   const floor = new Date(Math.max(range.min.getTime(), now));
   const dirty = startsAt.getTime() !== initialStart.getTime();
-  // What the server would settle on, asked of the same function the server asks, so the line
-  // below is the truth rather than a guess at it.
+  // The same function the server uses, so the preview line matches what will be saved.
   const closes = movedStart({ startsAt: initialStart, finishesAt }, startsAt, floor)?.finishesAt;
 
   const save = () => {
@@ -76,8 +59,7 @@ export function EditStartForm({
       onSave={save}
     >
       <div className="mt-8">
-        {/* The range starts at the floor, not at today, so a day already gone renders as dead
-            text rather than as a tap that silently jumps to now. */}
+        {/* The range starts at the floor, so past days render disabled. */}
         <DatePick
           value={startsAt}
           onChange={setStartsAt}

@@ -1,24 +1,15 @@
 import "./load-env";
 
 /**
- * The nightly pass. Deployed as a Railway cron service off this same repo, so it runs with
- * the app's own environment and needs no credentials of its own.
+ * The nightly retention pass, deployed as a Railway cron off this repo. The rules live in
+ * `src/lib/retention.ts`; this only reports and sets the exit code. Safe to run twice or miss
+ * a night.
  *
- * Deletion, and nothing a guest would ever notice: rolls past their date, and reservations
- * nobody is coming back for. It stays on this side of the product deliberately — a scheduled
- * job is the wrong instrument for telling someone their album has opened, because a message
- * about a moment on a clock is worth very little a night later.
- *
- * Deliberately thin: the rules live in `src/lib/retention.ts` where they can be unit-tested,
- * and this only decides what an operator sees and what the exit code says. Safe to run twice
- * in one night and safe to miss a night — nothing here depends on having run yesterday.
- *
- * Run it by hand with `npm run sweep`. Add `--dry` to be told what it would do and touch
- * nothing, which is the sensible way to meet it for the first time against a real database.
+ *   npm run sweep           # purge, warn, release
+ *   npm run sweep -- --dry  # say what it would do, change nothing
  */
 async function main() {
-  // Imported here rather than at the top: `env.ts` reads process.env the moment it loads
-  // and throws on anything missing, so nothing may be imported before `load-env`.
+  // Imported after `load-env`, because `env.ts` reads process.env the moment it loads.
   const { runRetention } = await import("../src/lib/retention");
   const { ABANDONED_UPLOAD_DAYS, retentionAction, WARN_BEFORE_DAYS } =
     await import("../src/lib/roll-access");
@@ -62,14 +53,7 @@ async function main() {
       `released ${report.released}`,
   );
 
-  /*
-    A heartbeat, so that the digest can notice this job having quietly stopped.
-
-    A cron service that fails is loud — Railway marks the run red and the catch below sends a
-    message. A cron service that is *not scheduled any more*, or whose container never starts,
-    is completely silent, and that is the failure that goes unnoticed for a month. So absence
-    is what the digest reads, and the only way to write this row is to have got to here.
-  */
+  // A heartbeat: a cron that stopped being scheduled is silent, so the digest reads its absence.
   await record("sweep_ok");
 
   if (report.failed.length > 0) {
@@ -82,16 +66,14 @@ async function main() {
       action: "Nothing yet. If the same rolls fail again tomorrow, send this to Claude.",
       detail: report.failed.map((failure) => `${failure.id}: ${failure.error}`).join("\n"),
     });
-    // A non-zero exit is how Railway surfaces this as a failed cron run rather than a silent
-    // one. The rolls it could not finish are simply still there tomorrow.
+    // Non-zero so Railway marks the run as failed.
     process.exitCode = 1;
   }
 }
 
 main().catch(async (error) => {
   console.error(error);
-  // Imported here too, because this runs outside `main` and therefore outside its imports —
-  // and because the thing most likely to have thrown is one of them.
+  // Imported here too: whatever threw may have been one of `main`'s imports.
   const { alert } = await import("../src/lib/telegram");
   const { messageOf } = await import("../src/lib/alert-text");
   await alert("sweep", {

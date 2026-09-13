@@ -29,26 +29,16 @@ import {
 import { createRollAction } from "../actions";
 import { draftToInput, forgetDraft, useDraft } from "../DraftContext";
 
-/**
- * The highest tier the stepper will climb to today.
- *
- * Read off `shotsAvailable` rather than hardcoded, and taken as the last index that passes
- * rather than a count of them, so it stays right if the tier that is held back ever stops
- * being the last one in the list.
- */
+/** The highest shot tier the stepper may reach today: the last index `shotsAvailable` allows. */
 const SHOT_MAX = SHOT_TIERS.reduce((max, shots, index) => (shotsAvailable(shots) ? index : max), 0);
 
 export default function StepGuests() {
   const { draft, update, hostName, signedIn, restored } = useDraft();
   const router = useRouter();
 
-  /*
-    The wall is on the home screen's button, not here — nobody should walk six steps to be
-    told no. This is the second half of the same check: an allowance can be spent from
-    another tab, or run out while somebody sits on this screen, and only the server knows.
-  */
+  // The home screen's button checks the allowance first; this catches one spent meanwhile.
   const [blocked, setBlocked] = useState(false);
-  /** The account, asked for once it buys something rather than on the way in. */
+  /** Sign-in, asked for only at Create. */
   const [needsAccount, setNeedsAccount] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<{ id: string; code: string; name: string } | null>(null);
@@ -63,11 +53,7 @@ export default function StepGuests() {
       : "";
 
   const create = () => {
-    /*
-      The first and only moment an account is needed: everything up to here is a draft in
-      this tab. It survives the trip to Google in `sessionStorage`, and the sign-in lands
-      back on this step, so the answer to the box is one tap and then Create.
-    */
+    // The only moment an account is needed; the draft survives the trip to Google.
     if (!signedIn) {
       setNeedsAccount(true);
       return;
@@ -82,12 +68,7 @@ export default function StepGuests() {
         return;
       }
 
-      /*
-        The cover goes up after the roll exists, because until this moment there was nothing
-        to attach it to. A failure here is reported but not fatal: the allowance has been
-        spent and the roll is real, so sending the host back to the wizard would cost them a
-        roll over a picture they can set again from the roll's own settings in two taps.
-      */
+      // The cover goes up once the roll exists. A failure is reported, not fatal: it can be set again in settings.
       if (draft.coverBlob) {
         try {
           await uploadCover(result.rollId, draft.coverBlob);
@@ -95,39 +76,26 @@ export default function StepGuests() {
           setCoverFailed(true);
         }
       } else if (draft.coverPicked) {
-        // Picked, but not here any more: a `Blob` does not survive the page that held it, so
-        // a roll finished on the far side of a sign-in or a reload has the gradient and the
-        // host has a photograph they think they chose.
+        // Picked but lost to a reload or sign-in: the blob does not survive the page.
         setCoverFailed(true);
       }
 
-      // The roll exists, so the draft behind it has nothing left to protect.
       forgetDraft();
       setCreated({ id: result.rollId, code: result.code, name: result.name });
     });
   };
 
   /*
-    Back from Google, on the roll they had already finished describing.
-
-    Sending them to this screen and asking them to press Create a second time is asking twice
-    for the same decision — they pressed it before they were interrupted. So the sign-in link
-    carries `?create=1`, and landing on it with a draft finishes the job: the next thing they
-    see is the roll's code and its link, which is what pressing Create was for.
-
-    Waited on `restored`, because the draft arrives from `sessionStorage` an effect late and
-    firing before it would post the blank defaults. Once, via the ref: this effect reruns on
-    every keystroke of the transition it starts.
+    Back from Google with `?create=1`: they already pressed Create, so finish the job. Waits for
+    the draft to be restored, and fires once via the ref.
   */
   const autoCreated = useRef(false);
   useEffect(() => {
     if (autoCreated.current || !signedIn || !restored || !draft.name.trim()) return;
-    // Read off the URL rather than `useSearchParams`, which would want a Suspense boundary
-    // around a screen that is only ever rendered on demand anyway.
+    // Off the URL rather than `useSearchParams`, which would need a Suspense boundary.
     if (new URLSearchParams(window.location.search).get("create") !== "1") return;
     autoCreated.current = true;
-    // The rule is right in general and wrong here: arriving back from Google *is* the event,
-    // and there is no earlier place to hear it. Guarded to fire once, so nothing cascades.
+    // Returning from Google is the event itself, and this fires once.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     create();
   });
@@ -145,11 +113,7 @@ export default function StepGuests() {
         }}
         onNext={create}
       >
-        {/*
-          One drag across six tiers rather than six separate taps at six separate targets. A
-          native range gives the keyboard and the screen reader their own way through it for
-          nothing, which a row of buttons pretending to be one control never had.
-        */}
+        {/* A native range: one drag across the tiers, with keyboard and screen-reader support built in. */}
         <div className="flex items-end justify-between gap-4">
           <div>
             <p className="marking">Up to</p>
@@ -197,11 +161,6 @@ export default function StepGuests() {
         <div className="mt-7 border-t border-hair pt-6">
           <p className="marking">Shots per person</p>
 
-          {/*
-            A stepper, not a second slider. The two numbers on this screen are chosen the same
-            way if both are sliders, and the screen stops saying that they are different kinds
-            of decision — the guest list is a range you sweep, the film is a count you land on.
-          */}
           <div className="mt-5 flex items-center justify-center gap-8">
             <StepButton
               label="Fewer shots"
@@ -241,13 +200,7 @@ export default function StepGuests() {
             />
           </div>
 
-          {/*
-            Its own row under the same rule rather than its own section: both are one question
-            about what a guest is allowed to do with somebody else's roll.
-
-            Gone entirely on a roll too small to give film away on — see `GIVEAWAY_MIN_SHOTS`.
-            The stepper above is right there, so a host who wants this can see it arrive.
-          */}
+          {/* Hidden below `GIVEAWAY_MIN_SHOTS`. */}
           {SHOT_TIERS[draft.shotIndex] >= GIVEAWAY_MIN_SHOTS ? (
             <div className="mt-5 flex items-center gap-3">
               <Toggle
@@ -269,9 +222,7 @@ export default function StepGuests() {
         onClose={() => setNeedsAccount(false)}
         title="Almost there"
         actions={
-          // A plain anchor for the same reason as the welcome screen's: this hands off to a
-          // route handler that redirects to Google, and a client-side navigation has nowhere
-          // to go. `next` brings them back to this step, with the draft still in the tab.
+          // A plain anchor: a route handler that redirects to Google. `next` returns here.
           <a
             href="/api/auth/google/start?next=/new/guests%3Fcreate=1"
             className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-chalk px-6 text-[15px] font-medium whitespace-nowrap text-void transition-[color,background-color,scale] duration-150 hover:bg-white active:scale-[0.97]"
@@ -303,8 +254,6 @@ export default function StepGuests() {
         title="Roll Created!"
         actions={
           <>
-            {/* The link was printed and nothing could pick it up. This is the same control
-                the invite sheet uses — the phone's own share sheet, clipboard behind it. */}
             <ShareLink url={joinLink} />
             <Pill variant="quiet" full onClick={() => router.push(`/rolls/${created?.id}`)}>
               OK
