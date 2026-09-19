@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { getGuestContext, rollHome } from "@/lib/guest-context";
-import { giveawayOffered, poolMoves } from "@/lib/roll-config";
+import { SHOTS_POOL, giveawayOffered, poolMoves } from "@/lib/roll-config";
 import { poolLeft } from "@/lib/rolls";
 
 import { PoolScreen } from "./PoolScreen";
@@ -21,6 +21,8 @@ export default async function PoolPage({ params, searchParams }: PageProps<"/e/[
   const context = await getGuestContext(code);
   // No session for this roll — the join screen is where a name gets attached to a camera.
   if (!context) redirect(`/join/${code}`);
+  // Nothing to share out at all while the feature is off; no screen links here either.
+  if (!SHOTS_POOL) redirect(await rollHome(context.roll));
   // Nothing to share out while the shutter is shut — before the roll opens or after it ends.
   // Back to the roll's own screen, which for the host is theirs rather than the guest album.
   if (!context.capturing) redirect(await rollHome(context.roll));

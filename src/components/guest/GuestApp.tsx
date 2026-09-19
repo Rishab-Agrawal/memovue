@@ -7,6 +7,7 @@ import { movePool } from "@/app/e/[code]/pool/actions";
 import { BackButton } from "@/components/roll/Chrome";
 import { ShotsDialog } from "@/components/roll/ShotsDialog";
 import type { ProcessedPhoto } from "@/lib/image";
+import { SHOTS_POOL } from "@/lib/roll-config";
 import {
   carriedForward,
   drainQueue,
@@ -140,7 +141,7 @@ export function GuestApp({
           onCaptured={handleCaptured}
           latestThumb={latestThumb}
           onLeave={() => router.push(home)}
-          poolHref={`/e/${code}/pool?from=camera`}
+          poolHref={SHOTS_POOL ? `/e/${code}/pool?from=camera` : undefined}
         />
       </div>
 

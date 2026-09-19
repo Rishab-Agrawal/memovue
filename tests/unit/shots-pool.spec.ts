@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import {
   GIVEAWAY_MIN_SHOTS,
+  SHOTS_POOL,
   REFILL_EARLY_MAX,
   REFILL_MAX,
   half,
@@ -18,6 +19,8 @@ import {
  * the two ends would be somebody handing back film they needed, or drawing film that does
  * not exist.
  */
+test.skip(() => !SHOTS_POOL, "The shots pool is switched off; its rules come back with it.");
+
 const HOUR = 3_600_000;
 const firstShotAt = new Date("2026-09-12T18:00:00Z");
 /** Ten hours from the first shot to the close, so a tenth is one hour and a quarter is two and a half. */

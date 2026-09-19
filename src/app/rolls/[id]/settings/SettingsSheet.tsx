@@ -26,6 +26,7 @@ import {
   GIVEAWAY_LABEL,
   GIVEAWAY_MIN_SHOTS,
   PARTICIPANT_TIERS,
+  SHOTS_POOL,
   SHOT_TIERS,
   VISIBILITY_LABEL,
   shotsAvailable,
@@ -172,7 +173,7 @@ export function SettingsSheet({
             }
           />
 
-          {photosPerGuest >= GIVEAWAY_MIN_SHOTS ? (
+          {SHOTS_POOL && photosPerGuest >= GIVEAWAY_MIN_SHOTS ? (
             <SettingRow
               icon={<Photo className="h-5 w-5" />}
               label={giveawayLabel}

@@ -19,6 +19,7 @@ import {
   GIVEAWAY_LABEL,
   GIVEAWAY_MIN_SHOTS,
   PARTICIPANT_TIERS,
+  SHOTS_POOL,
   SHOT_TIERS,
   VISIBILITY_LABEL,
   formatPrice,
@@ -201,7 +202,7 @@ export default function StepGuests() {
           </div>
 
           {/* Hidden below `GIVEAWAY_MIN_SHOTS`. */}
-          {SHOT_TIERS[draft.shotIndex] >= GIVEAWAY_MIN_SHOTS ? (
+          {SHOTS_POOL && SHOT_TIERS[draft.shotIndex] >= GIVEAWAY_MIN_SHOTS ? (
             <div className="mt-5 flex items-center gap-3">
               <Toggle
                 on={draft.giveawayAllowed}

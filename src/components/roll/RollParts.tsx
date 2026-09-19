@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Camera, Download, Lock, Photo, Qr } from "@/components/roll/Icons";
 import { cn } from "@/lib/cn";
 import { SHOTS_HELD, SHOTS_SPENT, ZIP_DOWNLOAD_SPENT } from "@/lib/constants";
+import { SHOTS_POOL } from "@/lib/roll-config";
 import { subscribeQueue } from "@/lib/upload-queue";
 
 /** The pieces below the cover, shared by the host's roll home and the guest's album. */
@@ -83,6 +84,18 @@ export function RollControls({
   // A guest has neither, and two dead buttons are worse than none.
   if (ended && !saveHref) return null;
 
+  /* Drawn in whichever row it belongs to: beside the camera, or under it next to the pool. */
+  const invite = inviteHref ? (
+    <Link
+      href={inviteHref}
+      aria-label="Invite guests"
+      className={cn(tile, "bg-surface text-chalk hover:text-flame")}
+    >
+      <Qr className="h-5 w-5" />
+      Invite
+    </Link>
+  ) : null;
+
   return (
     <>
       {/* A finished roll offers only Save: the album travels as the ZIP, not as the join link. */}
@@ -107,7 +120,8 @@ export function RollControls({
         </div>
       ) : (
         <div className="space-y-2">
-          <div className="flex">
+          {/* Without a pool there are only two controls, so both fit here: camera, then invite. */}
+          <div className="flex gap-2">
             {/* An unusable camera stays in place and explains itself when tapped. */}
             {off ? (
               <button
@@ -140,20 +154,13 @@ export function RollControls({
                 Camera
               </Link>
             ) : null}
+
+            {SHOTS_POOL ? null : invite}
           </div>
 
-          {inviteHref || poolHref ? (
+          {SHOTS_POOL && (inviteHref || poolHref) ? (
             <div className="flex gap-2">
-              {inviteHref ? (
-                <Link
-                  href={inviteHref}
-                  aria-label="Invite guests"
-                  className={cn(tile, "bg-surface text-chalk hover:text-flame")}
-                >
-                  <Qr className="h-5 w-5" />
-                  Invite
-                </Link>
-              ) : null}
+              {invite}
 
               {poolHref ? (
                 <Link

@@ -137,6 +137,21 @@ export const VISIBILITY_LABEL = {
 /* ------------------------------------------------------------------ the shots pool */
 
 /**
+ * The shots pool and shots giveaway, off: every person gets the fixed allowance the host
+ * bought, and no film moves between them.
+ *
+ * One switch for the whole feature. The two rules below answer to it — the pool reads empty
+ * and no move is ever offered — so every count, dialog and refusal downstream follows without
+ * being told. The screens that would otherwise draw it check it too: the pool button and the
+ * roll home’s layout (`RollParts`), the camera counter’s link (`GuestApp`), the pool screen
+ * itself, and the giveaway switch in the wizard and in settings. The rules themselves stay
+ * pinned by `tests/unit/shots-pool.spec.ts`, which skips itself while this is false.
+ *
+ * Turning it back on restores every one of them, including the three-button roll home.
+ */
+export const SHOTS_POOL = false;
+
+/**
  * A roll is bought as `maxGuests × photosPerGuest` frames. The pool is what is left over: the
  * film of everybody who never turned up, plus whatever guests hand back.
  *
@@ -148,6 +163,7 @@ export function poolFrom(
   /** Net film drawn out of the pool by those guests; negative once more is given than taken. */
   drawn: number,
 ): number {
+  if (!SHOTS_POOL) return 0;
   return Math.max(0, (roll.maxGuests - joined) * roll.photosPerGuest - drawn);
 }
 
@@ -235,6 +251,8 @@ export function poolMoves(
   pool: number,
   now: Date = new Date(),
 ): { take: number; give: number; back: number } {
+  if (!SHOTS_POOL) return { take: 0, give: 0, back: 0 };
+
   const allowance = roll.photosPerGuest + guest.fromPool;
   const keep = roll.photosPerGuest - half(roll.photosPerGuest);
   return {
