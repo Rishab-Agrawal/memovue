@@ -77,7 +77,10 @@ export default async function globalSetup() {
       const user = await prisma.user.upsert({
         where: { email: account.email },
         create: { email: account.email, name: account.name },
-        update: { name: account.name },
+        // `role` is reset, not just seeded: the referrals spec borrows ADMIN for one test and
+        // hands it back, and a run killed in the middle would otherwise leave a test host with
+        // no beta allowance to spend, which is a different suite failing for no visible reason.
+        update: { name: account.name, role: "HOST" },
         select: { id: true, tokenVersion: true },
       });
 

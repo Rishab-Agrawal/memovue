@@ -227,6 +227,10 @@ model Referrer {
   /// Where the card links. Null renders the name without a link.
   url String?
 
+  /// Told by email every time a roll is created with this code, and about nothing else. Null
+  /// sends nothing: plenty of businesses would rather just see the name on the album.
+  email String?
+
   /// A logo the card shows beside the name, hosted by them rather than by us. A dead link hides
   /// itself instead of breaking the card.
   logoUrl String?

@@ -3,18 +3,19 @@
 import { revalidatePath } from "next/cache";
 
 import { adjustAccess, grantAccess, revokeAccess } from "@/lib/beta";
+import { UPLOAD_LIMITS } from "@/lib/constants";
 import { sendAccessGranted } from "@/lib/email";
 import { rateLimit } from "@/lib/ratelimit";
-import { addReferrer, removeReferrer } from "@/lib/referrals";
+import { removeReferrer, saveReferrer } from "@/lib/referrals";
 import { requireAdmin } from "@/lib/session";
 import {
   type ActionResult,
-  addReferrerSchema,
   adjustAccessSchema,
   firstError,
   grantAccessSchema,
   removeReferrerSchema,
   revokeAccessSchema,
+  saveReferrerSchema,
 } from "@/lib/validation";
 
 /**
@@ -78,22 +79,49 @@ export async function revokeAccessAction(input: { id: string }): Promise<ActionR
 
 /* ------------------------------------------------------------------ referrals */
 
-/** Mints a code for a wedding business. The code is what its customers type into the wizard. */
-export async function addReferrerAction(input: {
-  code: string;
-  name: string;
-  url?: string;
-  logoUrl?: string;
-}): Promise<ActionResult> {
+/**
+ * Mints a code for a wedding business, or edits one — same form, same action, an `id` apart.
+ *
+ * `FormData` rather than a plain object because a logo may ride along, for a business with no
+ * URL of its own to point at. The browser has already decoded and shrunk it (see `processLogo`),
+ * so what arrives is a few tens of kilobytes; the ceiling below is the guard on that claim.
+ */
+export async function saveReferrerAction(form: FormData): Promise<ActionResult> {
   const over = await withinAdminBudget();
   if (over) return over;
 
-  const parsed = addReferrerSchema.safeParse(input);
+  const parsed = saveReferrerSchema.safeParse({
+    id: form.get("id") || undefined,
+    code: form.get("code") ?? "",
+    name: form.get("name") ?? "",
+    url: form.get("url") ?? "",
+    logoUrl: form.get("logoUrl") ?? "",
+    email: form.get("email") ?? "",
+  });
   if (!parsed.success) return { ok: false, error: firstError(parsed.error) };
 
-  if (!(await addReferrer(parsed.data))) {
-    return { ok: false, error: "Somebody already has that code." };
+  const file = form.get("logo");
+  let logo: Uint8Array | null = null;
+  if (file instanceof File && file.size > 0) {
+    if (file.size > UPLOAD_LIMITS.logoMaxBytes) {
+      return { ok: false, error: "That image is too large." };
+    }
+    logo = new Uint8Array(await file.arrayBuffer());
   }
+
+  const { id, code, name, url, logoUrl, email } = parsed.data;
+  const result = await saveReferrer({
+    id,
+    code,
+    name,
+    url: url || null,
+    email: email || null,
+    logoUrl: logoUrl || null,
+    logo,
+  });
+
+  if (result === "code-taken") return { ok: false, error: "Another business has that code." };
+  if (result === "not-found") return { ok: false, error: "That code no longer exists." };
 
   revalidatePath("/admin/referrals");
   return { ok: true };

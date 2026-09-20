@@ -39,6 +39,7 @@ export default async function ReferralsPage() {
           code: row.code,
           name: row.name,
           url: row.url,
+          email: row.email,
           logoUrl: row.logoUrl,
           rolls: row._count.rolls,
         }))}

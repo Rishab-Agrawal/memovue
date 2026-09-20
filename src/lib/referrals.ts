@@ -3,6 +3,7 @@ import "server-only";
 import { normalizeCode } from "./codes";
 import { REFERRALS } from "./constants";
 import { prisma } from "./prisma";
+import { deleteObjects, publicUrl, putObject, referrerLogoKey, storageConfigured } from "./storage";
 
 /**
  * Wedding businesses that send hosts here.
@@ -29,7 +30,11 @@ export async function findReferrer(input: string) {
   const code = normalizeCode(input);
   if (!code) return null;
 
-  return prisma.referrer.findUnique({ where: { code }, select: { id: true, ...card } });
+  // `email` is here and not in `card`: it is the one field that must never reach a browser.
+  return prisma.referrer.findUnique({
+    where: { code },
+    select: { id: true, email: true, ...card },
+  });
 }
 
 /**
@@ -47,40 +52,84 @@ export async function sponsorFor(roll: { referrerId: string | null }): Promise<S
 export function listReferrers() {
   return prisma.referrer.findMany({
     orderBy: { createdAt: "desc" },
-    select: { ...card, id: true, code: true, _count: { select: { rolls: true } } },
+    select: { ...card, id: true, code: true, email: true, _count: { select: { rolls: true } } },
   });
 }
 
+/** Whether a logo URL is one we are hosting, rather than one somebody typed. */
+function ours(id: string, logoUrl: string | null): boolean {
+  return (
+    storageConfigured && logoUrl !== null && logoUrl.startsWith(publicUrl(referrerLogoKey(id)))
+  );
+}
+
+export type SaveResult = "ok" | "code-taken" | "not-found";
+
 /**
- * Adds a business. Returns false when the code is already taken, which is the one failure an
- * admin can act on — every other field is theirs to type.
+ * Creates a business, or edits one — every field, including the code itself. One path for both,
+ * because an admin who mistypes a business name on Tuesday should not need a different screen
+ * on Wednesday, and two paths would drift.
+ *
+ * `logo` is raw JPEG bytes the browser already resized. It replaces whatever the logo was;
+ * a `logoUrl` that is not ours means the business now points somewhere else, so our copy goes
+ * rather than sitting in the bucket forever.
  */
-export async function addReferrer(input: {
+export async function saveReferrer(input: {
+  /** Absent creates. */
+  id?: string;
   code: string;
   name: string;
-  url?: string;
-  logoUrl?: string;
-}): Promise<boolean> {
-  const { count } = await prisma.referrer.createMany({
-    data: [
-      {
-        code: normalizeCode(input.code),
-        name: input.name,
-        url: input.url || null,
-        logoUrl: input.logoUrl || null,
-      },
-    ],
-    skipDuplicates: true,
-  });
-  return count > 0;
+  url: string | null;
+  email: string | null;
+  logoUrl: string | null;
+  logo: Uint8Array | null;
+}): Promise<SaveResult> {
+  const code = normalizeCode(input.code);
+
+  // Checked rather than caught, so "already taken" is told apart from any other write failure.
+  const clash = await prisma.referrer.findUnique({ where: { code }, select: { id: true } });
+  if (clash && clash.id !== input.id) return "code-taken";
+
+  const fields = {
+    code,
+    name: input.name,
+    url: input.url,
+    email: input.email,
+    logoUrl: input.logoUrl,
+  };
+
+  let id: string;
+  if (input.id) {
+    const updated = await prisma.referrer.updateMany({ where: { id: input.id }, data: fields });
+    if (updated.count === 0) return "not-found";
+    id = input.id;
+  } else {
+    ({ id } = await prisma.referrer.create({ data: fields, select: { id: true } }));
+  }
+
+  if (input.logo && storageConfigured) {
+    const key = referrerLogoKey(id);
+    await putObject(key, input.logo, "image/jpeg");
+    // Overwritten in place, so the URL carries the clock that gets it past the CDN.
+    await prisma.referrer.update({
+      where: { id },
+      data: { logoUrl: `${publicUrl(key)}?v=${Date.now()}` },
+    });
+  } else if (input.id && !ours(id, input.logoUrl)) {
+    // Pointed elsewhere, or cleared. Either way the copy we were hosting has no reader left.
+    await deleteObjects([referrerLogoKey(id)]).catch(() => {});
+  }
+
+  return "ok";
 }
 
 /**
  * Retires a code. Rolls that used it keep their row and lose the credit — `onDelete: SetNull`,
  * because a roll outliving the business that sold it is not a reason to delete somebody's album.
  */
-export function removeReferrer(id: string) {
-  return prisma.referrer.deleteMany({ where: { id } });
+export async function removeReferrer(id: string) {
+  await deleteObjects([referrerLogoKey(id)]).catch(() => {});
+  await prisma.referrer.deleteMany({ where: { id } });
 }
 
 /** Businesses whose codes created a roll in the given window. What the digest names. */

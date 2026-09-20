@@ -465,24 +465,37 @@ through, repeatedly, for a month — carries that business's name, logo and link
 spent and nothing expires: `Referrer` is a row with a code and a name on it, and a roll points
 at one. When rolls start costing money, a discount belongs on that same row.
 
-Three decisions worth keeping:
+Four decisions worth keeping:
 
 **The code is checked on Next, not at Create.** It is printed on a card somebody was handed,
 so it gets mistyped, and the step it is typed on is four screens from the one that writes
 anything. Finding out at the end that the florist will not be credited is finding out too
 late. It is then resolved again at creation, because that is the write and the first check was
-a browser's.
+a browser's. The field itself is one unlabelled row: an explanation of something almost nobody
+fills in was pushing Cancel and Next off the bottom of a phone.
 
-**The logo is theirs, not ours.** We store a URL and render it; nothing is copied into R2. A
-link that has rotted takes the picture out of the card and leaves the name, rather than
-leaving a broken-image glyph sitting in somebody's wedding album for thirty days. It is drawn
-on a white plate, because a logo drawn for a letterhead is invisible on this app's black.
+**Everything about a code is editable, the code string included.** A business renames itself,
+moves domain, or was typed in wrong on a Tuesday, and none of that is a reason to retire a
+code already printed on somebody's cards. Rolls point at the row's id, never at the string, so
+an edit follows every roll the code has ever created.
+
+**A logo is theirs, unless they have nowhere to put one.** The normal case is a URL on their
+server: nothing is copied, and a link that has rotted takes the picture out of the card and
+leaves the name rather than a broken-image glyph in somebody's wedding album for thirty days.
+For a business with no site, the admin screen takes a file, shrinks it to 320px in the browser
+and stores it in R2 under one key per business — bytes we pay for, which is why it is the
+fallback and not the default. Either way it is drawn on a white plate, because a logo drawn
+for a letterhead is invisible on this app's black; an uploaded one is flattened onto white on
+the way in, since a transparent PNG written into a JPEG comes out black.
 
 **`REFERRALS` in `constants.ts` is the whole switch.** False takes the field out of the
 wizard, the card off both roll screens and the section off the admin screen. What it does not
 touch is the Telegram messages — a roll that was referred stays referred in the `/rolls`
 query, the creation signal and the morning digest, because that is a record of what happened
 rather than a feature that can be turned off.
+
+A business can also give an address, and then hears once per roll its code created and about
+nothing else. It is the only mail a referral partner ever gets, so there is no list to leave.
 
 ## One container, and the five things that assume it
 

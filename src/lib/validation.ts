@@ -38,11 +38,17 @@ const optionalLink = z
   .refine((value) => value === "" || /^https:\/\/\S+$/.test(value), "Links must start with https://")
   .optional();
 
-export const addReferrerSchema = z.object({
+/** One schema for minting a code and for editing one: an `id` is the only difference. */
+export const saveReferrerSchema = z.object({
+  id: z.string().min(1).optional(),
   code: referralCode,
   name: z.string().trim().min(1, "Name the business").max(60),
   url: optionalLink,
   logoUrl: optionalLink,
+  /** Told about every roll created with the code. Empty means tell them nothing. */
+  email: z
+    .union([z.email("That doesn't look like an email address").max(160), z.literal("")])
+    .optional(),
 });
 
 export const removeReferrerSchema = z.object({ id: z.string().min(1) });

@@ -71,6 +71,15 @@ export function coverKey(rollId: string): string {
   return `${prefix}/covers/${rollId}/cover.jpg`;
 }
 
+/**
+ * A referral partner's logo, for the ones that have no URL of their own to point at. One fixed
+ * key per business, so a replacement overwrites; the cache is busted by the `?v=` stored with
+ * the URL, exactly as a roll cover's is.
+ */
+export function referrerLogoKey(id: string): string {
+  return `${prefix}/referrers/${id}/logo.jpg`;
+}
+
 /** The host's archive, at a key derived from the roll so it is built once and a purge can find it. */
 export function zipKey(rollId: string): string {
   return `${prefix}/zips/${rollId}-${opaque("zip", rollId)}.zip`;
@@ -160,6 +169,17 @@ export async function headObject(key: string): Promise<{ bytes: number } | null>
 export async function getObjectStream(key: string) {
   const res = await s3().send(new GetObjectCommand({ Bucket: bucket(), Key: key }));
   return res.Body;
+}
+
+/**
+ * A small object, held in memory on the way through. Photographs and covers never come this
+ * way — they are presigned so the bytes skip the app server entirely. This is for the one
+ * upload that arrives on an admin's server action, where a presign round trip buys nothing.
+ */
+export async function putObject(key: string, body: Uint8Array, contentType: string): Promise<void> {
+  await s3().send(
+    new PutObjectCommand({ Bucket: bucket(), Key: key, Body: body, ContentType: contentType }),
+  );
 }
 
 /** Streams a body of unknown length into R2 as a multipart upload. */

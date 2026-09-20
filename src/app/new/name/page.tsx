@@ -5,7 +5,7 @@ import { useState } from "react";
 
 import { PillLink } from "@/components/roll/Chrome";
 import { CoverChoice } from "@/components/roll/CoverChoice";
-import { Pencil } from "@/components/roll/Icons";
+import { Link as LinkIcon, Pencil } from "@/components/roll/Icons";
 import { WizardShell } from "@/components/roll/WizardShell";
 import { REFERRALS } from "@/lib/constants";
 import { CoverError, prepareCover } from "@/lib/cover-upload";
@@ -107,31 +107,32 @@ export default function StepName() {
         </div>
       </div>
 
+      {/*
+        One row, no heading and no gloss. Everything this step needs has to sit above Cancel
+        and Next without the screen scrolling, and a paragraph explaining a field that almost
+        nobody fills in was what pushed the two buttons off the bottom of a phone.
+      */}
       {REFERRALS ? (
-        <div className="mt-7 border-t border-hair pt-6">
-          <p className="marking">Referral code (optional)</p>
-          <p className="mt-2 text-[14px] leading-relaxed text-ash">
-            If a wedding business sent you here, put their code in — their name goes on your
-            roll&rsquo;s home screen.
-          </p>
-
-          <input
-            value={draft.referralCode}
-            onChange={(event) => {
-              update({ referralCode: event.target.value });
-              setCodeError(null);
-            }}
-            onKeyDown={(event) => event.key === "Enter" && void go()}
-            type="text"
-            inputMode="text"
-            autoCapitalize="characters"
-            autoComplete="off"
-            spellCheck={false}
-            placeholder="e.g. BLOOM24"
-            aria-label="Referral code"
-            aria-invalid={codeError ? "true" : undefined}
-            className="mt-3 h-14 w-full rounded-2xl bg-surface px-4 text-[16px] tracking-[0.08em] text-chalk uppercase placeholder:normal-case placeholder:tracking-normal placeholder:text-dust focus:outline-none focus-visible:ring-1 focus-visible:ring-flame"
-          />
+        <div className="mt-5">
+          <label className="flex h-14 items-center gap-3 rounded-2xl bg-surface px-4 focus-within:ring-1 focus-within:ring-flame">
+            <LinkIcon className="h-4 w-4 shrink-0 text-dust" />
+            <input
+              value={draft.referralCode}
+              onChange={(event) => {
+                update({ referralCode: event.target.value });
+                setCodeError(null);
+              }}
+              onKeyDown={(event) => event.key === "Enter" && void go()}
+              type="text"
+              autoCapitalize="characters"
+              autoComplete="off"
+              spellCheck={false}
+              placeholder="Referral code (optional)"
+              aria-label="Referral code"
+              aria-invalid={codeError ? "true" : undefined}
+              className="w-full bg-transparent text-[16px] tracking-[0.06em] text-chalk uppercase placeholder:tracking-normal placeholder:normal-case placeholder:text-dust focus:outline-none"
+            />
+          </label>
 
           {codeError ? <p className="mt-2 text-[13px] text-danger">{codeError}</p> : null}
         </div>

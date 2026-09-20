@@ -86,6 +86,20 @@ export function sendAccessGranted(to: string): Promise<void> {
   );
 }
 
+/**
+ * A wedding business, told that their code was used. The only mail a referral partner ever
+ * gets, so it says the one thing it is for and nothing else — no link, no unsubscribe copy
+ * for a list of one message per roll they themselves caused.
+ */
+export function sendReferralRollCreated(to: string, rollName: string): Promise<void> {
+  return send(
+    to,
+    "A new roll was created with your referral code",
+    `Hi,\n\nA new roll named "${rollName}" has been created at Memovue using your referral ` +
+      `code!\n\nWarm Regards,\nMemovue`,
+  );
+}
+
 /** Retention warning, sent once (recorded by `warnedAt`) a week before `keptUntil`. */
 export function sendDeletionNotice(to: string, eventName: string, deleteOn: Date): Promise<void> {
   return send(

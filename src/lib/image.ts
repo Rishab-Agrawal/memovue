@@ -25,13 +25,24 @@ function scaleToFit(width: number, height: number, maxEdge: number) {
   return { width: Math.round(width * ratio), height: Math.round(height * ratio) };
 }
 
-function drawTo(source: CanvasImageSource, width: number, height: number): HTMLCanvasElement {
+function drawTo(
+  source: CanvasImageSource,
+  width: number,
+  height: number,
+  /** Painted first, for a source with transparency going into a format that has none. */
+  background?: string,
+): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
 
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Canvas is unavailable on this device.");
+
+  if (background) {
+    context.fillStyle = background;
+    context.fillRect(0, 0, width, height);
+  }
 
   context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = "high";
@@ -80,6 +91,23 @@ export async function processCover(
   const size = scaleToFit(source.width, source.height, UPLOAD_LIMITS.coverMaxEdge);
   const blob = await toBlob(drawTo(source, size.width, size.height), UPLOAD_LIMITS.coverQuality);
   return { blob, width: size.width, height: size.height };
+}
+
+/**
+ * A referral partner's logo, for a business with nowhere to link a picture from.
+ *
+ * Flattened onto white rather than kept as a PNG: a logo arrives as dark ink on transparency
+ * more often than not, everything here encodes JPEG, and transparency written into a JPEG comes
+ * out black. White is also exactly what the card draws it on, so what is stored is what is seen.
+ */
+export async function processLogo(
+  source: CanvasImageSource & { width: number; height: number },
+): Promise<Blob> {
+  const size = scaleToFit(source.width, source.height, UPLOAD_LIMITS.logoMaxEdge);
+  return toBlob(
+    drawTo(source, size.width, size.height, "#ffffff"),
+    UPLOAD_LIMITS.logoQuality,
+  );
 }
 
 export async function processCapture(

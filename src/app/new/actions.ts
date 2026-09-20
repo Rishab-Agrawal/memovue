@@ -4,6 +4,7 @@ import { after } from "next/server";
 
 import { BetaAccessError } from "@/lib/beta";
 import { REFERRALS } from "@/lib/constants";
+import { sendReferralRollCreated } from "@/lib/email";
 import { record } from "@/lib/metrics";
 import { callerIp, rateLimit } from "@/lib/ratelimit";
 import { findReferrer } from "@/lib/referrals";
@@ -93,6 +94,8 @@ export async function createRollAction(
     after(() =>
       Promise.all([
         record("roll_created"),
+        // The business hears about the roll it brought in, if it asked to be told.
+        referrer?.email ? sendReferralRollCreated(referrer.email, roll.name) : null,
         notify(
           "signals",
           `New roll — “${roll.name}” · ${user.name} · ${data.maxGuests} guests × ${data.photosPerGuest} shots` +

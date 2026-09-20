@@ -38,6 +38,12 @@ export const UPLOAD_LIMITS = {
   coverQuality: 0.82,
   /** The largest cover the upload URL will be signed for. */
   coverMaxBytes: 8 * 1024 * 1024,
+
+  /** Long edge of a referral partner's logo. It is drawn in a 48px square and never larger. */
+  logoMaxEdge: 320,
+  logoQuality: 0.9,
+  /** What the admin screen will carry through a server action. A processed logo is ~30KB. */
+  logoMaxBytes: 1024 * 1024,
 } as const;
 
 /** A spent camera, when the roll has no film left anywhere. */
