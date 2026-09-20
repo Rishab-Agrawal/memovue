@@ -10,9 +10,8 @@ import { joinUrl, qrDataUrl } from "@/lib/qr";
  * of the host's hands, so a guest holding the roll handing it to the person beside them is
  * not a new leak — it is the same one, done deliberately.
  *
- * The link is built by `joinUrl` rather than assembled here. This page used to compose its
- * own `${appUrl}/j/${code}`, and there has never been a `/j` route — so every QR printed for
- * a table sent the guest to a 404. One helper owns the shape of a join link.
+ * The link comes from `joinUrl` rather than being assembled here: one helper owns the shape
+ * of a join link, and a code printed on a table has no second chance at it.
  */
 export async function InviteCard({ code }: { code: string }) {
   const link = joinUrl(code);
@@ -21,8 +20,6 @@ export async function InviteCard({ code }: { code: string }) {
   return (
     <>
       <div className="mt-5 border-t border-hair pt-6">
-        {/* A real, scannable code — unlike the prototype's placeholder, this one has
-            somewhere to go. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={qr}

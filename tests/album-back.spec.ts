@@ -7,14 +7,13 @@ import { STORAGE_STATE, TEST_HOST } from "./global-setup";
 /**
  * Where a roll's back arrow goes.
  *
- * It used to always be Home, which was right while every roll was running and wrong the moment
- * the Albums tab existed: opening a finished album from Albums and pressing back landed on Home,
- * which reads as the app having lost your place. The arrow now points at the tab the roll is
- * actually listed in, which is a fact about the roll rather than about how you arrived — there
- * is no history to consult when the link is rendered on the server.
+ * At the tab the roll is listed in: a fact about the roll rather than about how you arrived,
+ * since there is no history to consult when the link is rendered on the server. A finished
+ * album opened from Albums goes back to Albums — landing on Home reads as the app having lost
+ * your place.
  *
  * Both rolls are written straight to the database: the wizard will not create a roll that has
- * already finished, which is exactly the case that was broken.
+ * already finished, which is the half this pins.
  */
 test.use({ storageState: STORAGE_STATE });
 

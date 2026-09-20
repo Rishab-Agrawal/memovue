@@ -27,10 +27,9 @@ test.describe("public pages", () => {
   /**
    * The front door asks for nothing.
    *
-   * It used to open with a full-width "Continue with Google" and no other way forward, and
-   * people who had come to look at a product left rather than make an account for one they
-   * had not seen yet. All three things you can do here have to work without one; sign-in is
-   * the small door in the corner, for people who already have an account.
+   * All three things you can do here have to work without an account: people who have come to
+   * look at a product leave rather than make an account for one they have not seen. Sign-in is
+   * the small door in the corner, for people who already have one.
    */
   test("welcome leads into the product without an account", async ({ page }) => {
     await page.goto("/welcome");
@@ -180,10 +179,10 @@ test.describe("public pages", () => {
   /**
    * Swiping the album faster than it settles.
    *
-   * The viewer used to commit the frame change on the spring's rest, so a second swipe taken
-   * before the first had landed stopped that spring and threw the move away — and a fast hand
-   * bounced between the first two photographs for ever. The sample album is three frames and
-   * needs no account, which makes it the cheapest place to hold that down.
+   * The frame change commits on the gesture, not on the spring's rest: a second swipe taken
+   * before the first has landed stops that spring, and a viewer that waits for rest throws the
+   * move away and bounces between the first two photographs for ever. The sample album is three
+   * frames and needs no account, which makes it the cheapest place to hold that down.
    */
   test("swiping faster than the animation settles still moves through the album", async ({
     page,
@@ -193,7 +192,7 @@ test.describe("public pages", () => {
     await expect(page.getByText("1 of 3")).toBeVisible();
 
     // Back to back, with no pause: the second gesture lands mid-flight, which is the case
-    // that was broken.
+    // this exists for.
     for (let i = 0; i < 2; i += 1) {
       await page.mouse.move(340, 420);
       await page.mouse.down();

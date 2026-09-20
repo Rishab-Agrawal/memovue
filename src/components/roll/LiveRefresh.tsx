@@ -6,10 +6,8 @@ import { useEffect } from "react";
 /**
  * A server-rendered screen, kept current without anybody pulling it down.
  *
- * The host's roll screen used to be asked again at exactly one moment — the reveal — on the
- * theory that nothing else changes it with nobody touching anything. Everything else does:
- * guests' frames landing, people joining, the countdown in the header and on every sealed
- * tile. A host at their own party was refreshing by hand to watch any of it happen.
+ * A host at their own party watches the screen change with nobody touching it: guests' frames
+ * landing, people joining, the countdown in the header and on every sealed tile.
  *
  * So it asks on the guest album's cadence, and only while somebody is looking: a hidden tab
  * or a locked phone costs nothing, and coming back to one asks at once rather than twenty

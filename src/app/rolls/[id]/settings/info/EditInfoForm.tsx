@@ -106,7 +106,7 @@ export function EditInfoForm({
   };
 
   const working = pending || busy;
-  /** Anything the Save button would send. Leaving with it unsent used to cost it silently. */
+  /** Anything the Save button would send, so leaving with it unsent can be questioned first. */
   const dirty = name !== initialName || cover !== initialCover || picked !== null || removed;
 
   return (

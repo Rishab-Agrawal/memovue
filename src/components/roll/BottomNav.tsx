@@ -7,14 +7,13 @@ import { Home, Person, Photo } from "@/components/roll/Icons";
 /**
  * Three destinations, three equal columns.
  *
- * Albums used to be the lower half of the home screen, which meant the two things a host
- * does — start something, look back at something finished — competed for one scroll. They
- * are separate concerns on separate clocks, so they get separate screens and the bar names
- * all three.
+ * The two things a host does — start something, look back at something finished — are separate
+ * concerns on separate clocks, so they get separate screens and the bar names all three rather
+ * than making them compete for one scroll.
  *
- * Labelled, unlike the two bare glyphs this replaces. A house and a person are guessable on
- * their own; a picture frame standing for "albums" is not, and a bar you have to try is not
- * a bar. The word is 11px under the glyph, so the column still reads as an icon first.
+ * Labelled, not bare glyphs. A house and a person are guessable on their own; a picture frame
+ * standing for "albums" is not, and a bar you have to try is not a bar. The word is 11px under
+ * the glyph, so the column still reads as an icon first.
  */
 const TABS = [
   { href: "/rolls", label: "Home", key: "rolls", Icon: Home },

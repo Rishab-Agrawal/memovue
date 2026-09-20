@@ -35,12 +35,10 @@ export async function logoutAction(): Promise<never> {
 /**
  * Deleting the account takes the rolls, the photo rows, and the image files with it.
  *
- * The bytes used to be left behind on the argument that they were harmless until a retention
- * job swept them. They were not sweepable: cascading the roll rows away first destroys the
- * only record of what those objects were called, so nothing could ever have found them again.
- * They go before the user row now, in that order, for the same reason the sweep does it that
- * way — a failure halfway leaves the account intact and retryable rather than the storage
- * stranded.
+ * The bytes go first, before the user row. Cascading the roll rows away destroys the only
+ * record of what those objects were called, so anything left in storage is unfindable — no
+ * retention job can sweep what nothing names. In this order a failure halfway leaves the
+ * account intact and retryable instead, which is why the sweep does it the same way.
  */
 export async function deleteAccountAction(): Promise<never> {
   const user = await requireHost();

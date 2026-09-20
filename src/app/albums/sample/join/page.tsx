@@ -20,10 +20,10 @@ const COUNTDOWN_MS = 30 * 60 * 60 * 1000;
 /**
  * The invitation, for somebody nobody invited.
  *
- * The sample used to open on the viewfinder, which is the second thing a guest meets. This is
- * the first: the card behind the QR code, the cover, the name field, and the button that
- * hands over a camera. Nothing is stored — there is no roll for a name to join — but typing
- * it is a part of the thing being shown, so the field is real and the button waits for it.
+ * The sample opens where a guest's own scan does: the card behind the QR code, the cover, the
+ * name field, and the button that hands over a camera. Nothing is stored — there is no roll for
+ * a name to join — but typing it is part of the thing being shown, so the field is real and the
+ * button waits for it.
  *
  * The cover is the same frame the camera's thumbnail shows, which is the frame the album
  * opens on. One photograph carries the whole sample.

@@ -50,7 +50,7 @@ function Panel({
       role="dialog"
       aria-modal="true"
       aria-label={typeof title === "string" ? title : undefined}
-      // Fixed for the same reason as `Sheet`: centred on the viewport, not on the document.
+      // Fixed, like `Sheet`: centred on the viewport, not on the document.
       className="animate-fade fixed inset-0 z-40 flex items-center justify-center bg-void/70 px-6 backdrop-blur-sm"
       // The scrim, not the card — a tap that lands on the box itself is not a dismissal.
       onClick={onClose && ((event) => event.target === event.currentTarget && onClose())}

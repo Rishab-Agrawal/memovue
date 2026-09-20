@@ -39,13 +39,11 @@ function signedHeaders(url: string): string[] {
 test.describe("a presigned upload URL", () => {
   test("binds nothing but the host unless it is asked to", async () => {
     /*
-      The bug, kept as a test: this is exactly the call the reserve route used to make, and
-      the URL it produced was a blank cheque for that key — any body, any type.
+      A URL signed without the type is a blank cheque for that key — any body, any type — and
+      the public image domain serves whatever was uploaded to it.
 
-      The type is the header the signer will never volunteer, which is what made this so easy
-      to miss. Adding `ContentLength` does pull one in on its own, so a half-done version of
-      this fix looks like it worked while the public image domain still serves whatever was
-      uploaded to it.
+      The type is the one header the signer will never volunteer, so it has to be asked for.
+      `ContentLength` does pull one in on its own, which makes a half-bound URL look bound.
     */
     const typeOnly = new PutObjectCommand({
       Bucket: "memovue",

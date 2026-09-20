@@ -7,10 +7,9 @@ import { DraftProvider } from "./DraftContext";
 /**
  * The wizard is open to everyone, signed in or not.
  *
- * It used to be gated, which meant the first thing a new arrival met was a sign-in screen —
- * and people who have not seen a product yet do not make accounts for it. Nothing here
- * writes anything: the draft lives in the tab until the last step, so the account is asked
- * for at the Create button, where it finally buys something.
+ * People who have not seen a product yet do not make accounts for it, and nothing here writes
+ * anything: the draft lives in the tab until the last step. So the account is asked for at the
+ * Create button, where it finally buys something, rather than at the door.
  *
  * `hostName` is the one thing the wizard needs from the server — the invitation card shows it
  * as "Invited by …". Without an account there is no name yet, and "You" is the honest

@@ -45,12 +45,3 @@ export async function requireAdmin(): Promise<CurrentUser> {
   if (user.role !== "ADMIN") redirect("/rolls");
   return user;
 }
-
-/*
- * There is deliberately no `canCreateHosts`/`canCreateRolls` check here any more.
- *
- * Access used to be a property of the account: you asked for beta access, an admin approved
- * you, and `accessStatus` gated everything. With Google sign-in anyone can hold an account,
- * so the gate moved to the act that actually costs us something — creating a roll, which
- * spends one off the allowance on your email address. See `canCreateRoll` and `spendRoll`.
- */

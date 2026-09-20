@@ -97,11 +97,10 @@ test.describe("an impossible window cannot be picked", () => {
   /**
    * Abandoning a roll asks first, in our own box.
    *
-   * Every one of these questions used to be a `window.confirm` — the browser's own dialog, in
-   * the system font, with the browser's word for "Cancel" on a button we did not choose and
-   * no way to say which of the two answers throws the work away. Playwright dismisses a native
-   * confirm on sight, so the suite could not have told the difference: this asserts the dialog
-   * is ours by reading the words on it.
+   * Never a `window.confirm`: the browser's own dialog comes in the system font, with the
+   * browser's word on a button we did not choose and no way to say which answer throws the work
+   * away. Playwright dismisses a native confirm on sight, so the suite cannot tell the two apart
+   * by behaviour — this asserts the dialog is ours by reading the words on it.
    */
   test("cancelling the wizard asks before throwing the draft away", async ({ page }) => {
     await page.goto("/new/name");
@@ -183,13 +182,12 @@ test.describe("a roll from creation to reveal", () => {
    * The host's own controls have to lead somewhere.
    *
    * A host shoots their own roll by joining it like anyone else, so the camera button goes to
-   * the guest app — which is keyed on the roll's six-character code, not its id. Built from
-   * the id it normalised to a 25-character string that matched no roll, and the button on the
-   * host's own roll screen dead-ended.
+   * the guest app — which is keyed on the roll's six-character code, not its id. Built from the
+   * id it normalises to a 25-character string matching no roll, and the button dead-ends.
    *
    * And it opens the viewfinder, not an invitation. The host is enrolled in their own roll at
-   * creation, so the camera on their own screen used to hand them a card inviting them to the
-   * event they had just built, asking for the name their account already carries.
+   * creation, so a card inviting them to the event they just built would ask for the name their
+   * account already carries.
    */
   test("the host's camera button reaches the roll", async ({ page }) => {
     await page.goto(rollUrl);
@@ -206,9 +204,9 @@ test.describe("a roll from creation to reveal", () => {
   /**
    * And they are on the roll before they ever reach for it.
    *
-   * Enrolment used to happen on the first camera tap, which meant a host who never shot was
-   * not on their own roll at all: absent from the people list, holding film nothing had
-   * counted, and one slot short of the number the roll was sold as holding.
+   * Enrolment happens at creation, not on the first camera tap: a host who never shoots is
+   * still on their own roll, in the people list, holding film the roll has counted and a slot
+   * the roll was sold as holding.
    */
   test("the host is on their own roll from the moment it exists", async ({ page }) => {
     await page.goto(rollUrl + "/people");
@@ -224,11 +222,10 @@ test.describe("a roll from creation to reveal", () => {
   /**
    * The wall pages, and the number it pages by comes off the URL.
    *
-   * The host screen used to load every READY frame in the roll on all four of its routes,
-   * which at five hundred guests is eighteen thousand tiles and a twenty-megabyte payload.
-   * It asks for a page now, and `?photos=` is how the "show more" link asks for the next —
-   * so it is a number a caller writes, on a screen that renders the host's own album, and it
-   * has to survive being written badly.
+   * The host screen asks for a page rather than every READY frame in the roll: at five hundred
+   * guests that is eighteen thousand tiles and a twenty-megabyte payload. `?photos=` is how the
+   * "show more" link asks for the next — a number a caller writes, on a screen that renders the
+   * host's own album, so it has to survive being written badly.
    */
   test("the wall survives whatever is put in its page parameter", async ({ page }) => {
     for (const value of ["abc", "-5", "999999999", ""]) {
@@ -310,8 +307,8 @@ test.describe("a roll from creation to reveal", () => {
     // on the coming Saturday and has therefore not started.
     await page.goto("/new/name");
     await page.getByLabel("Event name").fill("Second Roll");
-    // Each step is waited for. Five Next clicks in a row race the router and all land on
-    // the same screen, which is how this loop used to sit on /new/start until it timed out.
+    // Each step is waited for. Five Next clicks in a row race the router and all land on the
+    // same screen, leaving the loop sitting on /new/start until it times out.
     for (const step of ["start", "finish", "reveal", "guests"]) {
       await page.getByRole("link", { name: /Next/ }).click();
       await expect(page).toHaveURL(new RegExp(`/new/${step}$`));
@@ -325,9 +322,9 @@ test.describe("a roll from creation to reveal", () => {
 
     /*
       And it has no camera yet, which is the whole difference between this roll and the one
-      above. The control used to be live from the moment a roll existed, so a host tapping it
-      the week before their wedding was handed a viewfinder the guest app then refused film
-      to. It stays in the row, dead, and says when it opens.
+      above. A control live from the moment a roll exists hands a host tapping it the week
+      before their wedding a viewfinder the guest app then refuses film to. It stays in the
+      row, dead, and says when it opens.
     */
     await expect(page.getByLabel("Take a photo")).toHaveAttribute("aria-disabled", "true");
     // Forced, because Playwright reads `aria-disabled` as unclickable and a real thumb does
@@ -417,14 +414,14 @@ test.describe("a roll from creation to reveal", () => {
     /*
       Out of the viewfinder and onto the roll, by the thumbnail, without a reload.
 
-      This is the path that was broken. The counter above drops as soon as the shot is
-      *reserved*, but the row stays PENDING until the bytes arrive and a PENDING row appears
-      in no grid — so the album loads, seconds after the shutter, without the photograph it
-      was opened to see. It used to stay that way until the guest pulled the page down by
-      hand. The queue refetches the wall when the last frame lands, and this is that.
+      The counter above drops as soon as the shot is *reserved*, but the row stays PENDING
+      until the bytes arrive and a PENDING row appears in no grid — so the album loads, seconds
+      after the shutter, without the photograph it was opened to see, and stays that way unless
+      something asks again. The queue refetches the wall when the last frame lands, and this is
+      that.
 
-      It also does what a poll on `/feed` used to do here: nothing below is allowed to look at
-      the roll until the upload has actually finished.
+      It doubles as the barrier a poll on `/feed` would give: nothing below is allowed to look
+      at the roll until the upload has actually finished.
     */
     const code = page.url().split("/").pop();
     await page.getByRole("button", { name: "Open the roll" }).click();
@@ -441,11 +438,11 @@ test.describe("a roll from creation to reveal", () => {
     /*
       The seal, on the endpoint that now enforces it.
 
-      `/photos` used to refuse a sealed roll outright and the grid came down inside the status
-      poll instead. That is backwards from a cost point of view — the poll repeats every
-      twenty seconds and the grid does not — so the paging route serves both sides of the seal
-      now, and the invariant moved with it. A sealed page carries a blur placeholder and no
-      `previewUrl`, because that field is the only one in the payload that leads to bytes.
+      The paging route serves both sides of the seal, rather than refusing a sealed roll and
+      leaving the grid to come down inside the status poll — which is backwards from a cost
+      point of view, since the poll repeats every twenty seconds and the grid does not. So the
+      invariant lives here: a sealed page carries a blur placeholder and no `previewUrl`,
+      because that field is the only one in the payload that leads to bytes.
     */
     const sealed = await page.request.get(`/api/r/${code}/photos`);
     expect(sealed.ok()).toBeTruthy();
@@ -467,10 +464,9 @@ test.describe("a roll from creation to reveal", () => {
   /**
    * Two people called the same thing, which at a wedding is most of them.
    *
-   * A name used to be unique inside a roll, so the second Meera was refused at the door and
-   * offered somebody else's camera to take over. A guest is the browser now: this context has
-   * never seen the roll, so it joins, and both Meeras keep their own frames and their own
-   * shot quota.
+   * A guest is the browser, not the name: a unique name inside a roll would refuse the second
+   * Meera at the door and offer her somebody else's camera to take over. This context has never
+   * seen the roll, so it joins, and both Meeras keep their own frames and their own shot quota.
    */
   test("a second guest with a name already in the roll still gets a camera", async ({
     browser,
@@ -563,11 +559,11 @@ test.describe("a roll from creation to reveal", () => {
   });
 
   /**
-   * The reveal, edited from the settings row that used to only display it.
+   * The reveal, edited from the settings row that displays it.
    *
-   * A host who picked the wrong option at creation had exactly one move — a "Reveal now"
-   * button that opened the roll for good — and no way to make a smaller one. The row is the
-   * way in now, and opening early is `DURING` on the same screen the wizard sells the choice
+   * A host who picked the wrong option at creation needs more than one move: "Reveal now"
+   * opens the roll for good and there is no smaller version of it. The row is the way in,
+   * and opening early is `DURING` on the same screen the wizard sells the choice
    * on. It also leaves the opened state of the roll screen testable, which is how the album
    * controls were caught pointing at "#".
    *
@@ -611,9 +607,9 @@ test.describe("a roll from creation to reveal", () => {
       Opened while the shutter is still up, which is what `DURING` means.
 
       The row stays a camera and an invite, because the party is not over: it splits on the
-      roll ending, not on the photographs becoming legible. Opening early used to swap the
-      whole row for Send and Save — so a host who chose `DURING` lost their camera and their
-      invite button mid-event, with guests still arriving.
+      roll ending, not on the photographs becoming legible. Swapping the whole row for Send and
+      Save here would cost a host who chose `DURING` their camera and their invite button
+      mid-event, with guests still arriving.
     */
     await page.goto(rollUrl);
     await expect(page.getByLabel("Take a photo")).toBeVisible();
@@ -644,9 +640,7 @@ test.describe("a roll from creation to reveal", () => {
     /*
       And the ceiling changes nothing about the screen, because the screen never offered the
       archive in the first place: Save belongs to a roll whose shutter has closed, and this one
-      is still shooting. This block used to tap a Save button here and read the refusal off the
-      page — written when opening a roll early swapped the whole row for Send and Save, which
-      is the very behaviour the assertions above exist to keep from coming back.
+      is still shooting. There is no Save button here to tap the refusal out of.
 
       ponytail: so the host-side notice for a spent download is not covered by a browser. It
       needs a roll that is closed, opened, and carries photographs — a third roll on a
@@ -663,14 +657,13 @@ test.describe("a roll from creation to reveal", () => {
 });
 
 /**
- * The home screen, and the two ways it used to mislead.
+ * The home screen, and the two ways it can mislead.
  *
- * Albums used to be the bottom half of this screen, and only appeared once a roll had
- * finished — so a new host saw one block of content and a wide emptiness under it with no
- * indication that finished rolls go anywhere at all. They are a tab of their own now, which
- * is named in the bar whether or not there is anything in it. And Join sat one tap from a
- * page that offers nothing but "Continue with Google", so pressing back after it looked
- * exactly like having been signed out.
+ * Albums are a tab of their own, named in the bar whether or not there is anything in it. As
+ * the bottom half of this screen they would appear only once a roll had finished, leaving a
+ * new host one block of content and a wide emptiness under it with no indication that finished
+ * rolls go anywhere at all. And Join must not sit one tap from a page offering nothing but
+ * "Continue with Google", where pressing back looks exactly like having been signed out.
  */
 test.describe("the home screen after signing in", () => {
   test.use({ storageState: STORAGE_STATE });
