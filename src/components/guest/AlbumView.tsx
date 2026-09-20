@@ -7,7 +7,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { PhotoTile } from "@/components/roll/PhotoGrid";
 import { RollHeader } from "@/components/roll/RollHeader";
 import { RollControls, VisibilityNotice } from "@/components/roll/RollParts";
-import { SponsorCard } from "@/components/roll/Sponsor";
 import { formatDay, formatDuration } from "@/lib/format";
 import type { Sponsor } from "@/lib/referrals";
 import { useNow } from "@/lib/useNow";
@@ -73,7 +72,7 @@ export function AlbumView({
   back: string | null;
   /** The viewfinder, while the roll is still shooting. */
   cameraHref?: string;
-  /** The wedding business whose referral code created this roll, named below the controls. */
+  /** The wedding business whose referral code created this roll, named in the header. */
   sponsor?: Sponsor | null;
 }) {
   const router = useRouter();
@@ -261,6 +260,7 @@ export function AlbumView({
         now={now}
         back={back ?? undefined}
         peopleHref={`/e/${code}/people`}
+        sponsor={sponsor}
       />
 
       <div className="space-y-4 px-5 pt-4 pb-6">
@@ -278,8 +278,6 @@ export function AlbumView({
             refill={feed.me.refill}
           />
         ) : null}
-
-        {sponsor ? <SponsorCard {...sponsor} /> : null}
 
         {/* Only for guests who are not signed in. */}
         {feed.me.linked ? null : (

@@ -12,6 +12,7 @@ import {
   Logout,
   Mail,
   Pencil,
+  Photo,
   Trash,
   Warning,
 } from "@/components/roll/Icons";
@@ -128,11 +129,19 @@ export function AccountScreen({
                 href="/admin"
               />
               {REFERRALS ? (
-                <SettingRow
-                  icon={<LinkIcon className="h-5 w-5" />}
-                  label="Referral codes"
-                  href="/admin/referrals"
-                />
+                <>
+                  <SettingRow
+                    icon={<LinkIcon className="h-5 w-5" />}
+                    label="Referral codes"
+                    href="/admin/referrals"
+                  />
+                  {/* Here rather than on the album itself: that page gets screenshotted. */}
+                  <SettingRow
+                    icon={<Photo className="h-5 w-5" />}
+                    label="Sample album card"
+                    href="/admin/sample"
+                  />
+                </>
               ) : null}
             </div>
           </section>

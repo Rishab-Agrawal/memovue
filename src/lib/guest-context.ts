@@ -46,7 +46,7 @@ export function getRollByJoinCode(code: string) {
 }
 
 /** Enough of a roll to work out where its screens are. */
-type Located = { id: string; code: string; hostId: string };
+type Located = { id: string; code: string; hostId: string; finishesAt: Date };
 
 /** The roll's own screen for whoever holds its camera: the host screen, or the guest album. */
 export async function rollHome(roll: Located): Promise<string> {
@@ -54,11 +54,19 @@ export async function rollHome(roll: Located): Promise<string> {
   return user?.id === roll.hostId ? `/rolls/${roll.id}` : `/e/${roll.code}/album`;
 }
 
-/** Out of the roll to your list of rolls. Null for a guest with no account: there is no list. */
+/**
+ * Out of the roll to the list it is in. Null for a guest with no account: there is no list.
+ *
+ * Which list depends on the roll, not on how they arrived: Home holds what is still running and
+ * the Albums tab holds what has finished. Coming out of a finished album onto Home reads as the
+ * app having lost your place, and there is no history to consult — this link is rendered on the
+ * server and is just as likely to be a fresh tab opened from a message.
+ */
 export async function guestHome(roll: Located): Promise<string | null> {
   const user = await getCurrentUser();
   if (!user) return null;
-  return user.id === roll.hostId ? `/rolls/${roll.id}` : "/rolls";
+  if (user.id === roll.hostId) return `/rolls/${roll.id}`;
+  return new Date() >= roll.finishesAt ? "/albums" : "/rolls";
 }
 
 /**

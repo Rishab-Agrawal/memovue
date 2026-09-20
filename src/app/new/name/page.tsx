@@ -84,7 +84,9 @@ export default function StepName() {
         />
       </label>
 
-      <div className="mt-7 border-t border-hair pt-6">
+      {/* The rule sits under the cover rather than over it: the title and the picture are one
+          question, and the code a host may have been handed is a different one. */}
+      <div className="mt-7">
         <p className="marking">Invitation cover image</p>
 
         <div className="mt-4">
@@ -113,7 +115,7 @@ export default function StepName() {
         nobody fills in was what pushed the two buttons off the bottom of a phone.
       */}
       {REFERRALS ? (
-        <div className="mt-5">
+        <div className="mt-6 border-t border-hair pt-6">
           <label className="flex h-14 items-center gap-3 rounded-2xl bg-surface px-4 focus-within:ring-1 focus-within:ring-flame">
             <LinkIcon className="h-4 w-4 shrink-0 text-dust" />
             <input

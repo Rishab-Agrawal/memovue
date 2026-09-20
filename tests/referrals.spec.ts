@@ -66,7 +66,35 @@ test("a referral code is created with an uploaded logo, then edited in place", a
     expect(edited.email).toBeNull();
     // Untouched by an edit that did not pick a new one.
     expect(edited.logoUrl).toBe(created.logoUrl);
+
+    /*
+      The sample album's card: set from the account screen, shown on the admin copy only.
+
+      Three things have to hold at once, and each of them is a way this feature goes wrong. The
+      pitch copy carries the card. The copy every host opens does not, or a made-up florist is
+      advertising on the sample. And the reserved code resolves for nobody, or a host who types
+      SAMPLE gets that florist on their own wedding.
+    */
+    await page.goto("/admin/sample");
+    await page.getByLabel("Business name").fill("Pitch Florals");
+    await page.getByRole("button", { name: "Save this card" }).click();
+    await expect(page.getByText("Saved.")).toBeVisible();
+
+    await page.goto("/admin/sample/album");
+    await expect(page.getByText("Pitch Florals")).toBeVisible();
+    // Nothing that says "admin" may be in the frame, and the gear is the only candidate.
+    await expect(page.getByRole("link", { name: "Roll settings" })).toHaveCount(0);
+
+    await page.goto("/albums/sample");
+    await expect(page.getByText("Pitch Florals")).toHaveCount(0);
+
+    await page.goto("/new/name");
+    await page.getByLabel("Event name").fill("Not a pitch");
+    await page.getByLabel("Referral code").fill("SAMPLE");
+    await page.getByRole("button", { name: /Next/ }).click();
+    await expect(page.getByText(/don.t know that referral code/i)).toBeVisible();
   } finally {
+    await prisma.referrer.deleteMany({ where: { code: "SAMPLE" } });
     await prisma.referrer.deleteMany({ where: { code: { in: ["PWTEST1", "PWTEST2"] } } });
     await prisma.user.update({ where: { email: TEST_HOST.email }, data: { role: "HOST" } });
     await prisma.$disconnect();

@@ -5,7 +5,6 @@ import { RollHeader } from "@/components/roll/RollHeader";
 import { LiveRefresh } from "@/components/roll/LiveRefresh";
 import { PhotoGrid, type GridPhoto } from "@/components/roll/PhotoGrid";
 import { RollControls, VisibilityNotice } from "@/components/roll/RollParts";
-import { SponsorCard } from "@/components/roll/Sponsor";
 import { formatDay, formatDuration } from "@/lib/format";
 import type { Sponsor } from "@/lib/referrals";
 import { isCapturing, isOpen } from "@/lib/roll-access";
@@ -77,7 +76,11 @@ export function RollBackdrop({
         revealAt={roll.revealAt.getTime()}
         open={open}
         now={now.getTime()}
-        back="/rolls"
+        // Back to the tab this roll is actually listed in. Home holds what is still running;
+        // once the shutter has closed the roll lives on the Albums tab, and landing on Home
+        // from an album opened there reads as the app having lost your place.
+        back={ended ? "/albums" : "/rolls"}
+        sponsor={roll.sponsor}
         settingsHref={`/rolls/${roll.id}/settings`}
         peopleHref={`/rolls/${roll.id}/people`}
       />
@@ -106,8 +109,6 @@ export function RollBackdrop({
           saveHref={open ? `/api/rolls/${roll.id}/download` : undefined}
           downloadsLeft={roll.downloadsLeft}
         />
-
-        {roll.sponsor ? <SponsorCard {...roll.sponsor} /> : null}
 
         {roll.everyoneCanSee ? null : <VisibilityNotice />}
 

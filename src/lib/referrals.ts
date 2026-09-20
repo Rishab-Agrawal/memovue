@@ -25,10 +25,25 @@ export interface Sponsor {
 
 const card = { name: true, url: true, logoUrl: true } as const;
 
+/**
+ * The code on the one row that is not a real business: the made-up card on the sample album
+ * an admin screenshots for the businesses they are pitching to. It is held here rather than in
+ * a table of its own because it is exactly a `Referrer` minus the code and the address, and a
+ * second table for one row would drift from the card it is pretending to be.
+ *
+ * Nothing outside `sampleSponsor` may resolve it, or the pitch deck's fake florist would start
+ * turning up on real weddings.
+ */
+export const SAMPLE_CODE = "SAMPLE";
+
+export function isReservedCode(input: string): boolean {
+  return normalizeCode(input) === SAMPLE_CODE;
+}
+
 /** The business behind a typed code, or null for anything that is not one. */
 export async function findReferrer(input: string) {
   const code = normalizeCode(input);
-  if (!code) return null;
+  if (!code || code === SAMPLE_CODE) return null;
 
   // `email` is here and not in `card`: it is the one field that must never reach a browser.
   return prisma.referrer.findUnique({
@@ -51,6 +66,7 @@ export async function sponsorFor(roll: { referrerId: string | null }): Promise<S
 /** The list, newest first, each with how many rolls its code has created. */
 export function listReferrers() {
   return prisma.referrer.findMany({
+    where: { code: { not: SAMPLE_CODE } },
     orderBy: { createdAt: "desc" },
     select: { ...card, id: true, code: true, email: true, _count: { select: { rolls: true } } },
   });
@@ -131,6 +147,30 @@ export async function removeReferrer(id: string) {
   await deleteObjects([referrerLogoKey(id)]).catch(() => {});
   await prisma.referrer.deleteMany({ where: { id } });
 }
+
+/* ------------------------------------------------------------------ the sample card */
+
+/** The made-up business on the sample album, or null before one has been written. */
+export function sampleSponsor(): Promise<Sponsor | null> {
+  return prisma.referrer.findUnique({ where: { code: SAMPLE_CODE }, select: card });
+}
+
+/** The same write as any other card, on the row nobody can reach with a code. */
+export async function saveSampleSponsor(input: {
+  name: string;
+  url: string | null;
+  logoUrl: string | null;
+  logo: Uint8Array | null;
+}): Promise<SaveResult> {
+  const existing = await prisma.referrer.findUnique({
+    where: { code: SAMPLE_CODE },
+    select: { id: true },
+  });
+
+  return saveReferrer({ ...input, id: existing?.id, code: SAMPLE_CODE, email: null });
+}
+
+/* ------------------------------------------------------------------ the digest */
 
 /** Businesses whose codes created a roll in the given window. What the digest names. */
 export async function referredSince(from: Date, to: Date) {

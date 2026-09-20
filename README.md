@@ -461,9 +461,11 @@ What they do have is a wall of clients who will each hand a QR code to two hundr
 
 So the deal is attribution. A business gets a code, their customer types it into the wizard's
 first step, and from then on the roll's home screen — the one screen every guest passes
-through, repeatedly, for a month — carries that business's name, logo and link. Nothing is
-spent and nothing expires: `Referrer` is a row with a code and a name on it, and a roll points
-at one. When rolls start costing money, a discount belongs on that same row.
+through, repeatedly, for a month — carries that business's name, logo and link. The card sits
+in the header, under the wedding's name and above the counts, because that block is what a
+guest actually looks at; below the controls it was one scroll from never being seen. Nothing
+is spent and nothing expires: `Referrer` is a row with a code and a name on it, and a roll
+points at one. When rolls start costing money, a discount belongs on that same row.
 
 Four decisions worth keeping:
 
@@ -496,6 +498,14 @@ rather than a feature that can be turned off.
 
 A business can also give an address, and then hears once per roll its code created and about
 nothing else. It is the only mail a referral partner ever gets, so there is no list to leave.
+
+Selling this needs a picture of it, so there is an admin-only copy of the sample album at
+`/admin/sample/album` carrying a made-up card — the same screen every host can open, plus the
+one thing being sold. It is edited from the account screen rather than from the album, because
+a settings gear in the corner of a screenshot sent to a florist says "this is somebody's admin
+page", which is what the screenshot is meant not to say. The made-up business is a `Referrer`
+row under a reserved code that `findReferrer` refuses, so the pitch deck's florist can never
+turn up on a real wedding.
 
 ## One container, and the five things that assume it
 
