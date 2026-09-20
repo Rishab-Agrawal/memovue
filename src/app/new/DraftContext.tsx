@@ -3,6 +3,7 @@
 import type { RevealMode } from "@prisma/client";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
+import { REFERRALS } from "@/lib/constants";
 import { fromWall, toWall } from "@/lib/format";
 import { PARTICIPANT_TIERS, SHOT_TIERS } from "@/lib/roll-config";
 
@@ -25,6 +26,12 @@ export interface Draft {
    * restored after a reload or sign-in can say the cover was lost.
    */
   coverPicked: boolean;
+  /**
+   * A wedding business's referral code, as typed. Empty for almost every roll. Step one refuses
+   * to move on until a non-empty one names a business, so anything held here has been checked —
+   * and checked again at creation, which is the write that counts.
+   */
+  referralCode: string;
   participantIndex: number;
   shotIndex: number;
   everyoneCanSee: boolean;
@@ -72,6 +79,8 @@ export function readDraft(): Draft | null {
       ...parsed,
       startsAt: new Date(parsed.startsAt),
       finishesAt: new Date(parsed.finishesAt),
+      // Absent from a draft written before referral codes existed.
+      referralCode: parsed.referralCode ?? "",
       coverBlob: null,
       coverPreviewUrl: null,
     };
@@ -117,6 +126,7 @@ export function DraftProvider({
       coverBlob: null,
       coverPreviewUrl: null,
       coverPicked: false,
+      referralCode: "",
       participantIndex: 1,
       shotIndex: 3,
       everyoneCanSee: true,
@@ -189,5 +199,7 @@ export function draftToInput(draft: Draft) {
     everyoneCanSee: draft.everyoneCanSee,
     giveawayAllowed: draft.giveawayAllowed,
     coverPreset: draft.coverPreset,
+    // Undefined rather than "", so the schema's optional means "no code" rather than "empty one".
+    referralCode: (REFERRALS && draft.referralCode.trim()) || undefined,
   };
 }

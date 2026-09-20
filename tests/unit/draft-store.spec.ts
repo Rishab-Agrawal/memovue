@@ -27,6 +27,7 @@ const draft: Draft = {
   coverBlob: null,
   coverPreviewUrl: "blob:http://localhost/abcd",
   coverPicked: true,
+  referralCode: "BLOOM24",
   participantIndex: 3,
   shotIndex: 1,
   everyoneCanSee: true,
@@ -51,6 +52,16 @@ test("a draft comes back off a reload as the shapes it went in as", () => {
   // What does survive is that there was one, which is how the roll created on the far side
   // of a sign-in knows to say its cover did not make the trip.
   expect(back?.coverPicked).toBe(true);
+  expect(back?.referralCode).toBe("BLOOM24");
+});
+
+test("a draft saved before referral codes existed revives with an empty one, not undefined", () => {
+  const older: Partial<Draft> = { ...draft };
+  delete older.referralCode;
+  sessionStorage.setItem("memovue.draft", JSON.stringify(older));
+
+  // Step one calls `.trim()` on this before it does anything else.
+  expect(readDraft()?.referralCode).toBe("");
 });
 
 test("an empty or corrupt slot is nothing, not a crash on the way into the wizard", () => {

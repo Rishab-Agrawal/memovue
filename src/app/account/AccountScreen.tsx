@@ -6,8 +6,17 @@ import { useState, useTransition } from "react";
 import { BottomNav } from "@/components/roll/BottomNav";
 import { Pill } from "@/components/roll/Chrome";
 import { Dialog } from "@/components/roll/Dialog";
-import { Instagram, Logout, Mail, Pencil, Trash, Warning } from "@/components/roll/Icons";
+import {
+  Instagram,
+  Link as LinkIcon,
+  Logout,
+  Mail,
+  Pencil,
+  Trash,
+  Warning,
+} from "@/components/roll/Icons";
 import { SettingRow } from "@/components/roll/SettingRow";
+import { REFERRALS } from "@/lib/constants";
 
 import { deleteAccountAction, logoutAction, updateNameAction } from "./actions";
 
@@ -118,6 +127,13 @@ export function AccountScreen({
                 label="Beta access"
                 href="/admin"
               />
+              {REFERRALS ? (
+                <SettingRow
+                  icon={<LinkIcon className="h-5 w-5" />}
+                  label="Referral codes"
+                  href="/admin/referrals"
+                />
+              ) : null}
             </div>
           </section>
         ) : null}

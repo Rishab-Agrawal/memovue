@@ -5,12 +5,15 @@ import { revalidatePath } from "next/cache";
 import { adjustAccess, grantAccess, revokeAccess } from "@/lib/beta";
 import { sendAccessGranted } from "@/lib/email";
 import { rateLimit } from "@/lib/ratelimit";
+import { addReferrer, removeReferrer } from "@/lib/referrals";
 import { requireAdmin } from "@/lib/session";
 import {
   type ActionResult,
+  addReferrerSchema,
   adjustAccessSchema,
   firstError,
   grantAccessSchema,
+  removeReferrerSchema,
   revokeAccessSchema,
 } from "@/lib/validation";
 
@@ -70,5 +73,41 @@ export async function revokeAccessAction(input: { id: string }): Promise<ActionR
 
   await revokeAccess(parsed.data.id);
   revalidatePath("/admin");
+  return { ok: true };
+}
+
+/* ------------------------------------------------------------------ referrals */
+
+/** Mints a code for a wedding business. The code is what its customers type into the wizard. */
+export async function addReferrerAction(input: {
+  code: string;
+  name: string;
+  url?: string;
+  logoUrl?: string;
+}): Promise<ActionResult> {
+  const over = await withinAdminBudget();
+  if (over) return over;
+
+  const parsed = addReferrerSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: firstError(parsed.error) };
+
+  if (!(await addReferrer(parsed.data))) {
+    return { ok: false, error: "Somebody already has that code." };
+  }
+
+  revalidatePath("/admin/referrals");
+  return { ok: true };
+}
+
+/** Retires a code. Rolls it already created keep their row and lose the credit. */
+export async function removeReferrerAction(input: { id: string }): Promise<ActionResult> {
+  const over = await withinAdminBudget();
+  if (over) return over;
+
+  const parsed = removeReferrerSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Invalid" };
+
+  await removeReferrer(parsed.data.id);
+  revalidatePath("/admin/referrals");
   return { ok: true };
 }

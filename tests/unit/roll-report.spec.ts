@@ -14,6 +14,7 @@ const roll: RollReport = {
   maxGuests: 50,
   photosPerGuest: 24,
   hostId: "host",
+  referrer: null,
   guests: [
     { name: "Riya", userId: "host", _count: { photos: 3 } },
     { name: "Kabir", userId: null, _count: { photos: 10 } },
@@ -36,6 +37,16 @@ test("a started roll counts the host's shots but not the host as a guest", () =>
       "  Kabir — 10",
     ].join("\n"),
   );
+});
+
+test("a referred roll names the business, in the copy kept after deletion too", () => {
+  const referred = { ...roll, referrer: { name: "Bloom Events" } };
+
+  expect(describeRoll(referred, during)).toContain(
+    "Up to 50 guests · 24 shots each\nReferred by Bloom Events\n",
+  );
+  // A company is not a guest, so anonymising the roll does not take its name out.
+  expect(describeRoll(referred, during, false)).toContain("Referred by Bloom Events");
 });
 
 test("the copy kept after deletion names nobody", () => {

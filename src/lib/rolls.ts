@@ -46,6 +46,8 @@ interface CreateRollInput {
   everyoneCanSee: boolean;
   giveawayAllowed: boolean;
   coverPreset: number;
+  /** The business whose referral code was typed into the wizard, already resolved to a row. */
+  referrerId?: string | null;
 }
 
 /**
@@ -88,6 +90,7 @@ function writeRoll(host: Account & { name: string }, input: CreateRollInput, rev
         hostId: host.id,
         name: input.name,
         coverPreset: input.coverPreset,
+        referrerId: input.referrerId ?? null,
         maxGuests: input.maxGuests,
         photosPerGuest: input.photosPerGuest,
         everyoneCanSee: input.everyoneCanSee,
@@ -118,6 +121,7 @@ const rollSummary = {
   coverPreset: true,
   coverKey: true,
   coverVersion: true,
+  referrerId: true,
   startsAt: true,
   finishesAt: true,
   firstShotAt: true,

@@ -3,12 +3,40 @@
 import { after } from "next/server";
 
 import { BetaAccessError } from "@/lib/beta";
+import { REFERRALS } from "@/lib/constants";
 import { record } from "@/lib/metrics";
 import { callerIp, rateLimit } from "@/lib/ratelimit";
+import { findReferrer } from "@/lib/referrals";
 import { createRoll } from "@/lib/rolls";
 import { requireHost } from "@/lib/session";
 import { notify } from "@/lib/telegram";
-import { createRollSchema, fieldErrors } from "@/lib/validation";
+import { checkReferralSchema, createRollSchema, fieldErrors } from "@/lib/validation";
+
+/** What a code that names nobody is told, in the wizard and at creation alike. */
+const NO_SUCH_CODE = "We don't know that referral code. Check it with whoever gave it to you.";
+
+/**
+ * Step one's Next button, when a referral code has been typed.
+ *
+ * Open to anyone — the wizard is — so it is a guessing oracle, and the only defence that makes
+ * sense is how fast an address may guess. Codes are handed out by businesses to their own
+ * customers, and the prize for a lucky guess is somebody else's logo on your wedding album.
+ */
+export async function checkReferralAction(
+  input: Record<string, unknown>,
+): Promise<{ ok: true; name: string } | { ok: false; error: string }> {
+  if (!REFERRALS) return { ok: false, error: NO_SUCH_CODE };
+
+  if (!rateLimit(`referral:${await callerIp()}`, 20, 600).ok) {
+    return { ok: false, error: "Too many tries — give that a minute." };
+  }
+
+  const parsed = checkReferralSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: NO_SUCH_CODE };
+
+  const referrer = await findReferrer(parsed.data.code);
+  return referrer ? { ok: true, name: referrer.name } : { ok: false, error: NO_SUCH_CODE };
+}
 
 type CreateRollResult =
   | { ok: true; rollId: string; code: string; name: string }
@@ -42,9 +70,21 @@ export async function createRollAction(
 
   const data = parsed.data;
 
+  /*
+    The code is resolved again here, not trusted from the step that checked it: this is the
+    write, and the input arrived from a browser. A code that was retired between the two — or
+    never checked at all — refuses the roll rather than quietly creating one with nobody
+    credited, which is the failure the business would never hear about.
+  */
+  const referrer = REFERRALS && data.referralCode ? await findReferrer(data.referralCode) : null;
+  if (data.referralCode && !referrer) {
+    return { ok: false, error: NO_SUCH_CODE, fields: { referralCode: NO_SUCH_CODE } };
+  }
+
   try {
     const roll = await createRoll(user, {
       ...data,
+      referrerId: referrer?.id ?? null,
       startsAt: new Date(data.startsAt),
       finishesAt: new Date(data.finishesAt),
     });
@@ -55,7 +95,8 @@ export async function createRollAction(
         record("roll_created"),
         notify(
           "signals",
-          `New roll — “${roll.name}” · ${user.name} · ${data.maxGuests} guests × ${data.photosPerGuest} shots`,
+          `New roll — “${roll.name}” · ${user.name} · ${data.maxGuests} guests × ${data.photosPerGuest} shots` +
+            (referrer ? `\nReferred by ${referrer.name}` : ""),
         ),
       ]),
     );

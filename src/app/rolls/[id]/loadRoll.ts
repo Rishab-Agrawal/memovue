@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { ZIP_DOWNLOAD_LIMIT } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { isOpen } from "@/lib/roll-access";
+import { sponsorFor } from "@/lib/referrals";
 import { poolMoves } from "@/lib/roll-config";
 import { coverUrlFor, getRollForHost, poolLeft } from "@/lib/rolls";
 import { publicUrl } from "@/lib/storage";
@@ -39,12 +40,13 @@ export async function loadRoll(
   const coverUrl = coverUrlFor(found);
 
   // The host's own film, counted from their Guest row like anybody else's.
-  const [mine, pool] = await Promise.all([
+  const [mine, pool, sponsor] = await Promise.all([
     prisma.guest.findFirst({
       where: { rollId: found.id, userId: user.id },
       select: { fromPool: true, refills: true, _count: { select: { photos: true } } },
     }),
     poolLeft(found),
+    sponsorFor(found),
   ]);
   const shotsLeft = Math.max(
     0,
@@ -78,6 +80,7 @@ export async function loadRoll(
       name: found.name,
       coverPreset: found.coverPreset,
       coverUrl,
+      sponsor,
       startsAt: found.startsAt,
       finishesAt: found.finishesAt,
       revealAt: found.revealAt,

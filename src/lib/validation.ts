@@ -19,6 +19,34 @@ import {
 const participantCaps: number[] = [...PARTICIPANT_TIERS];
 const shotCounts: number[] = [...SHOT_TIERS];
 
+/* ------------------------------------------------------------------ referrals */
+
+/** As long as a code can be without being a paragraph. Normalised before it is looked up. */
+const referralCode = z.string().trim().min(1, "Enter a referral code").max(40);
+
+export const checkReferralSchema = z.object({ code: referralCode });
+
+/**
+ * Optional, and an `https://` link when given: these end up in an `href` and an `<img src>` on a
+ * page served over TLS, where anything else is either blocked as mixed content or a javascript:
+ * URL somebody typed into the admin screen.
+ */
+const optionalLink = z
+  .string()
+  .trim()
+  .max(300)
+  .refine((value) => value === "" || /^https:\/\/\S+$/.test(value), "Links must start with https://")
+  .optional();
+
+export const addReferrerSchema = z.object({
+  code: referralCode,
+  name: z.string().trim().min(1, "Name the business").max(60),
+  url: optionalLink,
+  logoUrl: optionalLink,
+});
+
+export const removeReferrerSchema = z.object({ id: z.string().min(1) });
+
 /* ------------------------------------------------------------------ rolls */
 
 /** The wizard clamps these too, but a form post is trivially replayed, so this is the rule. */
@@ -43,6 +71,9 @@ const rollFields = z.object({
     everyoneCanSee: z.boolean(),
     giveawayAllowed: z.boolean(),
     coverPreset: z.number().int().min(0).max(8),
+
+    /** A wedding business's code. Shape only — whether it names one is a database question. */
+    referralCode: referralCode.optional(),
 });
 
 export const createRollSchema = rollFields.superRefine((data, ctx) => {

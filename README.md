@@ -453,6 +453,37 @@ A host can take one photograph out of the album, or one guest out with everythin
 Guests can do neither: un-taking a shot would hand the quota back and make the roll endless,
 and the host is the person a subject actually asks.
 
+## Referral codes, and why they are a name rather than a coupon
+
+A wedding planner, a florist or a photographer is already standing between us and every host
+we want. They have no reason to mention us, and nothing to sell yet — the product is free.
+What they do have is a wall of clients who will each hand a QR code to two hundred guests.
+
+So the deal is attribution. A business gets a code, their customer types it into the wizard's
+first step, and from then on the roll's home screen — the one screen every guest passes
+through, repeatedly, for a month — carries that business's name, logo and link. Nothing is
+spent and nothing expires: `Referrer` is a row with a code and a name on it, and a roll points
+at one. When rolls start costing money, a discount belongs on that same row.
+
+Three decisions worth keeping:
+
+**The code is checked on Next, not at Create.** It is printed on a card somebody was handed,
+so it gets mistyped, and the step it is typed on is four screens from the one that writes
+anything. Finding out at the end that the florist will not be credited is finding out too
+late. It is then resolved again at creation, because that is the write and the first check was
+a browser's.
+
+**The logo is theirs, not ours.** We store a URL and render it; nothing is copied into R2. A
+link that has rotted takes the picture out of the card and leaves the name, rather than
+leaving a broken-image glyph sitting in somebody's wedding album for thirty days. It is drawn
+on a white plate, because a logo drawn for a letterhead is invisible on this app's black.
+
+**`REFERRALS` in `constants.ts` is the whole switch.** False takes the field out of the
+wizard, the card off both roll screens and the section off the admin screen. What it does not
+touch is the Telegram messages — a roll that was referred stays referred in the `/rolls`
+query, the creation signal and the morning digest, because that is a record of what happened
+rather than a feature that can be turned off.
+
 ## One container, and the five things that assume it
 
 MemoVue runs as a single Railway instance in `us-west2`, and that is a fine choice at this

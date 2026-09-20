@@ -5,6 +5,7 @@ import { env } from "./env";
 import { WEEKDAYS, formatDayYear, toWall, wallDate, wallDateRange } from "./format";
 import { tallies } from "./metrics";
 import { prisma } from "./prisma";
+import { referredSince } from "./referrals";
 import { openRollWhere } from "./roll-access";
 
 /**
@@ -64,6 +65,7 @@ export async function buildDigest(now: Date = new Date()): Promise<Digest> {
     everOpened,
     [guests],
     cost,
+    referred,
   ] = await Promise.all([
     prisma.roll.count({ where: createdYesterday }),
     prisma.user.count({ where: createdYesterday }),
@@ -105,6 +107,8 @@ export async function buildDigest(now: Date = new Date()): Promise<Digest> {
     `,
     // Never throws — an unreachable meter comes back as "unreadable" in the line it prints.
     costs(env.cost, now),
+    // Which wedding businesses' codes were typed yesterday. Empty on most mornings.
+    referredSince(yesterday.from, yesterday.to),
   ]);
 
   /*
@@ -131,6 +135,10 @@ export async function buildDigest(now: Date = new Date()): Promise<Digest> {
     `  ${count(scans, "invitation")} shown → ${guests.joined} joined (${pct(guests.joined, scans)})`,
     `  ${count(photos, "photo")} from ${count(photographers.length, "guest")}`,
     `  ${count(firstOpens, "album")} opened for the first time`,
+    // Only on a morning after somebody typed a code, so a quiet day's digest stays short.
+    ...(referred.length > 0
+      ? ["", "Referrals", ...referred.map((by) => `  ${by.name} — ${count(by.rolls, "roll")}`)]
+      : []),
     "",
     "Today",
     `  ${count(shooting, "roll")} shooting · ${revealingToday} revealing`,

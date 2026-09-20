@@ -4,6 +4,7 @@ import { after } from "next/server";
 import { AlbumView } from "@/components/guest/AlbumView";
 import { getGuestContext, guestHome } from "@/lib/guest-context";
 import { prisma } from "@/lib/prisma";
+import { sponsorFor } from "@/lib/referrals";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,8 @@ export default async function GuestAlbumPage({ params }: PageProps<"/e/[code]/al
           code={context.roll.code}
           back={await guestHome(context.roll)}
           cameraHref={context.capturing ? `/e/${context.roll.code}` : undefined}
+          // Server-rendered rather than polled: the business behind a roll never changes.
+          sponsor={await sponsorFor(context.roll)}
         />
       </div>
     </div>

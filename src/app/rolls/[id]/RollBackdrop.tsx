@@ -5,7 +5,9 @@ import { RollHeader } from "@/components/roll/RollHeader";
 import { LiveRefresh } from "@/components/roll/LiveRefresh";
 import { PhotoGrid, type GridPhoto } from "@/components/roll/PhotoGrid";
 import { RollControls, VisibilityNotice } from "@/components/roll/RollParts";
+import { SponsorCard } from "@/components/roll/Sponsor";
 import { formatDay, formatDuration } from "@/lib/format";
+import type { Sponsor } from "@/lib/referrals";
 import { isCapturing, isOpen } from "@/lib/roll-access";
 
 export interface BackdropRoll {
@@ -15,6 +17,8 @@ export interface BackdropRoll {
   name: string;
   coverPreset: number;
   coverUrl: string | null;
+  /** The wedding business whose referral code created this roll. Null for almost every roll. */
+  sponsor: Sponsor | null;
   startsAt: Date;
   finishesAt: Date;
   revealAt: Date;
@@ -102,6 +106,8 @@ export function RollBackdrop({
           saveHref={open ? `/api/rolls/${roll.id}/download` : undefined}
           downloadsLeft={roll.downloadsLeft}
         />
+
+        {roll.sponsor ? <SponsorCard {...roll.sponsor} /> : null}
 
         {roll.everyoneCanSee ? null : <VisibilityNotice />}
 

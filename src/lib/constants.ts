@@ -1,6 +1,19 @@
 /** Constants safe to import from client components. `env.ts` holds the server secrets. */
 
 /**
+ * The referral programme, on one switch.
+ *
+ * A wedding business hands its code to a host; the host types it into the wizard's first step;
+ * every guest who opens that roll sees the business named on the roll's home screen. That is the
+ * whole deal for now — no discount, nothing spent.
+ *
+ * `false` takes the field out of the wizard, the card off the roll screen and the section off the
+ * admin screen. Rolls already carrying a business keep the column, and the Telegram messages keep
+ * naming it, because that is a record of what happened rather than a feature.
+ */
+export const REFERRALS = true;
+
+/**
  * How many times one host may download one roll's ZIP, ever. Here so the Save button can refuse
  * first, rather than the browser following the anchor onto a plain-text refusal.
  */

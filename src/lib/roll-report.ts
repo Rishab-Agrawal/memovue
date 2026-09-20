@@ -19,6 +19,8 @@ export const rollReportSelect = {
   maxGuests: true,
   photosPerGuest: true,
   hostId: true,
+  /** The wedding business whose code created it, named so a query says who to credit. */
+  referrer: { select: { name: true } },
   /** Host included — they are enrolled at creation. Counts are READY photos only. */
   guests: {
     orderBy: { createdAt: "asc" },
@@ -48,6 +50,8 @@ export function describeRoll(roll: RollReport, now: Date, named = true): string 
     `Ends ${formatDateTime(roll.finishesAt)}`,
     `Reveals ${reveal}${roll.revealedEarly ? " (revealed early)" : ""}`,
     `Up to ${roll.maxGuests} guests · ${roll.photosPerGuest} shots each`,
+    // A business survives the roll being anonymised: it is a company, not somebody's guest.
+    ...(roll.referrer ? [`Referred by ${roll.referrer.name}`] : []),
     "",
   ];
   if (roll.startsAt > now) return [...lines, "Not started yet."].join("\n");

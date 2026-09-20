@@ -84,6 +84,30 @@ test.describe("public pages", () => {
   });
 
   /**
+   * The referral field, which is the one thing on step one that can refuse.
+   *
+   * A code is printed on a card a florist hands over, so it gets mistyped, and the step it is
+   * typed on is four screens from the one that writes anything. Finding out there that the
+   * business will not be credited is finding out too late, so the check happens on Next — and
+   * an empty field has nothing to check, which is why Next is still a plain link without one.
+   */
+  test("a referral code that names nobody does not get past step one", async ({ page }) => {
+    await page.goto("/new/name");
+    await page.getByLabel("Event name").fill("Mistyped card");
+
+    await page.getByLabel("Referral code").fill("NOSUCHCODE");
+    await page.getByRole("button", { name: /Next/ }).click();
+
+    await expect(page.getByText(/don.t know that referral code/i)).toBeVisible();
+    await expect(page).toHaveURL(/\/new\/name$/);
+
+    // Cleared, and the step is a link onward again.
+    await page.getByLabel("Referral code").fill("");
+    await page.getByRole("link", { name: /Next/ }).click();
+    await expect(page).toHaveURL(/\/new\/start$/);
+  });
+
+  /**
    * The sample, end to end, with no account anywhere in it.
    *
    * Invitation, camera, album — what a guest is handed at an event, in that order. The

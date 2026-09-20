@@ -79,6 +79,11 @@ model Roll {
   /// place and the CDN would otherwise keep serving the old picture.
   coverVersion Int @default(0)
 
+  /// The wedding business whose referral code created this roll, if one was typed. Written once,
+  /// at creation, and never edited: the roll credits whoever actually sent the host here.
+  referrerId String?
+  referrer   Referrer? @relation(fields: [referrerId], references: [id], onDelete: SetNull)
+
   maxGuests      Int
   photosPerGuest Int
 
@@ -123,6 +128,7 @@ model Roll {
 
   @@index([hostId])
   @@index([keptUntil])
+  @@index([referrerId])
 }
 
 model Guest {
@@ -201,6 +207,33 @@ model DeletedRoll {
   summary String @db.Text
 
   @@index([hostId])
+}
+
+/// A wedding business that sends hosts here.
+///
+/// Its code is typed into the wizard's first step, and every roll created with it carries the
+/// business onto that roll's home screen, where the guests looking at the album see it. There is
+/// nothing to spend and no expiry: a code is a name, not a coupon. Discounts, if rolls ever start
+/// costing money, belong on this row.
+model Referrer {
+  id String @id @default(cuid())
+
+  /// What the host types, held in the same normalised form a roll code is (see `codes.ts`).
+  code String @unique
+
+  /// The business, as it reads on the roll screen and in every Telegram message about the roll.
+  name String
+
+  /// Where the card links. Null renders the name without a link.
+  url String?
+
+  /// A logo the card shows beside the name, hosted by them rather than by us. A dead link hides
+  /// itself instead of breaking the card.
+  logoUrl String?
+
+  createdAt DateTime @default(now())
+
+  rolls Roll[]
 }
 
 /// Who may create rolls while invite-only, keyed on lower-cased email because access can be
