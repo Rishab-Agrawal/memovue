@@ -41,13 +41,13 @@ export function zoomStops(range?: { min: number; max: number }) {
  * A still from the photo pipeline, which the phone denoises and sharpens, rather than a video
  * frame. Null when unsupported, too slow, or smaller than the stream; the caller uses the frame.
  */
-async function takePhoto(track: MediaStreamTrack | undefined, video: HTMLVideoElement, flash: boolean) {
+async function takePhoto(track: MediaStreamTrack | undefined, video: HTMLVideoElement) {
   if (!track || typeof ImageCapture === "undefined") return null;
   try {
     const photo = await decode(
       await Promise.race([
-        // The spec's flash: fires a real one where the camera stack drives it; the torch covers the rest.
-        new ImageCapture(track).takePhoto(flash ? { fillLightMode: "flash" } : undefined),
+        // Never `fillLightMode`: Chrome keeps it after the shot and flashes every preview frame.
+        new ImageCapture(track).takePhoto(),
         // Some camera stacks never answer.
         new Promise<never>((_, reject) => setTimeout(reject, PHOTO_TIMEOUT_MS)),
       ]),
@@ -330,7 +330,7 @@ export function CameraView({
       runFlight(shown);
       await painted();
 
-      const photo = await takePhoto(track, video, flashOn);
+      const photo = await takePhoto(track, video);
       if (flashOn) void track?.applyConstraints(constrain({ torch: false })).catch(() => {});
 
       onCaptured(
