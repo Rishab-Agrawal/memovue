@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 
-import { InviteCard } from "@/components/roll/InviteCard";
-import { Sheet } from "@/components/roll/Sheet";
+import { GuestInviteSheet } from "@/components/roll/InviteCard";
 import { getGuestContext } from "@/lib/guest-context";
 
 export const dynamic = "force-dynamic";
@@ -22,11 +21,5 @@ export default async function GuestInvitePage({ params }: PageProps<"/e/[code]/i
   // A closed roll has nobody left to invite.
   if (!context.capturing) redirect(`/e/${context.roll.code}/album`);
 
-  return (
-    <div className="min-h-dvh bg-page">
-      <Sheet back={`/e/${context.roll.code}/album`} title="Invite people to this roll.">
-        <InviteCard code={context.roll.code} />
-      </Sheet>
-    </div>
-  );
+  return <GuestInviteSheet back={`/e/${context.roll.code}/album`} code={context.roll.code} />;
 }

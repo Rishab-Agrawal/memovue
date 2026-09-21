@@ -139,6 +139,12 @@ test.describe("public pages", () => {
     await expect(page).toHaveURL(/\/albums\/sample\/live$/);
     await expect(page.getByRole("heading", { name: "Priya and Arjun's Wedding" })).toBeVisible();
     await expect(page.getByText("1d 4h until it closes")).toBeVisible();
+
+    // Its invitation hands out the sample, not a roll.
+    await page.getByRole("link", { name: "Invite guests" }).click();
+    await expect(page.getByAltText(/\/albums\/sample\/join$/)).toBeVisible();
+    await page.goto("/albums/sample/live");
+
     await page.getByRole("link", { name: "Take a photo" }).click();
     await expect(page).toHaveURL(/\/albums\/sample\/camera$/);
   });

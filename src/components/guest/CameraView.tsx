@@ -58,6 +58,17 @@ async function takePhoto(track: MediaStreamTrack | undefined, video: HTMLVideoEl
   }
 }
 
+/**
+ * Puts the lamp out once the preview is back. A still pauses Chrome's preview and restarts it
+ * from a request built while the lamp was lit, dropping any constraint sent before the restart
+ * lands; the first new frame is the sign it has.
+ */
+function lampOff(track: MediaStreamTrack | undefined, video: HTMLVideoElement) {
+  video.requestVideoFrameCallback(() => {
+    void track?.applyConstraints(constrain({ torch: false })).catch(() => {});
+  });
+}
+
 /** Waits, and lets the browser paint what was just set before the next line blocks it. */
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const painted = () =>
@@ -331,7 +342,7 @@ export function CameraView({
       await painted();
 
       const photo = await takePhoto(track, video);
-      if (flashOn) void track?.applyConstraints(constrain({ torch: false })).catch(() => {});
+      if (flashOn) lampOff(track, video);
 
       onCaptured(
         await processCapture(
@@ -345,7 +356,7 @@ export function CameraView({
         ),
       );
     } catch {
-      if (flashOn) void track?.applyConstraints(constrain({ torch: false })).catch(() => {});
+      if (flashOn) lampOff(track, video);
       setPhase("idle");
       setFrozen(null);
     } finally {

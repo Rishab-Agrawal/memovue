@@ -1,6 +1,7 @@
 import { PillLink } from "@/components/roll/Chrome";
 import { Download } from "@/components/roll/Icons";
 import { ShareLink } from "@/components/roll/ShareLink";
+import { Sheet } from "@/components/roll/Sheet";
 import { joinUrl, qrDataUrl } from "@/lib/qr";
 
 /**
@@ -13,8 +14,14 @@ import { joinUrl, qrDataUrl } from "@/lib/qr";
  * The link comes from `joinUrl` rather than being assembled here: one helper owns the shape
  * of a join link, and a code printed on a table has no second chance at it.
  */
-export async function InviteCard({ code }: { code: string }) {
-  const link = joinUrl(code);
+export async function InviteCard({
+  code,
+  link = joinUrl(code),
+}: {
+  code: string;
+  /** Where the QR leads. Given only by the sample, whose invitation is not a roll's. */
+  link?: string;
+}) {
   const qr = await qrDataUrl(link);
 
   return (
@@ -43,5 +50,16 @@ export async function InviteCard({ code }: { code: string }) {
         </PillLink>
       </div>
     </>
+  );
+}
+
+/** The card as a guest opens it from their album, shared with the live sample's. */
+export function GuestInviteSheet({ back, ...card }: { back: string; code: string; link?: string }) {
+  return (
+    <div className="min-h-dvh bg-page">
+      <Sheet back={back} title="Invite people to this roll.">
+        <InviteCard {...card} />
+      </Sheet>
+    </div>
   );
 }

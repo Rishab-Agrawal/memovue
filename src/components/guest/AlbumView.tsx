@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type RefObject, useCallback, useEffect, useRef, useState } from "react";
 
 import { PhotoTile } from "@/components/roll/PhotoGrid";
 import { RollHeader } from "@/components/roll/RollHeader";
@@ -14,11 +14,10 @@ import { useNow } from "@/lib/useNow";
 import { PhotoViewer, type ViewerPhoto } from "@/components/roll/PhotoViewer";
 import { GhostTile, LostShots, useUploadQueue } from "@/components/roll/QueueParts";
 
-interface FeedPhoto {
+export interface FeedPhoto {
   id: string;
   blurData: string;
   by: string | null;
-  mine: boolean;
   takenAt?: string;
   /** The 1080px preview. Absent while the roll is sealed, which is the seal. */
   previewUrl?: string;
@@ -26,14 +25,10 @@ interface FeedPhoto {
   fullUrl?: string;
 }
 
-interface Feed {
-  phase: "scheduled" | "capturing" | "closed" | "revealed";
+export interface Feed {
   open: boolean;
   capturing: boolean;
   rollName: string;
-  hostName: string;
-  coverPreset: number;
-  coverUrl: string | null;
   everyoneCanSee: boolean;
   revealAt: string;
   finishesAt: string;
@@ -43,11 +38,7 @@ interface Feed {
   /** Film nobody has claimed, which is what the shots pool holds. */
   poolLeft: number;
   me: {
-    id: string;
-    name: string;
     shotsLeft: number;
-    shotsUsed: number;
-    photosPerGuest: number;
     /** What they could draw from the pool once empty. Zero means the camera has nothing. */
     refill: number;
     /** Whether this guest is attached to an account. */
@@ -81,7 +72,6 @@ export function AlbumView({
   const [cursor, setCursor] = useState<string | null>(null);
   const [exhausted, setExhausted] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [viewing, setViewing] = useState<number | null>(null);
   const now = useNow();
 
   /* Bumped when the seal lifts: sealed items carry no preview URL, so the grid restarts. */
@@ -191,7 +181,7 @@ export function AlbumView({
   }, [loadPage, loadStatus]);
 
   /* Frames this phone is still holding, drawn at the head of the wall until the wall has them. */
-  const { shots, waiting, dropped } = useUploadQueue(code, photos, reloadWall);
+  const queue = useUploadQueue(code, photos, reloadWall);
 
   useEffect(() => {
     // Polling, because the seal lifting is a clock event with no request behind it.
@@ -246,6 +236,64 @@ export function AlbumView({
     );
   }
 
+  return (
+    <AlbumScreen
+      feed={feed}
+      photos={photos}
+      now={now}
+      back={back}
+      sponsor={sponsor}
+      code={code}
+      cameraHref={cameraHref}
+      inviteHref={`/e/${code}/invite`}
+      peopleHref={`/e/${code}/people`}
+      poolHref={`/e/${code}/pool`}
+      queue={queue}
+      sentinel={sentinel}
+    />
+  );
+}
+
+const NO_QUEUE = { shots: [], waiting: false, dropped: 0 };
+
+/**
+ * The guest's roll home as drawn, whoever feeds it: `AlbumView` from the server, and the live
+ * sample from a roll that is always a day from closing.
+ */
+export function AlbumScreen({
+  feed,
+  photos,
+  now,
+  back,
+  sponsor,
+  code,
+  cameraHref,
+  inviteHref,
+  peopleHref,
+  poolHref,
+  queue = NO_QUEUE,
+  sentinel,
+}: {
+  feed: Feed;
+  photos: FeedPhoto[];
+  now: number;
+  /** Where the header's arrow goes; null for a guest with no account. */
+  back: string | null;
+  sponsor?: Sponsor | null;
+  /** The join code this phone's queue is filed under. Absent on the sample. */
+  code?: string;
+  /** The viewfinder, while the roll is still shooting. */
+  cameraHref?: string;
+  inviteHref?: string;
+  peopleHref?: string;
+  poolHref?: string;
+  /** Frames this phone is still holding. Absent on the sample, which uploads nothing. */
+  queue?: ReturnType<typeof useUploadQueue>;
+  /** Where scrolling asks for the next page. Absent where the wall is all there is. */
+  sentinel?: RefObject<HTMLDivElement | null>;
+}) {
+  const [viewing, setViewing] = useState<number | null>(null);
+  const { shots, waiting, dropped } = queue;
   const revealsIn = formatDuration(new Date(feed.revealAt).getTime() - now);
 
   return (
@@ -259,7 +307,7 @@ export function AlbumView({
         open={feed.open}
         now={now}
         back={back ?? undefined}
-        peopleHref={`/e/${code}/people`}
+        peopleHref={peopleHref}
         sponsor={sponsor}
       />
 
@@ -272,8 +320,8 @@ export function AlbumView({
             code={code}
             shotsLeft={feed.me.shotsLeft}
             cameraHref={cameraHref}
-            inviteHref={`/e/${code}/invite`}
-            poolHref={`/e/${code}/pool`}
+            inviteHref={inviteHref}
+            poolHref={poolHref}
             poolLeft={feed.poolLeft}
             refill={feed.me.refill}
           />
