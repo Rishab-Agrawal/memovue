@@ -8,7 +8,8 @@ const { finishesAt } = SAMPLE_ALBUM;
 
 /**
  * Where the sample camera's thumbnail leads: a guest's own roll home, fed a roll that opens as
- * it is shot and is always a day from closing. Back leaves the sample.
+ * it is shot and is always a day from closing, as a signed-in guest sees it. Back leaves the
+ * sample.
  */
 export default function LiveSampleAlbumPage() {
   return (
@@ -27,7 +28,7 @@ export default function LiveSampleAlbumPage() {
             totalPhotos: SAMPLE_ALBUM.photos.length,
             guestCount: SAMPLE_ALBUM.guests,
             poolLeft: 0,
-            me: { shotsLeft: SAMPLE_SHOTS, refill: 0, linked: false },
+            me: { shotsLeft: SAMPLE_SHOTS, refill: 0, linked: true },
           }}
           photos={SAMPLE_ALBUM.photos.map(({ id, by, src }) => ({
             id,
