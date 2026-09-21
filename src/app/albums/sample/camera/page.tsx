@@ -13,7 +13,8 @@ import { SAMPLE_ALBUM, SAMPLE_PHOTOS, SAMPLE_SHOTS } from "@/lib/sample-album";
  * The same camera a guest is handed — the same crop, the same shutter, the same flight into
  * the thumbnail — for somebody who has not signed in and is deciding whether to. Every frame
  * is taken and dropped: there is nothing to upload it to and nobody it would belong to, so
- * the thumbnail keeps showing the sample album's own newest frame and leads there.
+ * the thumbnail keeps showing the sample album's own newest frame and leads to it, still
+ * shooting.
  *
  * The one thing that differs from a real camera is the arrow. A guest's leads into their
  * roll; this one leads back out to the screen they came from, because the album behind it is
@@ -22,7 +23,7 @@ import { SAMPLE_ALBUM, SAMPLE_PHOTOS, SAMPLE_SHOTS } from "@/lib/sample-album";
 export default function SampleCamera() {
   const router = useRouter();
   const [spent, setSpent] = useState(0);
-  const album = () => router.push(SAMPLE_ALBUM.href);
+  const album = () => router.push(`${SAMPLE_ALBUM.href}/live`);
 
   return (
     <div className="fixed inset-0 bg-page">

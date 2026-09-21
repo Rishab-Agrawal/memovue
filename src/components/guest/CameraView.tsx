@@ -14,6 +14,8 @@ type Permission = "idle" | "starting" | "live" | "denied" | "unsupported";
 type Phase = "idle" | "flash" | "hold" | "fly";
 
 const FLASH_MS = 55;
+/** How long the lamp leads the shutter, so the exposure settles on the lit scene. */
+const FLASH_LEAD_MS = 250;
 const HOLD_MS = 600;
 const FLIGHT_MS = 420;
 /** Frames the travel between zoom stops is spread over. */
@@ -39,12 +41,13 @@ export function zoomStops(range?: { min: number; max: number }) {
  * A still from the photo pipeline, which the phone denoises and sharpens, rather than a video
  * frame. Null when unsupported, too slow, or smaller than the stream; the caller uses the frame.
  */
-async function takePhoto(track: MediaStreamTrack | undefined, video: HTMLVideoElement) {
+async function takePhoto(track: MediaStreamTrack | undefined, video: HTMLVideoElement, flash: boolean) {
   if (!track || typeof ImageCapture === "undefined") return null;
   try {
     const photo = await decode(
       await Promise.race([
-        new ImageCapture(track).takePhoto(),
+        // The spec's flash: fires a real one where the camera stack drives it; the torch covers the rest.
+        new ImageCapture(track).takePhoto(flash ? { fillLightMode: "flash" } : undefined),
         // Some camera stacks never answer.
         new Promise<never>((_, reject) => setTimeout(reject, PHOTO_TIMEOUT_MS)),
       ]),
@@ -132,7 +135,8 @@ export function CameraView({
   const [permission, setPermission] = useState<Permission>("idle");
   /** Bumped by "Try again", which is the only way back from a refusal. */
   const [attempt, setAttempt] = useState(0);
-  const [torchOn, setTorchOn] = useState(false);
+  /** Whether the shutter fires the lamp. The lamp itself is only lit for the shot. */
+  const [flashOn, setFlashOn] = useState(false);
   const [hasTorch, setHasTorch] = useState(false);
   /** The two zoom levels this lens can actually reach, in whatever units it reports. */
   const [lens, setLens] = useState<{ one: number; two: number } | null>(null);
@@ -210,7 +214,7 @@ export function CameraView({
         const track = stream.getVideoTracks()[0];
         const capabilities = track.getCapabilities?.() as Capabilities | undefined;
         setHasTorch(Boolean(capabilities?.torch));
-        setTorchOn(false);
+        setFlashOn(false);
 
         // Zoom is asked of the camera, which gathers real detail (or switches lens), rather
         // than done by scaling the picture.
@@ -228,18 +232,6 @@ export function CameraView({
       stop();
     };
   }, [facing, stop, attempt]);
-
-  async function toggleTorch() {
-    const track = streamRef.current?.getVideoTracks()[0];
-    if (!track) return;
-    const next = !torchOn;
-    try {
-      await track.applyConstraints(constrain({ torch: next }));
-      setTorchOn(next);
-    } catch {
-      setHasTorch(false);
-    }
-  }
 
   /*
     Travels between the two stops rather than cutting. Each step asks the lens for a slightly
@@ -316,7 +308,14 @@ export function CameraView({
     setWorking(true);
     navigator.vibrate?.(12);
 
+    const track = streamRef.current?.getVideoTracks()[0];
     try {
+      if (flashOn) {
+        // Behind the closed shutter, so the wait reads as the shutter rather than lag.
+        await track?.applyConstraints(constrain({ torch: true })).catch(() => setHasTorch(false));
+        await wait(FLASH_LEAD_MS);
+      }
+
       const mirrored = facing === "user";
       const shown = crop(
         video,
@@ -331,10 +330,8 @@ export function CameraView({
       runFlight(shown);
       await painted();
 
-      const track = streamRef.current?.getVideoTracks()[0];
-      const photo = await takePhoto(track, video);
-      // Taking a still switches the torch off on some Android phones; put it back.
-      if (torchOn) void track?.applyConstraints(constrain({ torch: true })).catch(() => {});
+      const photo = await takePhoto(track, video, flashOn);
+      if (flashOn) void track?.applyConstraints(constrain({ torch: false })).catch(() => {});
 
       onCaptured(
         await processCapture(
@@ -348,6 +345,7 @@ export function CameraView({
         ),
       );
     } catch {
+      if (flashOn) void track?.applyConstraints(constrain({ torch: false })).catch(() => {});
       setPhase("idle");
       setFrozen(null);
     } finally {
@@ -440,13 +438,13 @@ export function CameraView({
       <div className="flex items-center justify-between px-8">
         <button
           type="button"
-          aria-label={torchOn ? "Turn flash off" : "Turn flash on"}
-          aria-pressed={torchOn}
-          onClick={toggleTorch}
+          aria-label={flashOn ? "Turn flash off" : "Turn flash on"}
+          aria-pressed={flashOn}
+          onClick={() => setFlashOn(!flashOn)}
           disabled={!hasTorch}
-          className={cn("tap transition-colors", torchOn ? "text-flame" : "text-chalk", !hasTorch && "opacity-30")}
+          className={cn("tap transition-colors", flashOn ? "text-flame" : "text-chalk", !hasTorch && "opacity-30")}
         >
-          {torchOn ? <Flash className="h-6 w-6" /> : <FlashOff className="h-6 w-6" />}
+          {flashOn ? <Flash className="h-6 w-6" /> : <FlashOff className="h-6 w-6" />}
         </button>
 
         {/* Two stops rather than a pinch, which lags the fingers. Absent where there is no zoom. */}

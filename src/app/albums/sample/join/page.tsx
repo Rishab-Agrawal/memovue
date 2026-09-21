@@ -6,16 +6,7 @@ import { useState } from "react";
 import { BackButton, Pill } from "@/components/roll/Chrome";
 import { InvitationCover, JOIN_LABEL, NameField } from "@/components/roll/InvitationCover";
 import { formatCountdown } from "@/lib/format";
-import { SAMPLE_ALBUM, SAMPLE_PHOTOS, SAMPLE_SHOTS } from "@/lib/sample-album";
-
-/**
- * A fixed countdown, not a live one.
- *
- * The sample's own evening ended in February, so a real clock against its real finish reads
- * "Ended" on an invitation that has just been handed to somebody. Thirty hours is what a
- * wedding roll looks like the morning of, and it is the same formatter a real one uses.
- */
-const COUNTDOWN_MS = 30 * 60 * 60 * 1000;
+import { SAMPLE_ALBUM, SAMPLE_CLOSES_IN_MS, SAMPLE_PHOTOS, SAMPLE_SHOTS } from "@/lib/sample-album";
 
 /**
  * The invitation, for somebody nobody invited.
@@ -41,7 +32,7 @@ export default function SampleInvitation() {
         coverUrl={SAMPLE_PHOTOS[0].url}
         title={SAMPLE_ALBUM.name}
         hostName={SAMPLE_ALBUM.host}
-        countdown={formatCountdown(COUNTDOWN_MS)}
+        countdown={formatCountdown(SAMPLE_CLOSES_IN_MS)}
         shots={SAMPLE_SHOTS}
       >
         <NameField>

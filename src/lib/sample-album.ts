@@ -8,6 +8,12 @@ import { fromWall } from "./format";
 /** The film on the sample's camera, and what its invitation promises. */
 export const SAMPLE_SHOTS = 21;
 
+/**
+ * What the invitation and the live album always have left. The sample's own evening ended in
+ * February, so a real clock would read "Ended" on a roll that has just been handed over.
+ */
+export const SAMPLE_CLOSES_IN_MS = 28 * 60 * 60 * 1000;
+
 export const SAMPLE_ALBUM = {
   href: "/albums/sample",
   name: "Priya and Arjun's Wedding",

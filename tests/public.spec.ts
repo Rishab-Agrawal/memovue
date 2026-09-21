@@ -133,11 +133,12 @@ test.describe("public pages", () => {
     await page.getByRole("link", { name: "Leave the camera" }).click();
     await expect(page).toHaveURL(/\/welcome$/);
 
-    // The thumbnail is what opens it.
+    // The thumbnail is what opens it, still shooting.
     await page.goto("/albums/sample/camera");
     await page.getByRole("button", { name: "Open the roll" }).click();
-    await expect(page).toHaveURL(/\/albums\/sample$/);
+    await expect(page).toHaveURL(/\/albums\/sample\/live$/);
     await expect(page.getByRole("heading", { name: "Priya and Arjun's Wedding" })).toBeVisible();
+    await expect(page.getByText("1d 4h until it closes")).toBeVisible();
   });
 
   test("legal pages are reachable from the footer", async ({ page }) => {
