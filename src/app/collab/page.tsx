@@ -67,12 +67,12 @@ export default function CollabBrochure() {
           <div className="mx-auto grid max-w-4xl items-center gap-12 md:grid-cols-[1fr_auto] md:gap-16">
             <div className="text-center md:text-left">
               <h1 className="display text-[clamp(2.6rem,10vw,4.2rem)] text-chalk">
-                Every guest&rsquo;s photos,{" "}
-                <span className="text-flame">one album.</span>
+                MemoVue at your wedding,{" "}
+                <span className="text-flame">on us.</span>
               </h1>
               <p className="mx-auto mt-6 max-w-sm text-[17px] leading-relaxed text-ash md:mx-0">
-                A disposable camera on every guest&rsquo;s phone. Sealed until
-                the reveal.
+                A disposable camera on every guest&rsquo;s phone, sealed until
+                the reveal. Yours free for one post and one story.
               </p>
               <PillLink href={`${SAMPLE_ALBUM.href}/join`} className="mt-8">
                 Try it as a guest
