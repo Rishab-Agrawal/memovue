@@ -24,9 +24,15 @@ async function startTodayAtMidnight(page: Page) {
   // Exact, because the day is a substring of two others in the same grid: on the 4th of the
   // month, "4 Sep 2026" also matches "14 Sep 2026" and "24 Sep 2026", and the run fails on
   // days 1-9 only. Playwright matches accessible names loosely unless told not to.
-  await page
-    .getByRole("button", { name: `${today.day} ${MONTHS[today.month]} ${today.year}`, exact: true })
-    .click();
+  const day = page.getByRole("button", {
+    name: `${today.day} ${MONTHS[today.month]} ${today.year}`,
+    exact: true,
+  });
+  // The calendar opens on that Saturday, which late in a month is next month's.
+  const previous = page.getByRole("button", { name: "Previous month" });
+  await expect(previous).toBeVisible();
+  if (!(await day.isVisible())) await previous.click();
+  await day.click();
 
   await page.getByRole("button", { name: /(am|pm)$/ }).click();
   await page.getByRole("option", { name: "00", exact: true }).first().click();
