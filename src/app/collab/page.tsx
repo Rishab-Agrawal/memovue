@@ -38,7 +38,7 @@ const STEPS = [
   },
 ];
 
-const VERSUS_DRIVE = [
+const VERSUS_FOLDER = [
   ["Chasing guests for uploads", "Photos arrive as they're taken"],
   ["Sign in, find the link, upload", "Scan a QR. That's it."],
   ["A folder that trickles in", "One reveal, all at once"],
@@ -111,12 +111,12 @@ export default function CollabBrochure() {
         </section>
 
         <section className="border-t border-hair px-6 py-16 break-inside-avoid sm:px-10 sm:py-20">
-          <Heading>Why not just Google Drive?</Heading>
+          <Heading>Why not just a shared folder?</Heading>
           <table className="mx-auto mt-10 w-full max-w-2xl table-fixed text-[15px] sm:text-[17px]">
             <thead>
               <tr>
                 <th className="marking pb-4 text-left text-dust">
-                  Google Drive
+                  Shared folder
                 </th>
                 <th className="marking pb-4 pl-4 text-left text-flame">
                   MemoVue
@@ -124,10 +124,10 @@ export default function CollabBrochure() {
               </tr>
             </thead>
             <tbody>
-              {VERSUS_DRIVE.map(([drive, memovue]) => (
-                <tr key={drive} className="border-t border-hair">
+              {VERSUS_FOLDER.map(([folder, memovue]) => (
+                <tr key={folder} className="border-t border-hair">
                   <td className="py-5 align-top text-dust line-through decoration-hair-bright">
-                    {drive}
+                    {folder}
                   </td>
                   <td className="display-sm py-5 pl-4 align-top text-chalk">
                     {memovue}
