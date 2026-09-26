@@ -15,7 +15,7 @@ import {
 /** Create, on the last step, and the referral code it asks for. */
 async function createWithCode(page: Page, code: string) {
   await page.getByRole("button", { name: /Create/ }).click();
-  await page.getByLabel("Referral code").fill(code);
+  await page.getByLabel("Referral code", { exact: true }).fill(code);
   await page.getByRole("button", { name: "Create roll", exact: true }).click();
 }
 
@@ -329,7 +329,7 @@ test.describe("a roll from creation to reveal", () => {
     await createWithCode(page, "NOSUCHCODE");
     await expect(page.getByText("Code not found, please re-check.")).toBeVisible();
 
-    await page.getByLabel("Referral code").fill(TEST_ONCE_CODE);
+    await page.getByLabel("Referral code", { exact: true }).fill(TEST_ONCE_CODE);
     await page.getByRole("button", { name: "Create roll", exact: true }).click();
 
     await expect(page.getByRole("heading", { name: "Roll Created!" })).toBeVisible();
@@ -369,6 +369,8 @@ test.describe("a roll from creation to reveal", () => {
     await page.getByRole("button", { name: /Request a code/ }).click();
     await expect(page.getByText("Request submitted!")).toBeVisible();
     await expect(page.getByLabel("Email")).toHaveCount(0);
+    // Nothing left to do in the wizard, so it hands them back to where they started it.
+    await expect(page).toHaveURL(/\/rolls$/);
   });
 
   /**
@@ -389,8 +391,8 @@ test.describe("a roll from creation to reveal", () => {
     // The code, typed before they were sent away to sign in.
     await page.goto("/new/guests");
     await page.getByRole("button", { name: /Create/ }).click();
-    await page.getByLabel("Referral code").fill(TEST_CODE);
-    await page.getByRole("button", { name: "Cancel" }).click();
+    await page.getByLabel("Referral code", { exact: true }).fill(TEST_CODE);
+    await page.getByRole("dialog").getByRole("button", { name: "Cancel" }).click();
 
     await page.goto("/new/guests?create=1");
 

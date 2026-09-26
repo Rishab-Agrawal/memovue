@@ -40,13 +40,24 @@ test("business and individual codes are minted, and a business code edited in pl
       has: page.getByRole("heading", { name: "Individuals" }),
     });
 
-    // One roll, whatever is posted.
-    await individuals.getByLabel("For").fill("Playwright Person");
+    // One roll, whatever is posted, and minted before anybody has been chosen to get it.
     await individuals.getByLabel("Code (optional)").fill("pwtest3");
+    // Nowhere to send it yet, so sending is not offered.
+    await expect(individuals.getByRole("switch")).toHaveCount(0);
     await individuals.getByRole("button", { name: "Create this code" }).click();
-    await expect(individuals.getByText("PWTEST3")).toBeVisible();
+    const row = individuals.getByRole("listitem").filter({ hasText: "PWTEST3" });
+    await expect(row.getByText("Not given to anybody yet")).toBeVisible();
     const individual = await prisma.referrer.findUniqueOrThrow({ where: { code: "PWTEST3" } });
-    expect(individual).toMatchObject({ kind: "INDIVIDUAL", maxUses: 1, name: "Playwright Person" });
+    expect(individual).toMatchObject({ kind: "INDIVIDUAL", maxUses: 1, name: null, email: null });
+
+    // Given to somebody later, on the same row. Sending is left off: this is a real mailer.
+    await individuals.getByRole("button", { name: "Edit PWTEST3" }).click();
+    await individuals.getByLabel("Email (optional)").fill("person@playwright.test");
+    await expect(individuals.getByRole("switch")).toBeVisible();
+    await individuals.getByRole("button", { name: "Save changes" }).click();
+    await expect(row.getByText("person@playwright.test")).toBeVisible();
+    const given = await prisma.referrer.findUniqueOrThrow({ where: { code: "PWTEST3" } });
+    expect(given).toMatchObject({ id: individual.id, email: "person@playwright.test" });
 
     // Typed as it was written on a card; stored in the form a roll code is stored in.
     await businesses.getByLabel("Code", { exact: true }).fill("pwtest-1");
@@ -112,7 +123,7 @@ test("business and individual codes are minted, and a business code edited in pl
     await page.getByLabel("Event name").fill("Not a pitch");
     await page.goto("/new/guests");
     await page.getByRole("button", { name: /Create/ }).click();
-    await page.getByLabel("Referral code").fill("SAMPLE");
+    await page.getByLabel("Referral code", { exact: true }).fill("SAMPLE");
     await page.getByRole("button", { name: "Create roll", exact: true }).click();
     await expect(page.getByText("Code not found, please re-check.")).toBeVisible();
   } finally {

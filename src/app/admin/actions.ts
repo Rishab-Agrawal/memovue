@@ -2,8 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 
-import { rollCode } from "@/lib/codes";
+import { normalizeCode, rollCode } from "@/lib/codes";
 import { UPLOAD_LIMITS } from "@/lib/constants";
+import { sendReferralCode } from "@/lib/email";
 import { rateLimit } from "@/lib/ratelimit";
 import { isReservedCode, removeReferrer, saveReferrer, saveSampleSponsor } from "@/lib/referrals";
 import { requireAdmin } from "@/lib/session";
@@ -12,6 +13,7 @@ import {
   firstError,
   removeReferrerSchema,
   saveReferrerSchema,
+  sponsorSchema,
 } from "@/lib/validation";
 
 /**
@@ -53,43 +55,49 @@ export async function saveReferrerAction(form: FormData): Promise<ActionResult> 
   const over = await withinAdminBudget();
   if (over) return over;
 
-  const individual = form.get("kind") === "INDIVIDUAL";
   const parsed = saveReferrerSchema.safeParse({
     id: form.get("id") || undefined,
     kind: form.get("kind"),
-    code: form.get("code") || (individual ? rollCode() : ""),
-    maxUses: individual ? 1 : form.get("maxUses"),
+    code: form.get("code") || (form.get("kind") === "INDIVIDUAL" ? rollCode() : ""),
+    email: form.get("email") ?? "",
+    sendEmail: form.get("sendEmail") === "on",
+    maxUses: form.get("maxUses"),
     name: form.get("name") ?? "",
     url: form.get("url") ?? "",
     logoUrl: form.get("logoUrl") ?? "",
-    email: form.get("email") ?? "",
   });
   if (!parsed.success) return { ok: false, error: firstError(parsed.error) };
+  const data = parsed.data;
 
   // The sample album's card lives on a row in this table under a code of its own. Minting it
   // here would put a made-up florist on real weddings.
-  if (isReservedCode(parsed.data.code)) {
+  if (isReservedCode(data.code)) {
     return { ok: false, error: "That code is reserved. Use the sample album card screen." };
   }
 
   const logo = await logoBytes(form);
   if (logo instanceof Error) return { ok: false, error: logo.message };
 
-  const { id, code, kind, maxUses, name, url, logoUrl, email } = parsed.data;
   const result = await saveReferrer({
-    id,
-    code,
-    kind,
-    maxUses,
-    name,
-    url: url || null,
-    email: email || null,
-    logoUrl: logoUrl || null,
-    logo,
+    id: data.id,
+    code: data.code,
+    kind: data.kind,
+    email: data.email || null,
+    ...(data.kind === "BUSINESS"
+      ? {
+          maxUses: data.maxUses,
+          name: data.name,
+          url: data.url || null,
+          logoUrl: data.logoUrl || null,
+          logo,
+        }
+      : { maxUses: 1, name: null, url: null, logoUrl: null, logo: null }),
   });
 
   if (result === "code-taken") return { ok: false, error: "That code is already taken." };
   if (result === "not-found") return { ok: false, error: "That code no longer exists." };
+
+  if (data.sendEmail && data.email) await sendReferralCode(data.email, normalizeCode(data.code));
 
   revalidatePath("/admin/referrals");
   return { ok: true };
@@ -103,13 +111,11 @@ export async function saveSampleCardAction(form: FormData): Promise<ActionResult
   const over = await withinAdminBudget();
   if (over) return over;
 
-  const parsed = saveReferrerSchema
-    .pick({ name: true, url: true, logoUrl: true })
-    .safeParse({
-      name: form.get("name") ?? "",
-      url: form.get("url") ?? "",
-      logoUrl: form.get("logoUrl") ?? "",
-    });
+  const parsed = sponsorSchema.safeParse({
+    name: form.get("name") ?? "",
+    url: form.get("url") ?? "",
+    logoUrl: form.get("logoUrl") ?? "",
+  });
   if (!parsed.success) return { ok: false, error: firstError(parsed.error) };
 
   const logo = await logoBytes(form);

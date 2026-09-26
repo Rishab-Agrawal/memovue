@@ -1,7 +1,7 @@
 "use server";
 
 import { AUTOMATED_MESSAGE, type BotSignals, looksAutomated } from "@/lib/bot-check";
-import { sendCodeRequest } from "@/lib/email";
+import { sendCodeRequest, sendRequestReceived } from "@/lib/email";
 import { callerIp, rateLimit } from "@/lib/ratelimit";
 import { recordRequest } from "@/lib/referrals";
 import { sendCodeRequestToTelegram } from "@/lib/telegram";
@@ -24,9 +24,13 @@ export async function requestCodeAction(
   }
 
   const { email } = parsed.data;
-  // Stored first, since both notifications swallow their own failures.
+  // Stored first, since every notification swallows its own failures.
   await recordRequest(email);
-  await Promise.all([sendCodeRequest(email), sendCodeRequestToTelegram(email)]);
+  await Promise.all([
+    sendRequestReceived(email),
+    sendCodeRequest(email),
+    sendCodeRequestToTelegram(email),
+  ]);
 
   return { ok: true };
 }

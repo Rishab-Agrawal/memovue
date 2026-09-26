@@ -244,14 +244,15 @@ model Referrer {
   used    Int @default(0)
 
   /// The business, as it reads on the roll screen and in every Telegram message about the roll.
-  /// For an individual code, who it was given to.
-  name String
+  /// Null for an individual's code, which is known by its `email`.
+  name String?
 
   /// Where the card links. Null renders the name without a link.
   url String?
 
-  /// Told by email every time a roll is created with this code, and about nothing else. Null
-  /// sends nothing: plenty of businesses would rather just see the name on the album.
+  /// Where the code is emailed when an admin sends it. A business is also told here every time
+  /// a roll is created with its code. Null for a code not given to anybody yet, or a business
+  /// that would rather just see its name on the album.
   email String?
 
   /// A logo the card shows beside the name, hosted by them rather than by us. A dead link hides

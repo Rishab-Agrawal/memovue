@@ -1,22 +1,25 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 
 import { requestCodeAction } from "@/app/actions";
 import { Pill } from "@/components/roll/Chrome";
 import { Dialog } from "@/components/roll/Dialog";
+import { useToast } from "@/components/roll/Toast";
 import { Honeypot, useFormAge } from "@/components/ui/Honeypot";
 
 /**
  * The referral code every roll is created with, asked for at the wizard's Create button.
  *
  * Asking for one takes an address and nothing else. With an account that address is already
- * known, so asking is one tap; without one, a second screen asks for it. The snackbar lives
- * here rather than in the wizard so the confirmation survives the dialog closing.
+ * known, so asking is one tap; without one, a second screen asks for it. Either way the wizard
+ * has nothing left to offer them, so once the confirmation has been read they go back to where
+ * they started it.
  */
 
-/** How long the confirmation sits at the bottom of the screen before it leaves. */
-const SNACKBAR_MS = 4_000;
+/** How long the confirmation shows before leaving the wizard, which takes it down with it. */
+const CONFIRM_MS = 2_000;
 
 /** Enough to catch a typo before the server does. The server's check is the real one. */
 const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -52,18 +55,13 @@ export function CodeDialog({
   const [asking, setAsking] = useState(false);
   const [email, setEmail] = useState("");
   const [requestError, setRequestError] = useState<string | null>(null);
-  const [sent, setSent] = useState(false);
   const [sending, startTransition] = useTransition();
+  const [say, toast] = useToast();
+  const router = useRouter();
 
   const [trap, setTrap] = useState("");
   // Counted from the wizard's last step appearing, which only ever makes the span longer.
   const formAge = useFormAge();
-
-  useEffect(() => {
-    if (!sent) return;
-    const timer = setTimeout(() => setSent(false), SNACKBAR_MS);
-    return () => clearTimeout(timer);
-  }, [sent]);
 
   const close = () => {
     setAsking(false);
@@ -79,8 +77,10 @@ export function CodeDialog({
         setRequestError(result.error);
         return;
       }
-      setSent(true);
       close();
+      say("Request submitted!", true);
+      // Home with an account, the welcome screen without: `/rolls` sends a stranger there.
+      setTimeout(() => router.push("/rolls"), CONFIRM_MS);
     });
   };
 
@@ -103,8 +103,6 @@ export function CodeDialog({
           </>
         }
       >
-        <p>MemoVue is invite-only. Enter the code you were given to create your roll.</p>
-
         <input
           value={code}
           onChange={(event) => onCodeChange(event.target.value)}
@@ -116,7 +114,7 @@ export function CodeDialog({
           spellCheck={false}
           aria-label="Referral code"
           aria-invalid={error ? "true" : undefined}
-          className={`${field} mt-4 tracking-[0.06em] uppercase`}
+          className={`${field} tracking-[0.06em] uppercase`}
         />
         {error ? <p className="mt-2 text-[13px] text-danger">{error}</p> : null}
 
@@ -175,16 +173,7 @@ export function CodeDialog({
         {requestError ? <p className="mt-2 text-[13px] text-danger">{requestError}</p> : null}
       </Dialog>
 
-      {sent ? (
-        <div
-          role="status"
-          className="animate-fade fixed inset-x-0 bottom-6 z-50 flex justify-center px-6"
-        >
-          <p className="rounded-full bg-chalk px-5 py-3 text-[14px] text-void shadow-lg">
-            Request submitted!
-          </p>
-        </div>
-      ) : null}
+      {toast}
     </>
   );
 }

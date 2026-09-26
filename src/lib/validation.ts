@@ -38,21 +38,31 @@ const optionalLink = z
   .refine((value) => value === "" || /^https:\/\/\S+$/.test(value), "Links must start with https://")
   .optional();
 
-/** One schema for minting a code and for editing one: an `id` is the only difference. */
-export const saveReferrerSchema = z.object({
-  id: z.string().min(1).optional(),
-  code: referralCode,
-  kind: z.enum(["INDIVIDUAL", "BUSINESS"]),
-  /** Ignored for an individual, which is always one. */
-  maxUses: z.coerce.number().int().min(1, "Allow at least one roll").max(100_000),
-  name: z.string().trim().min(1, "Give the code a name").max(60),
+/** The three things a guest sees on a business's card. The sample album's card is one too. */
+export const sponsorSchema = z.object({
+  name: z.string().trim().min(1, "Name the business").max(60),
   url: optionalLink,
   logoUrl: optionalLink,
-  /** Told about every roll created with the code. Empty means tell them nothing. */
-  email: z
-    .union([z.email("That doesn't look like an email address").max(160), z.literal("")])
-    .optional(),
 });
+
+/** What every code has, whichever kind. An `id` is the only difference between mint and edit. */
+const codeFields = z.object({
+  id: z.string().min(1).optional(),
+  code: referralCode,
+  /** Where the code is sent, and a business's notices go. Empty means nobody yet. */
+  email: z.union([z.email("That doesn't look like an email address").max(160), z.literal("")]),
+  /** Email the code to `email` once saved. */
+  sendEmail: z.boolean(),
+});
+
+export const saveReferrerSchema = z.discriminatedUnion("kind", [
+  codeFields.extend({ kind: z.literal("INDIVIDUAL") }),
+  codeFields.extend({
+    kind: z.literal("BUSINESS"),
+    maxUses: z.coerce.number().int().min(1, "Allow at least one roll").max(100_000),
+    ...sponsorSchema.shape,
+  }),
+]);
 
 export const removeReferrerSchema = z.object({ id: z.string().min(1) });
 

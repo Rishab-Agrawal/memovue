@@ -14,12 +14,15 @@ function resend(): Resend | null {
   return client;
 }
 
-async function send(to: string, subject: string, text: string): Promise<void> {
+/** Every email is one of these: the greeting and sign-off live here, each sender writes the body. */
+async function send(to: string, subject: string, body: string): Promise<void> {
   const service = resend();
   if (!service) {
     console.info(`[email skipped: no RESEND_API_KEY] to=${to} subject=${subject}`);
     return;
   }
+
+  const text = `Hi,\n\n${body}\n\nWarm Regards,\nMemovue`;
 
   try {
     const { error } = await service.emails.send({ from: env.emailFrom, to, subject, text });
@@ -60,17 +63,30 @@ export function sendCodeRequest(email: string): Promise<void> {
   );
 }
 
+/** The person who asked, told that somebody will. */
+export function sendRequestReceived(to: string): Promise<void> {
+  return send(
+    to,
+    "We've received your request",
+    "We have received your request for a referral code, and will get back to you soon!",
+  );
+}
+
+/** A code, sent by an admin from the referral codes screen. */
+export function sendReferralCode(to: string, code: string): Promise<void> {
+  return send(to, "Your Memovue referral code", `Welcome to Memovue! Your referral code is ${code}.`);
+}
+
 /**
- * A wedding business, told that their code was used. The only mail a referral partner ever
- * gets, so it says the one thing it is for and nothing else — no link, no unsubscribe copy
- * for a list of one message per roll they themselves caused.
+ * A wedding business, told that their code was used. It says the one thing it is for and
+ * nothing else — no link, no unsubscribe copy for a list of one message per roll they
+ * themselves caused.
  */
 export function sendReferralRollCreated(to: string, rollName: string): Promise<void> {
   return send(
     to,
     "A new roll was created with your referral code",
-    `Hi,\n\nA new roll named "${rollName}" has been created at Memovue using your referral ` +
-      `code!\n\nWarm Regards,\nMemovue`,
+    `A new roll named "${rollName}" has been created at Memovue using your referral code!`,
   );
 }
 
@@ -81,7 +97,7 @@ export function sendDeletionNotice(to: string, eventName: string, deleteOn: Date
     `Action needed: "${eventName}" photos will be deleted`,
     `Your MemoVue album "${eventName}" is scheduled for deletion on ` +
       `${deleteOn.toDateString()}.\n\n` +
-      `Download everything before then:\n${env.appUrl}/rolls\n\n— MemoVue`,
+      `Download everything before then:\n${env.appUrl}/rolls`,
   );
 }
 
@@ -95,6 +111,6 @@ export function sendRollFullNotice(to: string, eventName: string, maxGuests: num
     `"${eventName}" is full`,
     `All ${maxGuests} spots on "${eventName}" have been taken, so anyone else who scans the ` +
       `code will be turned away.\n\nRaise the limit from the People screen:\n` +
-      `${env.appUrl}/rolls\n\n— MemoVue`,
+      `${env.appUrl}/rolls`,
   );
 }

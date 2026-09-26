@@ -64,8 +64,10 @@ export default async function ReferralsPage() {
                 </div>
                 <p className="mt-1 text-[13px] text-ash">
                   <span className="tracking-[0.08em]">{use.referrer.code}</span> ·{" "}
-                  {use.referrer.kind === "BUSINESS" ? "Business" : "Individual"} · &ldquo;
-                  {use.rollName}&rdquo;
+                  {use.referrer.kind === "BUSINESS"
+                    ? `Business · ${use.referrer.name}`
+                    : `Individual · for ${use.referrer.email ?? "nobody yet"}`}{" "}
+                  · &ldquo;{use.rollName}&rdquo;
                 </p>
               </li>
             ))}

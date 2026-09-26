@@ -76,13 +76,13 @@ test.describe("public pages", () => {
     await page.getByRole("button", { name: /Create/ }).click();
 
     // A mistyped code is caught before the trip to Google, not after it.
-    await page.getByLabel("Referral code").fill("NOSUCHCODE");
+    await page.getByLabel("Referral code", { exact: true }).fill("NOSUCHCODE");
     await page.getByRole("button", { name: "Sign in and create" }).click();
     await expect(page.getByText("Code not found, please re-check.")).toBeVisible();
 
     // A real one sends them to sign in, and back here to finish.
     await page.route("**/api/auth/google/start**", (route) => route.fulfill({ body: "" }));
-    await page.getByLabel("Referral code").fill(TEST_CODE);
+    await page.getByLabel("Referral code", { exact: true }).fill(TEST_CODE);
     await page.getByRole("button", { name: "Sign in and create" }).click();
     await expect(page).toHaveURL(/\/api\/auth\/google\/start\?next=\/new\/guests%3Fcreate=1$/);
   });
@@ -153,7 +153,7 @@ test.describe("public pages", () => {
     await page.goto("/rolls");
     await expect(page).toHaveURL(/\/welcome/);
 
-    await page.goto("/admin");
+    await page.goto("/admin/referrals");
     await expect(page).toHaveURL(/\/welcome/);
 
     // The wizard is deliberately off this list now; the albums tab is a host's own shelf.

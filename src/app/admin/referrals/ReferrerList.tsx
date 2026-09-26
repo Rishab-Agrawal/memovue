@@ -7,6 +7,7 @@ import { useRef, useState, useTransition } from "react";
 import { Pill } from "@/components/roll/Chrome";
 import { Dialog } from "@/components/roll/Dialog";
 import { Pencil, Trash } from "@/components/roll/Icons";
+import { Toggle } from "@/components/roll/Toggle";
 
 import {
   Field,
@@ -21,7 +22,7 @@ import { removeReferrerAction, saveReferrerAction } from "../actions";
 export interface ReferrerRow {
   id: string;
   code: string;
-  name: string;
+  name: string | null;
   url: string | null;
   email: string | null;
   logoUrl: string | null;
@@ -34,31 +35,41 @@ interface Draft extends SponsorDraft {
   code: string;
   email: string;
   maxUses: string;
+  sendEmail: boolean;
 }
 
-const blank: Draft = { ...blankSponsor, id: "", code: "", email: "", maxUses: "10" };
+const blank: Draft = {
+  ...blankSponsor,
+  id: "",
+  code: "",
+  email: "",
+  maxUses: "10",
+  sendEmail: false,
+};
 
 function toDraft(row: ReferrerRow): Draft {
   return {
-    ...blankSponsor,
+    ...blank,
     id: row.id,
     code: row.code,
     email: row.email ?? "",
     maxUses: String(row.maxUses),
-    name: row.name,
+    name: row.name ?? "",
     url: row.url ?? "",
     logoUrl: row.logoUrl ?? "",
   };
 }
 
+/** What a row is called in the list and the dialogs: a business by name, a person by address. */
+const labelOf = (row: ReferrerRow) => row.name ?? row.email ?? row.code;
+
 /**
  * One kind of code: the form that mints it, and the list.
  *
- * An individual's code is a name and a code, spent by one roll and never edited — a mistake is
- * retired and minted again. A business's is editable after the fact, the code included: a
- * business renames itself, moves domain, or was typed in wrong on a Tuesday, and none of that is
- * a reason to retire a code that is already printed on somebody's cards. Rolls point at the row,
- * not at the string.
+ * Every code is editable after the fact, the code itself included: a business renames itself,
+ * moves domain, or was typed in wrong on a Tuesday, and none of that is a reason to retire a code
+ * that is already printed on somebody's cards; an individual's code minted for nobody yet gets
+ * its address later. Rolls point at the row, not at the string.
  *
  * The business form puts the fields only we ever see first, then the three a guest does, then
  * the card they make. Ordering the form by audience is the only ordering that survives a new
@@ -75,6 +86,8 @@ export function ReferrerList({ kind, rows }: { kind: CodeKind; rows: ReferrerRow
 
   const business = kind === "BUSINESS";
   const editing = draft.id !== "";
+  // Only offered with somewhere to send it.
+  const sending = draft.sendEmail && draft.email.trim() !== "";
 
   const set = (patch: Partial<Draft>) => {
     setDraft((current) => ({ ...current, ...patch }));
@@ -95,12 +108,11 @@ export function ReferrerList({ kind, rows }: { kind: CodeKind; rows: ReferrerRow
       form.set("id", draft.id);
       form.set("kind", kind);
       form.set("code", draft.code);
+      form.set("email", draft.email);
+      if (sending) form.set("sendEmail", "on");
       if (business) {
         form.set("maxUses", draft.maxUses);
-        form.set("email", draft.email);
         appendSponsor(form, draft);
-      } else {
-        form.set("name", draft.name);
       }
 
       const result = await saveReferrerAction(form);
@@ -123,7 +135,7 @@ export function ReferrerList({ kind, rows }: { kind: CodeKind; rows: ReferrerRow
   };
 
   // An individual's code may be left blank, and one is picked for it.
-  const ready = draft.name.trim() !== "" && (!business || draft.code.trim() !== "");
+  const ready = !business || (draft.code.trim() !== "" && draft.name.trim() !== "");
 
   return (
     <>
@@ -151,22 +163,14 @@ export function ReferrerList({ kind, rows }: { kind: CodeKind; rows: ReferrerRow
               onChange={(email) => set({ email })}
               placeholder="hello@bloomevents.in"
             />
-
-            <SponsorFields
-              value={draft}
-              onChange={set}
-              busy={busy}
-              onBusy={setBusy}
-              onError={setError}
-            />
           </>
         ) : (
           <>
             <Field
-              label="For"
-              value={draft.name}
-              onChange={(name) => set({ name })}
-              placeholder="Priya Sharma"
+              label="Email (optional)"
+              value={draft.email}
+              onChange={(email) => set({ email })}
+              placeholder="priya@example.com"
             />
             <Field
               label="Code (optional)"
@@ -178,6 +182,25 @@ export function ReferrerList({ kind, rows }: { kind: CodeKind; rows: ReferrerRow
           </>
         )}
 
+        {draft.email.trim() ? (
+          <Toggle
+            on={draft.sendEmail}
+            onChange={(sendEmail) => set({ sendEmail })}
+            labelOn="Send email"
+            labelOff="Don't send email"
+          />
+        ) : null}
+
+        {business ? (
+          <SponsorFields
+            value={draft}
+            onChange={set}
+            busy={busy}
+            onBusy={setBusy}
+            onError={setError}
+          />
+        ) : null}
+
         <div className={editing ? "grid grid-cols-2 gap-3" : ""}>
           {editing ? (
             <Pill variant="quiet" full disabled={pending} onClick={() => reset(blank)}>
@@ -185,7 +208,15 @@ export function ReferrerList({ kind, rows }: { kind: CodeKind; rows: ReferrerRow
             </Pill>
           ) : null}
           <Pill variant="flame" full disabled={pending || busy || !ready} onClick={save}>
-            {pending ? "Saving…" : editing ? "Save changes" : "Create this code"}
+            {pending
+              ? "Saving…"
+              : sending
+                ? editing
+                  ? "Save and send email"
+                  : "Create and send email"
+                : editing
+                  ? "Save changes"
+                  : "Create this code"}
           </Pill>
         </div>
 
@@ -199,7 +230,9 @@ export function ReferrerList({ kind, rows }: { kind: CodeKind; rows: ReferrerRow
           {rows.map((row) => (
             <li key={row.id} className="flex items-center justify-between gap-3 py-3">
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[15px] text-chalk">{row.name}</p>
+                <p className="truncate text-[15px] text-chalk">
+                  {business ? row.name : row.email ?? "Not given to anybody yet"}
+                </p>
                 <p className="mt-0.5 truncate text-[13px] text-dust">
                   <span className="tracking-[0.08em] text-ash">{row.code}</span>
                   {" · "}
@@ -208,29 +241,27 @@ export function ReferrerList({ kind, rows }: { kind: CodeKind; rows: ReferrerRow
                     : row.used > 0
                       ? "Used"
                       : "Unused"}
-                  {row.email ? ` · ${row.email}` : ""}
+                  {business && row.email ? ` · ${row.email}` : ""}
                 </p>
               </div>
 
               <div className="flex shrink-0 items-center gap-1">
-                {business ? (
-                  <button
-                    type="button"
-                    aria-label={`Edit ${row.name}`}
-                    disabled={pending}
-                    onClick={() => {
-                      reset(toDraft(row));
-                      formRef.current?.scrollIntoView({ behavior: "smooth" });
-                    }}
-                    className="flex h-9 w-9 items-center justify-center rounded-full text-dust transition-colors hover:text-flame disabled:pointer-events-none disabled:opacity-30"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </button>
-                ) : null}
+                <button
+                  type="button"
+                  aria-label={`Edit ${labelOf(row)}`}
+                  disabled={pending}
+                  onClick={() => {
+                    reset(toDraft(row));
+                    formRef.current?.scrollIntoView({ behavior: "smooth" });
+                  }}
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-dust transition-colors hover:text-flame disabled:pointer-events-none disabled:opacity-30"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
 
                 <button
                   type="button"
-                  aria-label={`Remove ${row.name}`}
+                  aria-label={`Remove ${labelOf(row)}`}
                   disabled={pending}
                   onClick={() => setRemoving(row)}
                   className="flex h-9 w-9 items-center justify-center rounded-full text-dust transition-colors hover:text-danger disabled:pointer-events-none disabled:opacity-30"
@@ -262,7 +293,7 @@ export function ReferrerList({ kind, rows }: { kind: CodeKind; rows: ReferrerRow
           </>
         }
       >
-        <p>{removing?.name}</p>
+        <p className="break-all">{removing ? labelOf(removing) : null}</p>
         <p className="mt-2">
           Nobody can type {removing?.code} again, and its uses leave the log below.
           {business ? " The rolls it created stop naming the business." : ""} The rolls themselves

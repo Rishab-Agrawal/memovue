@@ -120,7 +120,7 @@ export default async function globalSetup() {
     ] as const) {
       await prisma.referrer.upsert({
         where: { code },
-        create: { code, kind: "INDIVIDUAL", maxUses, name: "Playwright" },
+        create: { code, kind: "INDIVIDUAL", maxUses },
         update: { kind: "INDIVIDUAL", maxUses, used: 0 },
       });
     }

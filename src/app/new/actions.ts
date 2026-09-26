@@ -94,11 +94,13 @@ export async function createRollAction(
       Promise.all([
         record("roll_created"),
         // The business hears about the roll it brought in, if it asked to be told.
-        referrer.email ? sendReferralRollCreated(referrer.email, roll.name) : null,
+        business && referrer.email ? sendReferralRollCreated(referrer.email, roll.name) : null,
         notify(
           "signals",
           `New roll — “${roll.name}” · ${user.name} · ${data.maxGuests} guests × ${data.photosPerGuest} shots` +
-            (business ? `\nReferred by ${referrer.name}` : `\nCode given to ${referrer.name}`),
+            (business
+              ? `\nReferred by ${referrer.name}`
+              : `\nCode ${referrer.code}${referrer.email ? ` · ${referrer.email}` : ""}`),
         ),
       ]),
     );

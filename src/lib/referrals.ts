@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { CodeKind } from "@prisma/client";
+import type { CodeKind, Prisma } from "@prisma/client";
 
 import { normalizeCode } from "./codes";
 import { prisma } from "./prisma";
@@ -50,7 +50,7 @@ export async function findReferrer(input: string) {
   // `email` is here and not in `card`: it is the one field that must never reach a browser.
   return prisma.referrer.findUnique({
     where: { code },
-    select: { id: true, kind: true, used: true, maxUses: true, email: true, ...card },
+    select: { id: true, code: true, kind: true, used: true, maxUses: true, email: true, ...card },
   });
 }
 
@@ -72,13 +72,19 @@ export async function spendCode(tx: Pick<typeof prisma, "referrer">, id: string)
   if (count === 0) throw new CodeSpentError();
 }
 
+/** A business's card. Only a business has one, and a business always has a name. */
+async function cardWhere(where: Prisma.ReferrerWhereUniqueInput): Promise<Sponsor | null> {
+  const row = await prisma.referrer.findUnique({ where, select: card });
+  return row?.name ? { ...row, name: row.name } : null;
+}
+
 /**
  * The business to credit on one roll's home screen. Null costs no query, so a roll created
  * with an individual's code pays nothing for this.
  */
 export async function sponsorFor(roll: { referrerId: string | null }): Promise<Sponsor | null> {
   if (!roll.referrerId) return null;
-  return prisma.referrer.findUnique({ where: { id: roll.referrerId }, select: card });
+  return cardWhere({ id: roll.referrerId });
 }
 
 /* ------------------------------------------------------------------ admin */
@@ -102,7 +108,7 @@ export function listRedemptions() {
       rollName: true,
       createdAt: true,
       user: { select: { email: true } },
-      referrer: { select: { code: true, kind: true } },
+      referrer: { select: { code: true, kind: true, name: true, email: true } },
     },
   });
 }
@@ -131,7 +137,7 @@ export async function saveReferrer(input: {
   code: string;
   kind: CodeKind;
   maxUses: number;
-  name: string;
+  name: string | null;
   url: string | null;
   email: string | null;
   logoUrl: string | null;
@@ -192,7 +198,7 @@ export async function removeReferrer(id: string) {
 
 /** The made-up business on the sample album, or null before one has been written. */
 export function sampleSponsor(): Promise<Sponsor | null> {
-  return prisma.referrer.findUnique({ where: { code: SAMPLE_CODE }, select: card });
+  return cardWhere({ code: SAMPLE_CODE });
 }
 
 /** The same write as any other card, on the row nobody can reach with a code. */
