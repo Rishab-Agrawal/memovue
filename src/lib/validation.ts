@@ -169,6 +169,7 @@ export const photoInitSchema = z.object({
   contentType: z.literal("image/jpeg"),
   fullBytes: uploadBytes,
   previewBytes: uploadBytes,
+  clientId: z.string().min(1).max(64),
 });
 
 /** Re-signing a reservation. Same blobs as the first attempt, so the same two lengths. */

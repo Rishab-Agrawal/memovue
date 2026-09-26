@@ -4,6 +4,7 @@ import { readGuestClaims } from "./auth";
 import { normalizeCode } from "./codes";
 import { prisma } from "./prisma";
 import { type RollPhase, acceptsUploads, isCapturing, isOpen, rollPhase } from "./roll-access";
+import { shotsLeftFor } from "./roll-config";
 import { getCurrentUser } from "./session";
 
 const guestFields = {
@@ -124,6 +125,6 @@ export async function getGuestContext(code: string): Promise<GuestContext | null
     acceptsUploads: acceptsUploads(roll),
     shotsUsed,
     // Film drawn from the pool is theirs to spend; film given away is not.
-    shotsLeft: Math.max(0, roll.photosPerGuest + guest.fromPool - shotsUsed),
+    shotsLeft: shotsLeftFor(roll, guest.fromPool, shotsUsed),
   };
 }

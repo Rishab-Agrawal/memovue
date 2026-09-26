@@ -6,7 +6,7 @@ import { ZIP_DOWNLOAD_LIMIT } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { isOpen } from "@/lib/roll-access";
 import { sponsorFor } from "@/lib/referrals";
-import { poolMoves } from "@/lib/roll-config";
+import { poolMoves, shotsLeftFor } from "@/lib/roll-config";
 import { coverUrlFor, getRollForHost, poolLeft } from "@/lib/rolls";
 import { publicUrl } from "@/lib/storage";
 import { requireHost } from "@/lib/session";
@@ -48,10 +48,7 @@ export async function loadRoll(
     poolLeft(found),
     sponsorFor(found),
   ]);
-  const shotsLeft = Math.max(
-    0,
-    found.photosPerGuest + (mine?.fromPool ?? 0) - (mine?._count.photos ?? 0),
-  );
+  const shotsLeft = shotsLeftFor(found, mine?.fromPool ?? 0, mine?._count.photos ?? 0);
 
   // One past the page tells whether there is more. `blurData` only while sealed, when it is the tile.
   const page =

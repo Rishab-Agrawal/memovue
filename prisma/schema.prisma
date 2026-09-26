@@ -186,12 +186,16 @@ model Photo {
   /// quota; everything shown counts READY only. Abandoned PENDING rows are swept after a week.
   status PhotoStatus @default(PENDING)
 
+  /// The phone's own name for the frame, so a reservation asked for twice is one reservation.
+  clientId String?
+
   takenAt   DateTime @default(now())
   createdAt DateTime @default(now())
 
   /// Every hot read is one roll's READY frames, newest first, and the count is index-only.
   @@index([rollId, status, takenAt])
-  @@index([guestId])
+  /// Also every per-guest count, which leads with `guestId`.
+  @@unique([guestId, clientId])
   @@index([status, createdAt])
 }
 

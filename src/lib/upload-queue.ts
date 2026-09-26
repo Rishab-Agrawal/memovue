@@ -233,6 +233,8 @@ async function drain(code: string): Promise<void> {
               contentType: "image/jpeg",
               fullBytes: item.full.size,
               previewBytes: item.preview.size,
+              // Asked twice, by a lost answer or a second tab, this is still one reservation.
+              clientId: item.localId,
             }),
           });
           const data = await response.json().catch(() => ({}));

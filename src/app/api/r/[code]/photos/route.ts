@@ -4,6 +4,7 @@ import { after } from "next/server";
 import { getGuestContext } from "@/lib/guest-context";
 import { prisma } from "@/lib/prisma";
 import { limited } from "@/lib/ratelimit";
+import { shotsLeftFor } from "@/lib/roll-config";
 import { visiblePhotoWhere } from "@/lib/roll-access";
 import { photoKey, presignUpload, publicUrl } from "@/lib/storage";
 import { notify } from "@/lib/telegram";
@@ -25,9 +26,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
   if (!context.acceptsUploads) {
     return Response.json({ error: "not_shooting" }, { status: 403 });
   }
-  if (context.shotsLeft <= 0) {
-    return Response.json({ error: "no_shots_left" }, { status: 409 });
-  }
 
   // Keyed on the guest alone: an IP would reset the budget on every network change.
   const over = limited(`reserve:${context.guest.id}`, 40, 60);
@@ -37,26 +35,50 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
   const parsed = photoInitSchema.safeParse(body);
   if (!parsed.success) return Response.json({ error: "bad_request" }, { status: 400 });
 
-  const photoId = nanoid();
-  // The capability. Never derived from anything the client knows.
-  const secret = nanoid();
-  const fullKey = photoKey(context.roll.id, photoId, secret, "full");
-  const previewKey = photoKey(context.roll.id, photoId, secret, "preview");
+  const { roll, guest } = context;
+  const { clientId } = parsed.data;
 
-  await prisma.photo.create({
-    data: {
-      id: photoId,
-      rollId: context.roll.id,
-      guestId: context.guest.id,
-      fullKey,
-      previewKey,
-      blurData: "",
-      width: 0,
-      height: 0,
-      bytes: 0,
-      status: "PENDING",
-    },
+  /*
+    One step per guest: their row stays locked from the count to the insert, so requests sent
+    together cannot all spend the same film. A frame asked for again gets its first reservation.
+  */
+  const reserved = await prisma.$transaction(async (tx) => {
+    const [mine] = await tx.$queryRaw<{ fromPool: number }[]>`
+      SELECT "fromPool" FROM "Guest" WHERE id = ${guest.id} FOR UPDATE`;
+    if (!mine) return null;
+
+    const used = await tx.photo.count({ where: { guestId: guest.id } });
+    const left = shotsLeftFor(roll, mine.fromPool, used);
+    const select = { id: true, fullKey: true, previewKey: true } as const;
+    const asked = await tx.photo.findUnique({
+      where: { guestId_clientId: { guestId: guest.id, clientId } },
+      select,
+    });
+    if (asked) return { ...asked, left };
+    if (left <= 0) return null;
+
+    const id = nanoid();
+    // The capability. Never derived from anything the client knows.
+    const secret = nanoid();
+    const photo = await tx.photo.create({
+      data: {
+        id,
+        rollId: roll.id,
+        guestId: guest.id,
+        clientId,
+        fullKey: photoKey(roll.id, id, secret, "full"),
+        previewKey: photoKey(roll.id, id, secret, "preview"),
+        blurData: "",
+        width: 0,
+        height: 0,
+        bytes: 0,
+        status: "PENDING",
+      },
+      select,
+    });
+    return { ...photo, left: left - 1 };
   });
+  if (!reserved) return Response.json({ error: "no_shots_left" }, { status: 409 });
 
   // The roll's first frame starts the pool's clock (see `refillsLeft`). Conditional, so only one phone wins.
   if (!context.roll.firstShotAt) {
@@ -70,15 +92,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
   }
 
   const [fullUrl, previewUrl] = await Promise.all([
-    presignUpload(fullKey, "image/jpeg", parsed.data.fullBytes),
-    presignUpload(previewKey, "image/jpeg", parsed.data.previewBytes),
+    presignUpload(reserved.fullKey, "image/jpeg", parsed.data.fullBytes),
+    presignUpload(reserved.previewKey, "image/jpeg", parsed.data.previewBytes),
   ]);
 
   return Response.json({
-    photoId,
+    photoId: reserved.id,
     fullUrl,
     previewUrl,
-    shotsLeft: context.shotsLeft - 1,
+    shotsLeft: reserved.left,
   });
 }
 

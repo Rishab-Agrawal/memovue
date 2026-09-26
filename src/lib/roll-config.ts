@@ -236,6 +236,11 @@ export function refillsLeft(
  * - `back`: undoing their own gift, bounded only by what they gave and what is still there.
  *   Answers to neither the clock nor the switch, so closing giveaways cannot trap film.
  */
+/** Film a guest may still spend: their allowance, less every frame reserved or landed. */
+export function shotsLeftFor(roll: { photosPerGuest: number }, fromPool: number, used: number) {
+  return Math.max(0, roll.photosPerGuest + fromPool - used);
+}
+
 export function poolMoves(
   roll: {
     photosPerGuest: number;

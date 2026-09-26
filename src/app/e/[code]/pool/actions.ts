@@ -3,7 +3,7 @@
 import { getGuestContext } from "@/lib/guest-context";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/ratelimit";
-import { poolFrom, poolMoves } from "@/lib/roll-config";
+import { poolFrom, poolMoves, shotsLeftFor } from "@/lib/roll-config";
 
 /**
  * Which way film moves. Separate kinds because a refill (`take`) spends one of a lifetime ten and
@@ -61,7 +61,7 @@ export async function movePool(code: string, kind: PoolMove, shots: number): Pro
     });
 
     const pool = poolFrom(roll, _count, _sum.fromPool ?? 0);
-    const shotsLeft = Math.max(0, roll.photosPerGuest + mine.fromPool - used);
+    const shotsLeft = shotsLeftFor(roll, mine.fromPool, used);
     const moves = poolMoves(roll, { ...mine, shotsLeft }, pool);
 
     // Clamped rather than refused: the ceilings move under an open dialog.
