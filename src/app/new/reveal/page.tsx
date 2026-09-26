@@ -52,19 +52,21 @@ export default function StepReveal() {
 
       <Dialog
         open={warning}
-        title="We strongly recommend keeping this off to have a more memorable experience"
+        title="Are you sure?"
         onClose={() => decide(false)}
         actions={
           <>
-            <Pill variant="flame" full className={wrap} onClick={() => decide(false)}>
-              Keep it off
-            </Pill>
             <Pill variant="quiet" full className={wrap} onClick={() => decide(true)}>
               Turn it on anyways
             </Pill>
+            <Pill variant="flame" full className={wrap} onClick={() => decide(false)}>
+              Keep it off
+            </Pill>
           </>
         }
-      />
+      >
+        We strongly recommend keeping this off to have a more memorable experience.
+      </Dialog>
     </>
   );
 }

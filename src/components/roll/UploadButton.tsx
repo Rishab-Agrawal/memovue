@@ -32,7 +32,7 @@ export function UploadButton({
 
   async function upload(files: File[]) {
     if (files.length > left) {
-      say(`You can only upload ${left} ${left === 1 ? "photo" : "photos"}!`);
+      say(`You can only upload ${left} ${left === 1 ? "photo" : "photos"}!`, true);
       return;
     }
 
