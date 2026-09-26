@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { Camera, Download, Lock, Photo, Qr, Upload } from "@/components/roll/Icons";
 import { useToast } from "@/components/roll/Toast";
@@ -9,7 +9,7 @@ import { UploadButton } from "@/components/roll/UploadButton";
 import { cn } from "@/lib/cn";
 import { SHOTS_HELD, SHOTS_SPENT, ZIP_DOWNLOAD_SPENT } from "@/lib/constants";
 import { SHOTS_POOL } from "@/lib/roll-config";
-import { enqueuePhoto, subscribeQueue } from "@/lib/upload-queue";
+import { enqueuePhoto, useFilmLeft } from "@/lib/upload-queue";
 
 /** The pieces below the cover, shared by the host's roll home and the guest's album. */
 
@@ -37,7 +37,7 @@ export function RollControls({
   ended: boolean;
   /** This roll's join code, so the queue's counts can be told apart from another roll's. */
   code?: string;
-  /** Film left as the server counted it; read together with the upload queue below. */
+  /** Film left as the server rendered it, until the upload queue has asked for itself. */
   shotsLeft?: number;
   cameraHref?: string;
   /** Whether the host lets photos in from the library. Needs `code`, the queue they go into. */
@@ -58,16 +58,8 @@ export function RollControls({
   /** Why the camera cannot be used, when the roll's window is not open. Said when tapped. */
   cameraOff?: string;
 }) {
-  // Shots this phone has spent that the server has not counted yet.
-  const [unreserved, setUnreserved] = useState(0);
-  useEffect(
-    () =>
-      subscribeQueue((queue) => setUnreserved(queue.code === code ? queue.unreserved : 0)),
-    [code],
-  );
-
+  const filmLeft = useFilmLeft(code, shotsLeft ?? 0);
   // Refuses only with no film of their own and no refill allowed; which one decides the sentence.
-  const filmLeft = Math.max(0, (shotsLeft ?? 0) - unreserved);
   const filmSpent = shotsLeft !== undefined && filmLeft <= 0;
   const spent = poolLeft > 0 ? SHOTS_HELD : SHOTS_SPENT;
   const off = cameraOff ?? (filmSpent && refill <= 0 ? spent : undefined);

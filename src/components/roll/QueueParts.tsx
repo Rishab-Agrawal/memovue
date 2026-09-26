@@ -14,6 +14,7 @@ const IDLE: QueueStatus = {
   code: null,
   pending: [],
   unreserved: 0,
+  counted: null,
   uploading: false,
   dropped: 0,
 };

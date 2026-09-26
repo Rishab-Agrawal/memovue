@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { movePool } from "@/app/e/[code]/pool/actions";
 import { BackButton } from "@/components/roll/Chrome";
@@ -10,14 +10,7 @@ import { ShotsDialog } from "@/components/roll/ShotsDialog";
 import { UploadButton } from "@/components/roll/UploadButton";
 import type { ProcessedPhoto } from "@/lib/image";
 import { SHOTS_POOL } from "@/lib/roll-config";
-import {
-  carriedForward,
-  drainQueue,
-  enqueuePhoto,
-  refreshPending,
-  subscribeQueue,
-  watchConnectivity,
-} from "@/lib/upload-queue";
+import { addFilm, enqueuePhoto, useFilmLeft, watchConnectivity } from "@/lib/upload-queue";
 
 import { CameraView } from "./CameraView";
 
@@ -54,7 +47,7 @@ export function GuestApp({
 }: GuestAppProps) {
   const router = useRouter();
 
-  const [spent, setSpent] = useState(0);
+  const shotsLeft = useFilmLeft(code, initialShots);
   /** Film drawn out of the pool in this session, and what is left of it afterwards. */
   const [taken, setTaken] = useState(0);
   const [pool, setPool] = useState(initialPool);
@@ -63,48 +56,9 @@ export function GuestApp({
   const [latestThumb, setLatestThumb] = useState(latestBlur);
   const [closed, setClosed] = useState(false);
 
-  /*
-    Film this device has spent that the server has not counted: a photo waiting in IndexedDB
-    has no row yet, so without this a reopened camera offers shots that no longer exist, the
-    server refuses them, and the queue deletes the photos. See `carriedForward`.
-  */
-  const shot = useRef(0);
-  const unreserved = useRef(0);
-  const [carried, setCarried] = useState(0);
-  useEffect(
-    () =>
-      subscribeQueue((queue) => {
-        if (queue.code !== code) return;
-        unreserved.current = queue.unreserved;
-        setCarried((previous) => carriedForward(previous, queue.unreserved, shot.current));
-      }),
-    [code],
-  );
+  // Retries what a previous session left when signal returns; `useFilmLeft` starts it.
+  useEffect(() => watchConnectivity(code), [code]);
 
-  /*
-    The count comes from asking, not from the render: back and forward replay a render as it
-    was. The queue is read before asking and drained after, so no reservation lands in between
-    and every frame shot so far is either in the answer or still unreserved.
-  */
-  const [counted, setCounted] = useState(initialShots);
-  useEffect(() => {
-    void (async () => {
-      await refreshPending(code);
-      const response = await fetch(`/api/r/${code}/feed`, { cache: "no-store" }).catch(() => null);
-      if (response?.ok) {
-        const feed = (await response.json()) as { me: { shotsLeft: number } };
-        shot.current = 0;
-        setSpent(0);
-        setCarried(unreserved.current);
-        setCounted(feed.me.shotsLeft);
-      }
-      // Then whatever a previous session left, retrying when signal returns.
-      void drainQueue(code);
-    })();
-    return watchConnectivity(code);
-  }, [code]);
-
-  const shotsLeft = Math.max(0, counted + taken - spent - carried);
   // The server re-checks refill ceilings on every move; this only caps the offer by the pool.
   const [offer, setOffer] = useState(initialTakeMax);
   const takeMax = Math.min(pool, offer);
@@ -124,8 +78,6 @@ export function GuestApp({
    * the durable queue.
    */
   function handleCaptured(photo: ProcessedPhoto) {
-    shot.current += 1;
-    setSpent(shot.current);
     setLatestThumb(photo.blurData);
     void enqueuePhoto(code, photo);
   }
@@ -145,6 +97,7 @@ export function GuestApp({
       decline();
       return;
     }
+    addFilm(code, result.moved);
     setTaken((had) => had + result.moved);
     setPool(result.pool);
     // The refills left, not `take`, which is zero right after a refill because the camera is full.

@@ -1,4 +1,5 @@
 import { type IDBPDatabase, openDB } from "idb";
+import { useEffect, useSyncExternalStore } from "react";
 
 import type { ProcessedPhoto } from "./image";
 
@@ -40,6 +41,8 @@ export interface QueueStatus {
    * Reserved items are excluded because their row is already in the server's count.
    */
   unreserved: number;
+  /** Film left as the server last answered, with `unreserved` read at the same moment. Null until asked. */
+  counted: number | null;
   uploading: boolean;
   /** Photographs this roll's queue has given up on for good. Transient failures stay queued. */
   dropped: number;
@@ -79,6 +82,7 @@ let status: QueueStatus = {
   code: null,
   pending: [],
   unreserved: 0,
+  counted: null,
   uploading: false,
   dropped: 0,
 };
@@ -94,26 +98,38 @@ export function subscribeQueue(listener: (status: QueueStatus) => void): () => v
   return () => listeners.delete(listener);
 }
 
-export async function refreshPending(code: string) {
+/** Frames taken whose IndexedDB write has not finished. Spent already, and not on disk yet. */
+let writing = 0;
+
+async function refreshPending(code: string, counted?: number) {
   const items = (await withDb((d) => d.getAllFromIndex(STORE, "code", code))) as QueuedPhoto[];
+  const same = code === status.code;
   publish({
     code,
     pending: items.map(({ localId, blurData }) => ({ localId, blurData })),
-    unreserved: items.filter((item) => !item.photoId).length,
+    unreserved: items.filter((item) => !item.photoId).length + writing,
+    counted: counted ?? (same ? status.counted : null),
     // A different roll's losses are not this one's.
-    ...(code === status.code ? {} : { dropped: 0 }),
+    ...(same ? {} : { dropped: 0 }),
   });
 }
 
 /**
- * Film this device has spent that the server cannot see, as a high-water mark.
- *
- * A frame shot this session sits in both `unreserved` and `spent`, so they are subtracted, not
- * added. The maximum keeps shots from coming back when a reservation lands mid-session and
- * empties the queue before the count is asked for again.
+ * Film this phone has left on a roll: the server's last count less what it has not heard of.
+ * `rendered` stands in until the queue has asked, and a new one sends it to ask again.
  */
-export function carriedForward(previous: number, unreserved: number, spent: number): number {
-  return Math.max(previous, unreserved - spent);
+export function useFilmLeft(code: string | undefined, rendered: number): number {
+  const queue = useSyncExternalStore(subscribeQueue, () => status, () => status);
+  useEffect(() => {
+    if (code) void drainQueue(code);
+  }, [code, rendered]);
+  if (!code || queue.code !== code) return rendered;
+  return Math.max(0, (queue.counted ?? rendered) - queue.unreserved);
+}
+
+/** Film drawn from or given to the pool, which moves the count without a reservation. */
+export function addFilm(code: string, shots: number) {
+  if (code === status.code && status.counted !== null) publish({ counted: status.counted + shots });
 }
 
 /* ------------------------------------------------------------------ queue ops */
@@ -131,9 +147,16 @@ export async function enqueuePhoto(code: string, photo: ProcessedPhoto): Promise
     createdAt: Date.now(),
   };
 
-  await withDb((d) => d.put(STORE, item));
+  // Spent the moment it is taken, not once IndexedDB has it.
+  writing += 1;
+  if (code === status.code) publish({ unreserved: status.unreserved + 1 });
+  try {
+    await withDb((d) => d.put(STORE, item));
+  } finally {
+    writing -= 1;
+  }
   await refreshPending(code);
-  void drainQueue(code);
+  void drain(code);
 }
 
 async function putObject(url: string, blob: Blob): Promise<void> {
@@ -159,19 +182,43 @@ async function releaseShot(code: string, photoId: string): Promise<void> {
 /** Errors that mean this photo will never succeed, so it should leave the queue. */
 const TERMINAL = new Set(["no_shots_left", "not_shooting", "not_joined", "not_found"]);
 
-let draining = false;
+/**
+ * Asks the server what this roll has left. Only ever inside the drain, so no reservation lands
+ * between its answer and the queue it is paired with.
+ */
+async function recount(code: string): Promise<void> {
+  // The queue's side first, so a frame taken meanwhile is counted against this roll.
+  await refreshPending(code);
+  const response = await fetch(`/api/r/${code}/feed`, { cache: "no-store" }).catch(() => null);
+  if (!response?.ok) return;
+  const feed = (await response.json()) as { me: { shotsLeft: number } };
+  await refreshPending(code, feed.me.shotsLeft);
+}
 
-export async function drainQueue(code: string): Promise<void> {
+let draining = false;
+/** Rolls whose count wants asking again, taken up by the next drain. */
+const unsynced = new Set<string>();
+
+/** Sends what is queued, asking the server for a fresh count first. */
+export function drainQueue(code: string): Promise<void> {
+  unsynced.add(code);
+  return drain(code);
+}
+
+async function drain(code: string): Promise<void> {
   if (draining || typeof navigator !== "undefined" && !navigator.onLine) return;
   draining = true;
   publish({ uploading: true });
 
   try {
     for (;;) {
+      if (unsynced.delete(code)) await recount(code);
       const items = (await withDb((d) => d.getAllFromIndex(STORE, "code", code))) as QueuedPhoto[];
       const item = items.sort((a, b) => a.createdAt - b.createdAt)[0];
       if (!item) break;
 
+      /** The count the server answers with, when it answers with one. */
+      let answer: number | undefined;
       try {
         let photoId = item.photoId;
         let fullUrl: string;
@@ -192,6 +239,7 @@ export async function drainQueue(code: string): Promise<void> {
           if (!response.ok) throw Object.assign(new Error(data.error ?? "init_failed"), data);
 
           photoId = data.photoId as string;
+          answer = data.shotsLeft;
           fullUrl = data.fullUrl;
           previewUrl = data.previewUrl;
           // Persist the reservation before uploading a single byte.
@@ -237,6 +285,7 @@ export async function drainQueue(code: string): Promise<void> {
         const reason = (error as { error?: string; message?: string }).error ?? "";
 
         if (TERMINAL.has(reason)) {
+          if (reason === "no_shots_left") answer = 0;
           if (item.photoId) await releaseShot(code, item.photoId);
           await withDb((d) => d.delete(STORE, item.localId));
           publish({ dropped: status.dropped + 1 });
@@ -247,13 +296,16 @@ export async function drainQueue(code: string): Promise<void> {
         await withDb((d) => d.put(STORE, { ...item, attempts: item.attempts + 1 }));
         break;
       } finally {
-        await refreshPending(code);
+        await refreshPending(code, answer);
       }
     }
   } finally {
     draining = false;
     publish({ uploading: false });
     await refreshPending(code);
+    // Asked for while this one ran.
+    const [next] = unsynced;
+    if (next) void drain(next);
   }
 }
 
