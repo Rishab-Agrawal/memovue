@@ -94,7 +94,7 @@ export function subscribeQueue(listener: (status: QueueStatus) => void): () => v
   return () => listeners.delete(listener);
 }
 
-async function refreshPending(code: string) {
+export async function refreshPending(code: string) {
   const items = (await withDb((d) => d.getAllFromIndex(STORE, "code", code))) as QueuedPhoto[];
   publish({
     code,
@@ -110,7 +110,7 @@ async function refreshPending(code: string) {
  *
  * A frame shot this session sits in both `unreserved` and `spent`, so they are subtracted, not
  * added. The maximum keeps shots from coming back when a reservation lands mid-session and
- * empties the queue before `initialShots` is recounted.
+ * empties the queue before the count is asked for again.
  */
 export function carriedForward(previous: number, unreserved: number, spent: number): number {
   return Math.max(previous, unreserved - spent);

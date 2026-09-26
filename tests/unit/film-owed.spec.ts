@@ -11,7 +11,7 @@ import { carriedForward } from "../../src/lib/upload-queue";
  * queue deletes the only copy. Get it wrong in the other and a guest is refused film they
  * have actually got left.
  *
- * The whole camera reads `initialShots - spent - carried`, so these are the numbers that
+ * The whole camera reads `counted - spent - carried`, so these are the numbers that
  * decide whether photographs survive.
  */
 
@@ -41,7 +41,7 @@ test("a backlog from a previous session is subtracted on arrival", () => {
 });
 
 test("a backlog that finally uploads does not hand its shots back", () => {
-  // This is the regression. `initialShots` was read before those reservations existed, so
+  // This is the regression. The count was taken before those reservations existed, so
   // an emptied queue must not restore film the guest has already spent.
   expect(dial(5, [{ unreserved: 2, spent: 0 }, { unreserved: 0, spent: 0 }])).toBe(3);
 });

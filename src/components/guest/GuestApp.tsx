@@ -14,6 +14,7 @@ import {
   carriedForward,
   drainQueue,
   enqueuePhoto,
+  refreshPending,
   subscribeQueue,
   watchConnectivity,
 } from "@/lib/upload-queue";
@@ -68,17 +69,42 @@ export function GuestApp({
     server refuses them, and the queue deletes the photos. See `carriedForward`.
   */
   const shot = useRef(0);
+  const unreserved = useRef(0);
   const [carried, setCarried] = useState(0);
   useEffect(
     () =>
       subscribeQueue((queue) => {
         if (queue.code !== code) return;
+        unreserved.current = queue.unreserved;
         setCarried((previous) => carriedForward(previous, queue.unreserved, shot.current));
       }),
     [code],
   );
 
-  const shotsLeft = Math.max(0, initialShots + taken - spent - carried);
+  /*
+    The count comes from asking, not from the render: back and forward replay a render as it
+    was. The queue is read before asking and drained after, so no reservation lands in between
+    and every frame shot so far is either in the answer or still unreserved.
+  */
+  const [counted, setCounted] = useState(initialShots);
+  useEffect(() => {
+    void (async () => {
+      await refreshPending(code);
+      const response = await fetch(`/api/r/${code}/feed`, { cache: "no-store" }).catch(() => null);
+      if (response?.ok) {
+        const feed = (await response.json()) as { me: { shotsLeft: number } };
+        shot.current = 0;
+        setSpent(0);
+        setCarried(unreserved.current);
+        setCounted(feed.me.shotsLeft);
+      }
+      // Then whatever a previous session left, retrying when signal returns.
+      void drainQueue(code);
+    })();
+    return watchConnectivity(code);
+  }, [code]);
+
+  const shotsLeft = Math.max(0, counted + taken - spent - carried);
   // The server re-checks refill ceilings on every move; this only caps the offer by the pool.
   const [offer, setOffer] = useState(initialTakeMax);
   const takeMax = Math.min(pool, offer);
@@ -92,12 +118,6 @@ export function GuestApp({
     const timer = setTimeout(close, Math.max(0, finishesAt - Date.now()));
     return () => clearTimeout(timer);
   }, [finishesAt, home, router]);
-
-  // Drain whatever a previous session left, and retry when signal returns.
-  useEffect(() => {
-    void drainQueue(code);
-    return watchConnectivity(code);
-  }, [code]);
 
   /**
    * The shot is spent the moment the shutter fires or a photo is picked; the upload goes through
