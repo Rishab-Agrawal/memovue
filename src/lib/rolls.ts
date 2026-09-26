@@ -1,10 +1,10 @@
 import "server-only";
 
-import type { RevealMode } from "@prisma/client";
+import type { CodeKind, RevealMode } from "@prisma/client";
 
-import { type Account, refundRoll, spendRoll } from "./beta";
 import { rollCode } from "./codes";
 import { prisma } from "./prisma";
+import { spendCode } from "./referrals";
 import { computeKeptUntil, computeRevealAt, isOpen, visiblePhotoWhere } from "./roll-access";
 import { clampFinish, earliestFinish, movedStart, poolFrom } from "./roll-config";
 import { purgeRoll } from "./retention";
@@ -47,13 +47,13 @@ interface CreateRollInput {
   giveawayAllowed: boolean;
   uploadsAllowed: boolean;
   coverPreset: number;
-  /** The business whose referral code was typed into the wizard, already resolved to a row. */
-  referrerId?: string | null;
+  /** The referral code typed at Create, already resolved to a row. */
+  referrer: { id: string; kind: CodeKind };
 }
 
 /**
- * Postgres refusing a duplicate roll code, and nothing else. Narrow so a `BetaAccessError` is
- * never retried into spending a second roll.
+ * Postgres refusing a duplicate roll code, and nothing else. Narrow so a `CodeSpentError` is
+ * never retried into spending a second use.
  */
 function isCodeTaken(error: unknown): boolean {
   if (typeof error !== "object" || error === null) return false;
@@ -63,12 +63,12 @@ function isCodeTaken(error: unknown): boolean {
 }
 
 /**
- * A roll, and the allowance it is created against.
+ * A roll, and the referral code it is created with.
  *
  * Retried up to three times on a code collision. The whole transaction is retried, because a
- * constraint violation aborts it — and the rollback is what hands the allowance back.
+ * constraint violation aborts it — and the rollback is what hands the use back.
  */
-export async function createRoll(host: Account & { name: string }, input: CreateRollInput) {
+export async function createRoll(host: { id: string; name: string }, input: CreateRollInput) {
   const revealAt = computeRevealAt(input.finishesAt, input.revealMode, input.revealDelayHours);
 
   for (let attempt = 0; ; attempt += 1) {
@@ -80,10 +80,12 @@ export async function createRoll(host: Account & { name: string }, input: Create
   }
 }
 
-/** One transaction, so an allowance is never spent without a roll to show for it. */
-function writeRoll(host: Account & { name: string }, input: CreateRollInput, revealAt: Date) {
+/** One transaction, so a code is never spent without a roll to show for it. */
+function writeRoll(host: { id: string; name: string }, input: CreateRollInput, revealAt: Date) {
+  const { referrer } = input;
+
   return prisma.$transaction(async (tx) => {
-    await spendRoll(tx, host);
+    await spendCode(tx, referrer.id);
 
     const roll = await tx.roll.create({
       data: {
@@ -91,7 +93,7 @@ function writeRoll(host: Account & { name: string }, input: CreateRollInput, rev
         hostId: host.id,
         name: input.name,
         coverPreset: input.coverPreset,
-        referrerId: input.referrerId ?? null,
+        referrerId: referrer.kind === "BUSINESS" ? referrer.id : null,
         maxGuests: input.maxGuests,
         photosPerGuest: input.photosPerGuest,
         everyoneCanSee: input.everyoneCanSee,
@@ -110,6 +112,10 @@ function writeRoll(host: Account & { name: string }, input: CreateRollInput, rev
     // The host shoots like anybody else, so they are a guest of their own roll from the start.
     await tx.guest.create({
       data: { rollId: roll.id, name: host.name, userId: host.id },
+    });
+
+    await tx.redemption.create({
+      data: { referrerId: referrer.id, userId: host.id, rollName: roll.name },
     });
 
     return roll;
@@ -402,7 +408,7 @@ type SizeResult = "ok" | "not-found" | "below-joined";
  * below the number of guests already in. Lowering shots takes nothing away: `shotsLeft` floors
  * at zero.
  *
- * ponytail: free while `BETA`. Whatever takes payments has to come through here.
+ * ponytail: nothing is charged yet. Whatever takes payments has to come through here.
  */
 export async function setRollSize(
   id: string,
@@ -582,19 +588,9 @@ export async function updateRollReveal(
 
 export async function deleteRoll(id: string, hostId: string) {
   // Ownership is checked here: `purgeRoll` is shared with the sweep, which has no host.
-  const owned = await prisma.roll.findFirst({
-    where: { id, hostId },
-    select: {
-      id: true,
-      startsAt: true,
-      host: { select: { id: true, email: true, role: true } },
-    },
-  });
+  const owned = await prisma.roll.findFirst({ where: { id, hostId }, select: { id: true } });
   if (!owned) return;
 
   // Through retention, so a manual delete and the nightly sweep destroy exactly the same things.
   await purgeRoll(id, "HOST");
-
-  // The allowance comes back only for a roll that never started, and only after the purge.
-  if (owned.startsAt > new Date()) await refundRoll(owned.host);
 }

@@ -13,7 +13,7 @@ export default function PrivacyPage() {
   return (
     <>
       <h1>Privacy Policy</h1>
-      <p className="marking !mt-6">Last updated 11 September 2026</p>
+      <p className="marking !mt-6">Last updated 26 September 2026</p>
 
       <p>
         This explains what MemoVue collects, why, and what you can do about it. It covers{" "}
@@ -32,10 +32,12 @@ export default function PrivacyPage() {
         Google gives them to us when you sign in. <strong>We never see or store a
         password</strong>{" "}
         — sign-in happens on Google&rsquo;s side and we receive only the
-        result. We also store the rolls you create and their settings, and any cover image you
-        upload. If you ask for beta access, we keep what you put in that form — your name, your
-        event type, and the phone number and remarks if you give them — alongside the email
-        address you signed in with, so we can get back to you.
+        result. We also store the rolls you create, their settings, any cover image you upload,
+        and the referral code each roll was created with.
+      </p>
+      <p>
+        <strong>If you ask for a referral code.</strong> Your email address, so we can send you
+        one.
       </p>
       <p>
         <strong>If you join a roll as a guest.</strong> The display name you type, the photos
@@ -114,7 +116,7 @@ export default function PrivacyPage() {
         <li>
           <strong>Telegram</strong> — the private channel our own operational messages go to:
           crash reports, the daily totals above, and a note when somebody signs up or asks for
-          beta access. Nobody outside MemoVue can read it, and no photograph is ever sent there.
+          a referral code. Nobody outside MemoVue can read it, and no photograph is ever sent there.
         </li>
       </ul>
       <p>

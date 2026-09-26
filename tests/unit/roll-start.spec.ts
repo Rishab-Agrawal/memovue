@@ -5,10 +5,9 @@ import { MIN_ROLL_MINUTES, movedStart } from "@/lib/roll-config";
 /**
  * Moving a roll's opening time, which is the one date change with something to lose.
  *
- * The close, the reveal and the deletion date all hang off the window, and `deleteRoll` hands
- * the beta allowance back for a roll that has not started — so a start that could travel
- * anywhere would be a way to shoot an event and then be refunded for it. The rule is one pure
- * function precisely so it can be pinned here rather than only in a database.
+ * The close, the reveal and the deletion date all hang off the window, so a start that could
+ * travel anywhere would drag all three with it. The rule is one pure function precisely so it
+ * can be pinned here rather than only in a database.
  */
 const HOUR = 3_600_000;
 const now = new Date("2026-09-13T12:00:00Z");

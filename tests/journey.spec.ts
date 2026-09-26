@@ -3,7 +3,21 @@ import { expect, type Page, test } from "@playwright/test";
 import { MIN_FILL_MS } from "@/lib/bot-check";
 import { MONTHS, toWall } from "@/lib/format";
 
-import { GUEST_STORAGE_STATE, STORAGE_STATE, TEST_GUEST, TEST_HOST } from "./global-setup";
+import {
+  GUEST_STORAGE_STATE,
+  STORAGE_STATE,
+  TEST_CODE,
+  TEST_GUEST,
+  TEST_HOST,
+  TEST_ONCE_CODE,
+} from "./global-setup";
+
+/** Create, on the last step, and the referral code it asks for. */
+async function createWithCode(page: Page, code: string) {
+  await page.getByRole("button", { name: /Create/ }).click();
+  await page.getByLabel("Referral code").fill(code);
+  await page.getByRole("button", { name: "Create roll", exact: true }).click();
+}
 
 /**
  * Puts the roll's start in the past, on the wizard's start step.
@@ -156,7 +170,7 @@ test.describe("a roll from creation to reveal", () => {
    */
   const ANONYMOUS = { storageState: { cookies: [], origins: [] } };
 
-  test("the host creates a roll, spending one off the allowance", async ({ page }) => {
+  test("the host creates a roll with a referral code", async ({ page }) => {
     await page.goto("/new/name");
 
     await page.getByLabel("Event name").fill("Playwright Roll");
@@ -170,7 +184,7 @@ test.describe("a roll from creation to reveal", () => {
       await expect(page).toHaveURL(new RegExp(`/new/${step}$`));
     }
 
-    await page.getByRole("button", { name: /Create/ }).click();
+    await createWithCode(page, TEST_CODE);
 
     await expect(page.getByRole("heading", { name: "Roll Created!" })).toBeVisible();
     const shareLine = await page.getByText(/Share Code:/).textContent();
@@ -298,19 +312,11 @@ test.describe("a roll from creation to reveal", () => {
   });
 
   /**
-   * The allowance is the whole beta gate: spent on creation, refused at zero, and handed back
-   * when a roll is deleted before its event ever began.
-   *
-   * That last rule is the one worth a browser. Deleting a roll nobody has shot on has cost us
-   * nothing, so making somebody ask for access again because they fixed a typo by starting
-   * over is a penalty for tidiness — and it is the kind of thing that silently stops working
-   * the next time anything about deletion moves.
+   * An individual's code is one roll: spent on creation, and refused after. A wrong code and a
+   * spent one are told apart, and the way out of having none is a form, not a dead end.
    */
-  test("the allowance is spent, refused at zero, and returned by an unstarted roll", async ({
-    page,
-  }) => {
-    // The second and last roll on the allowance. Left on the wizard's defaults, so it opens
-    // on the coming Saturday and has therefore not started.
+  test("a one-time code creates one roll, then is refused", async ({ page }) => {
+    // Left on the wizard's defaults, so it opens on the coming Saturday and has not started.
     await page.goto("/new/name");
     await page.getByLabel("Event name").fill("Second Roll");
     // Each step is waited for. Five Next clicks in a row race the router and all land on the
@@ -319,12 +325,16 @@ test.describe("a roll from creation to reveal", () => {
       await page.getByRole("link", { name: /Next/ }).click();
       await expect(page).toHaveURL(new RegExp(`/new/${step}$`));
     }
-    await page.getByRole("button", { name: /Create/ }).click();
+
+    await createWithCode(page, "NOSUCHCODE");
+    await expect(page.getByText("Code not found, please re-check.")).toBeVisible();
+
+    await page.getByLabel("Referral code").fill(TEST_ONCE_CODE);
+    await page.getByRole("button", { name: "Create roll", exact: true }).click();
 
     await expect(page.getByRole("heading", { name: "Roll Created!" })).toBeVisible();
     await page.getByRole("button", { name: "OK" }).click();
     await expect(page).toHaveURL(/\/rolls\/[a-z0-9]+$/);
-    const secondUrl = page.url();
 
     /*
       And it has no camera yet, which is the whole difference between this roll and the one
@@ -338,40 +348,27 @@ test.describe("a roll from creation to reveal", () => {
     await page.getByLabel("Take a photo").click({ force: true });
     await expect(page.getByRole("status")).toContainText("Your roll opens");
 
-    /*
-      Nothing left, so the way into the wizard stops being a link at all. The refusal has to
-      land before the six steps, not after them — being told no once you have picked a date,
-      a reveal rule and a cover is the worst possible moment to hear it.
-    */
-    await page.goto("/rolls");
-    await page.getByRole("button", { name: /Create roll/ }).click();
-    await expect(page.getByRole("heading", { name: /used your first roll/ })).toBeVisible();
-
-    // And the way out of the refusal is a form, not a dead end.
-    await page.getByRole("button", { name: "Request" }).click();
-    await page.getByLabel("Event type").fill("Playwright wedding");
+    // The same code a second time.
+    await page.goto("/new/name");
+    await page.getByLabel("Event name").fill("Third Roll");
+    await page.goto("/new/guests");
+    await createWithCode(page, TEST_ONCE_CODE);
+    await expect(page.getByText("This code has already been used.")).toBeVisible();
 
     /*
       The one wait in this file that is not waiting for anything.
 
-      The form refuses a submission that arrives faster than somebody could have read it, and
-      Playwright gets from page load to Submit in a few hundred milliseconds — so without this
-      the test asserts that the bot check works rather than that the form does. It stands in
-      for a person here, so it spends what a person would.
+      The request refuses a submission that arrives faster than somebody could have read the
+      screen, and Playwright gets from page load to the tap in a few hundred milliseconds — so
+      without this the test asserts that the bot check works rather than that asking does. It
+      stands in for a person here, so it spends what a person would.
     */
     await page.waitForTimeout(MIN_FILL_MS);
 
-    await page.getByRole("button", { name: "Submit" }).click();
-    await expect(page.getByText("Beta access request sent")).toBeVisible();
-
-    // Deleting it before it opens gives the roll back.
-    await page.goto(secondUrl + "/settings");
-    await page.getByRole("button", { name: "Delete", exact: true }).first().click();
-    await page.getByRole("dialog").getByRole("button", { name: "Delete", exact: true }).click();
-    await expect(page).toHaveURL(/\/rolls$/);
-
-    await page.getByRole("link", { name: /Create roll/ }).click();
-    await expect(page).toHaveURL(/\/new\/name$/);
+    // With an account the address is known, so asking is one tap and no form.
+    await page.getByRole("button", { name: /Request a code/ }).click();
+    await expect(page.getByText("Request submitted!")).toBeVisible();
+    await expect(page.getByLabel("Email")).toHaveCount(0);
   });
 
   /**
@@ -382,12 +379,18 @@ test.describe("a roll from creation to reveal", () => {
    * one decision is the whole thing this replaced.
    *
    * The Google round trip cannot be driven in a browser, so what stands in for it is its last
-   * step, which is the part that has to work: the same tab, the draft still in it, and the
-   * URL the callback sends them to.
+   * step, which is the part that has to work: the same tab, the draft and its code still in
+   * it, and the URL the callback sends them to.
    */
   test("returning from sign-in finishes the roll rather than asking again", async ({ page }) => {
     await page.goto("/new/name");
     await page.getByLabel("Event name").fill("Returned Roll");
+
+    // The code, typed before they were sent away to sign in.
+    await page.goto("/new/guests");
+    await page.getByRole("button", { name: /Create/ }).click();
+    await page.getByLabel("Referral code").fill(TEST_CODE);
+    await page.getByRole("button", { name: "Cancel" }).click();
 
     await page.goto("/new/guests?create=1");
 

@@ -1,8 +1,8 @@
 export const metadata = { title: "Terms of Service" };
 
 /**
- * Written for what MemoVue actually is: a free beta, run from India, that holds other
- * people's photographs for a month.
+ * Written for what MemoVue actually is: a free, invite-only service, run from India, that holds
+ * other people's photographs for a month.
  *
  * Three shapes this document deliberately does not take. There are no app-store clauses,
  * because MemoVue is a website and no store is party to anything here. Arbitration is not
@@ -11,14 +11,14 @@ export const metadata = { title: "Terms of Service" };
  * narrow as the service can run on — no "back up", no blanket processing right — because the
  * whole product promise is that we cannot look.
  *
- * The beta warning leads, before anything else, because it is the first thing somebody
- * handing us a wedding needs to know.
+ * The warning about relying on us leads, before anything else, because it is the first thing
+ * somebody handing us a wedding needs to know.
  */
 export default function TermsPage() {
   return (
     <>
       <h1>Terms of Service</h1>
-      <p className="marking !mt-6">Last updated 6 September 2026</p>
+      <p className="marking !mt-6">Last updated 26 September 2026</p>
 
       <p>
         MemoVue lets a host set up a shared photo roll for an event. Guests take photos on their
@@ -27,12 +27,11 @@ export default function TermsPage() {
         one, you agree to them.
       </p>
 
-      <h2>1. The service is in beta</h2>
+      <h2>1. The service, and what to rely on</h2>
       <p>
-        MemoVue is free while in beta. Every account may create one roll; beyond that we have to
-        have allowed the email address you sign in with. Beta means what it sounds like: features may change, and we
-        cannot promise uninterrupted service. <strong>Please do not make MemoVue the only record of something
-        irreplaceable.</strong>
+        MemoVue is invite-only: creating a roll needs a referral code. Features may change, and
+        we cannot promise uninterrupted service. <strong>Please do not make MemoVue the only
+        record of something irreplaceable.</strong>
       </p>
 
       <h2>2. Who may use MemoVue</h2>
@@ -53,12 +52,12 @@ export default function TermsPage() {
         joined stay attached to them.
       </p>
 
-      <h2>4. Beta access, pricing and refunds</h2>
+      <h2>4. Referral codes, pricing and refunds</h2>
       <p>
-        Beta access is granted to an email address, for a set number of rolls, and cannot be
-        transferred, resold or redeemed for cash. We may decline a request or withdraw access.
-        Deleting a roll before its event has started returns it to your allowance; deleting one
-        after that does not.
+        A referral code creates one roll, or, for a code issued to a business, a set number of
+        rolls. A code is spent when a roll is created with it and is not returned if that roll
+        is deleted. Codes cannot be resold or redeemed for cash. We may decline a request for a
+        code or withdraw one that has not been used.
       </p>
       <p>
         <strong>We currently take no payment.</strong> If MemoVue introduces paid rolls, the

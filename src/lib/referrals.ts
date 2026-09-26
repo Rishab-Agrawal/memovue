@@ -1,16 +1,18 @@
 import "server-only";
 
+import type { CodeKind } from "@prisma/client";
+
 import { normalizeCode } from "./codes";
-import { REFERRALS } from "./constants";
 import { prisma } from "./prisma";
 import { deleteObjects, publicUrl, putObject, referrerLogoKey, storageConfigured } from "./storage";
 
 /**
- * Wedding businesses that send hosts here.
+ * Referral codes: the gate every roll goes through, and the wedding businesses that send hosts
+ * here.
  *
- * A code is resolved in exactly two places — the wizard's first step, which refuses one that
- * does not exist, and roll creation, which is the trust boundary and asks again. Everything
- * else reads the roll's `referrerId`.
+ * A code is resolved in exactly two places — the Create dialog, which checks one before sending
+ * somebody off to sign in, and roll creation, which is the trust boundary and spends it. The
+ * card on a roll reads the roll's `referrerId`, which only a business code sets.
  *
  * Codes are normalised the way a roll code is, so "bloom-events" and "BLOOM EVENTS" are the
  * same code however it was written on whatever the business handed the host.
@@ -40,7 +42,7 @@ export function isReservedCode(input: string): boolean {
   return normalizeCode(input) === SAMPLE_CODE;
 }
 
-/** The business behind a typed code, or null for anything that is not one. */
+/** The code a host typed, or null for anything that is not one. */
 export async function findReferrer(input: string) {
   const code = normalizeCode(input);
   if (!code || code === SAMPLE_CODE) return null;
@@ -48,27 +50,60 @@ export async function findReferrer(input: string) {
   // `email` is here and not in `card`: it is the one field that must never reach a browser.
   return prisma.referrer.findUnique({
     where: { code },
-    select: { id: true, email: true, ...card },
+    select: { id: true, kind: true, used: true, maxUses: true, email: true, ...card },
   });
+}
+
+export function isSpent(referrer: { used: number; maxUses: number }): boolean {
+  return referrer.used >= referrer.maxUses;
+}
+
+export class CodeSpentError extends Error {}
+
+/**
+ * Spends one use, atomically: the ceiling is in the WHERE, so two rolls cannot share the last
+ * one. Called inside the transaction that inserts the roll.
+ */
+export async function spendCode(tx: Pick<typeof prisma, "referrer">, id: string): Promise<void> {
+  const { count } = await tx.referrer.updateMany({
+    where: { id, used: { lt: prisma.referrer.fields.maxUses } },
+    data: { used: { increment: 1 } },
+  });
+  if (count === 0) throw new CodeSpentError();
 }
 
 /**
  * The business to credit on one roll's home screen. Null costs no query, so a roll created
- * without a code — which is most of them — pays nothing for this.
+ * with an individual's code pays nothing for this.
  */
 export async function sponsorFor(roll: { referrerId: string | null }): Promise<Sponsor | null> {
-  if (!REFERRALS || !roll.referrerId) return null;
+  if (!roll.referrerId) return null;
   return prisma.referrer.findUnique({ where: { id: roll.referrerId }, select: card });
 }
 
 /* ------------------------------------------------------------------ admin */
 
-/** The list, newest first, each with how many rolls its code has created. */
+/** Every code, newest first. */
 export function listReferrers() {
   return prisma.referrer.findMany({
     where: { code: { not: SAMPLE_CODE } },
     orderBy: { createdAt: "desc" },
-    select: { ...card, id: true, code: true, email: true, _count: { select: { rolls: true } } },
+    select: { ...card, id: true, code: true, kind: true, maxUses: true, used: true, email: true },
+  });
+}
+
+/** Who used which code, for which roll, newest first. */
+export function listRedemptions() {
+  return prisma.redemption.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 200,
+    select: {
+      id: true,
+      rollName: true,
+      createdAt: true,
+      user: { select: { email: true } },
+      referrer: { select: { code: true, kind: true } },
+    },
   });
 }
 
@@ -82,7 +117,7 @@ function ours(id: string, logoUrl: string | null): boolean {
 export type SaveResult = "ok" | "code-taken" | "not-found";
 
 /**
- * Creates a business, or edits one — every field, including the code itself. One path for both,
+ * Creates a code, or edits one — every field, including the code itself. One path for both,
  * because an admin who mistypes a business name on Tuesday should not need a different screen
  * on Wednesday, and two paths would drift.
  *
@@ -94,6 +129,8 @@ export async function saveReferrer(input: {
   /** Absent creates. */
   id?: string;
   code: string;
+  kind: CodeKind;
+  maxUses: number;
   name: string;
   url: string | null;
   email: string | null;
@@ -108,6 +145,8 @@ export async function saveReferrer(input: {
 
   const fields = {
     code,
+    kind: input.kind,
+    maxUses: input.maxUses,
     name: input.name,
     url: input.url,
     email: input.email,
@@ -140,8 +179,9 @@ export async function saveReferrer(input: {
 }
 
 /**
- * Retires a code. Rolls that used it keep their row and lose the credit — `onDelete: SetNull`,
- * because a roll outliving the business that sold it is not a reason to delete somebody's album.
+ * Retires a code, and its lines in the log with it. Rolls that used it keep their row and lose
+ * the credit — `onDelete: SetNull`, because a roll outliving the business that sold it is not a
+ * reason to delete somebody's album.
  */
 export async function removeReferrer(id: string) {
   await deleteObjects([referrerLogoKey(id)]).catch(() => {});
@@ -167,7 +207,14 @@ export async function saveSampleSponsor(input: {
     select: { id: true },
   });
 
-  return saveReferrer({ ...input, id: existing?.id, code: SAMPLE_CODE, email: null });
+  return saveReferrer({
+    ...input,
+    id: existing?.id,
+    code: SAMPLE_CODE,
+    kind: "BUSINESS",
+    maxUses: 0,
+    email: null,
+  });
 }
 
 /* ------------------------------------------------------------------ the digest */
@@ -185,4 +232,14 @@ export async function referredSince(from: Date, to: Date) {
     .filter((business) => business._count.rolls > 0)
     .sort((a, b) => b._count.rolls - a._count.rolls)
     .map((business) => ({ name: business.name, rolls: business._count.rolls }));
+}
+
+/* ------------------------------------------------------------------ asking for a code */
+
+export function listRequests() {
+  return prisma.codeRequest.findMany({ orderBy: { createdAt: "desc" }, take: 100 });
+}
+
+export function recordRequest(email: string) {
+  return prisma.codeRequest.create({ data: { email: email.toLowerCase() } });
 }

@@ -43,7 +43,7 @@ import {
 
 const REVEAL_LABEL = { DURING: "During", AFTER: "After", DELAY: "After + delay" } as const;
 
-/** Every shot tier a host may pick today — the hundred is held back through the beta. */
+/** Every shot tier a host may pick today. */
 const SHOTS = SHOT_TIERS.filter(shotsAvailable);
 
 export function SettingsSheet({

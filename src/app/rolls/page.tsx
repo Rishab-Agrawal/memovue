@@ -6,13 +6,10 @@ import { PillLink } from "@/components/roll/Chrome";
 import { Cover } from "@/components/roll/Cover";
 import { Person, Qr } from "@/components/roll/Icons";
 import { LiveRefresh } from "@/components/roll/LiveRefresh";
-import { canCreateRoll } from "@/lib/beta";
 import { cn } from "@/lib/cn";
 import { formatDuration } from "@/lib/format";
 import { type RollCard, coverUrlFor, listRollsForUser } from "@/lib/rolls";
 import { requireHost } from "@/lib/session";
-
-import { NewRollButton } from "./NewRollButton";
 
 export const metadata = { title: "Your rolls" };
 export const dynamic = "force-dynamic";
@@ -27,11 +24,8 @@ const destination = (roll: RollCard) =>
  */
 export default async function RollsHome() {
   const user = await requireHost();
-  const [{ active }, canCreate] = await Promise.all([
-    // Albums are their own screen, and their prints cost a query each.
-    listRollsForUser(user.id, { thumbs: false }),
-    canCreateRoll(user),
-  ]);
+  // Albums are their own screen, and their prints cost a query each.
+  const { active } = await listRollsForUser(user.id, { thumbs: false });
   const now = new Date();
   const running = active.length > 0;
 
@@ -46,7 +40,7 @@ export default async function RollsHome() {
           <Logo wordmarkClassName={running ? "text-[17px]" : undefined} />
         </Link>
 
-        {running ? <Actions canCreate={canCreate} hostName={user.name} compact /> : null}
+        {running ? <Actions compact /> : null}
       </header>
 
       <main className="flex-1 overflow-y-auto px-5 pb-6">
@@ -64,7 +58,7 @@ export default async function RollsHome() {
         ) : (
           <div className="flex min-h-full flex-col justify-center">
             <p className="mb-8 text-center text-[15px] text-dust">No active rolls</p>
-            <Actions canCreate={canCreate} hostName={user.name} />
+            <Actions />
           </div>
         )}
       </main>
@@ -78,15 +72,7 @@ export default async function RollsHome() {
 }
 
 /** Create and Join, full size on an empty screen or as pills in the header. */
-function Actions({
-  canCreate,
-  hostName,
-  compact,
-}: {
-  canCreate: boolean;
-  hostName: string;
-  compact?: boolean;
-}) {
+function Actions({ compact }: { compact?: boolean }) {
   const pill = compact ? "h-10 px-3.5 text-[13px]" : "h-14 w-full";
 
   return (
@@ -96,9 +82,9 @@ function Actions({
         compact ? "gap-2" : "mx-auto w-full max-w-[22rem] flex-col gap-3",
       )}
     >
-      <NewRollButton canCreate={canCreate} hostName={hostName} variant="flame" className={pill}>
+      <PillLink href="/new/name" variant="flame" className={pill}>
         + Create roll
-      </NewRollButton>
+      </PillLink>
       <PillLink href="/join" variant="quiet" className={pill}>
         <Qr className="h-4 w-4" />
         {compact ? "Join" : "Join a roll"}

@@ -61,6 +61,7 @@ model User {
   rolls        Roll[]
   guests       Guest[]
   deletedRolls DeletedRoll[]
+  redemptions  Redemption[]
 }
 
 model Roll {
@@ -79,8 +80,8 @@ model Roll {
   /// place and the CDN would otherwise keep serving the old picture.
   coverVersion Int @default(0)
 
-  /// The wedding business whose referral code created this roll, if one was typed. Written once,
-  /// at creation, and never edited: the roll credits whoever actually sent the host here.
+  /// The wedding business whose referral code created this roll; null for an individual's code.
+  /// Written once, at creation, and never edited: the roll credits whoever sent the host here.
   referrerId String?
   referrer   Referrer? @relation(fields: [referrerId], references: [id], onDelete: SetNull)
 
@@ -213,19 +214,33 @@ model DeletedRoll {
   @@index([hostId])
 }
 
-/// A wedding business that sends hosts here.
+enum CodeKind {
+  /// One roll, for one person. Never shown to anybody.
+  INDIVIDUAL
+  /// A wedding business: `maxUses` rolls, each carrying its card.
+  BUSINESS
+}
+
+/// A referral code. Every roll is created with one, typed at the wizard's Create button.
 ///
-/// Its code is typed into the wizard's first step, and every roll created with it carries the
-/// business onto that roll's home screen, where the guests looking at the album see it. There is
-/// nothing to spend and no expiry: a code is a name, not a coupon. Discounts, if rolls ever start
-/// costing money, belong on this row.
+/// A business's code also carries the business onto the home screen of every roll it creates,
+/// where the guests looking at the album see it. The card fields below are a business's alone.
+/// Discounts, if rolls ever start costing money, belong on this row.
 model Referrer {
   id String @id @default(cuid())
 
   /// What the host types, held in the same normalised form a roll code is (see `codes.ts`).
   code String @unique
 
+  kind CodeKind @default(BUSINESS)
+
+  /// Rolls this code may create. Always 1 for an individual.
+  maxUses Int @default(1)
+  /// Rolls it has created. Never given back, so deleting a roll does not refund its code.
+  used    Int @default(0)
+
   /// The business, as it reads on the roll screen and in every Telegram message about the roll.
+  /// For an individual code, who it was given to.
   name String
 
   /// Where the card links. Null renders the name without a link.
@@ -241,36 +256,32 @@ model Referrer {
 
   createdAt DateTime @default(now())
 
-  rolls Roll[]
+  /// Business codes only: the rolls wearing this card.
+  rolls       Roll[]
+  redemptions Redemption[]
 }
 
-/// Who may create rolls while invite-only, keyed on lower-cased email because access can be
-/// granted before the person ever signs in. Spending the free first roll writes the row.
-model BetaAccess {
-  id    String @id @default(cuid())
-  email String @unique
+/// One roll created with one code, under the name it had then. The admin's record of who used
+/// what; `Referrer.used` is what refuses a spent code.
+model Redemption {
+  id         String   @id @default(cuid())
+  referrerId String
+  referrer   Referrer @relation(fields: [referrerId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rollName   String
+  createdAt  DateTime @default(now())
 
-  /// Spent when a roll is created, given back when an unstarted roll is deleted.
-  rollsLeft Int @default(1)
-
-  /// Give-backs so far. Capped in `beta.ts`, or create-and-delete is a free roll on tap.
-  refunds Int @default(0)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  @@index([referrerId])
+  @@index([userId])
 }
 
-/// Somebody asking to be let in. Stored as well as emailed, because email is best-effort.
-model BetaRequest {
+/// Somebody asking for a referral code. Stored as well as emailed, because email is best-effort.
+model CodeRequest {
   id String @id @default(cuid())
 
-  /// The address they are signed in with, which is the one an admin has to allow.
+  /// Where the code goes. The account's, or typed by somebody without one.
   email String
-  name  String
-
-  phone     String?
-  eventType String
-  remarks   String?
 
   createdAt DateTime @default(now())
 

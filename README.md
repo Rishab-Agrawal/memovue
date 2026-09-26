@@ -27,8 +27,8 @@ npm run dev
 npm test                     # Chromium with a fake camera: photos really are encoded and uploaded
 ```
 
-Sign up with the address in `ADMIN_EMAIL` and that account becomes an admin with beta
-access, so you can create events immediately.
+Sign up with the address in `ADMIN_EMAIL` and that account becomes an admin, who mints the
+referral codes every roll is created with at `/admin/referrals`.
 
 ## Scheduled jobs
 

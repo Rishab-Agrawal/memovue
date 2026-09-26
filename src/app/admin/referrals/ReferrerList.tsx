@@ -1,7 +1,8 @@
 "use client";
 
+import type { CodeKind } from "@prisma/client";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 
 import { Pill } from "@/components/roll/Chrome";
 import { Dialog } from "@/components/roll/Dialog";
@@ -24,17 +25,18 @@ export interface ReferrerRow {
   url: string | null;
   email: string | null;
   logoUrl: string | null;
-  /** How many rolls this code has created. The whole point of the programme, counted. */
-  rolls: number;
+  maxUses: number;
+  used: number;
 }
 
 interface Draft extends SponsorDraft {
   id: string;
   code: string;
   email: string;
+  maxUses: string;
 }
 
-const blank: Draft = { ...blankSponsor, id: "", code: "", email: "" };
+const blank: Draft = { ...blankSponsor, id: "", code: "", email: "", maxUses: "10" };
 
 function toDraft(row: ReferrerRow): Draft {
   return {
@@ -42,6 +44,7 @@ function toDraft(row: ReferrerRow): Draft {
     id: row.id,
     code: row.code,
     email: row.email ?? "",
+    maxUses: String(row.maxUses),
     name: row.name,
     url: row.url ?? "",
     logoUrl: row.logoUrl ?? "",
@@ -49,23 +52,28 @@ function toDraft(row: ReferrerRow): Draft {
 }
 
 /**
- * The codes, and the one form that both mints and edits them.
+ * One kind of code: the form that mints it, and the list.
  *
- * Everything is editable after the fact, the code included: a business renames itself, moves
- * domain, or was typed in wrong on a Tuesday, and none of that is a reason to retire a code
- * that is already printed on somebody's cards. Rolls point at the row, not at the string.
+ * An individual's code is a name and a code, spent by one roll and never edited — a mistake is
+ * retired and minted again. A business's is editable after the fact, the code included: a
+ * business renames itself, moves domain, or was typed in wrong on a Tuesday, and none of that is
+ * a reason to retire a code that is already printed on somebody's cards. Rolls point at the row,
+ * not at the string.
  *
- * The two fields only we ever see come first, then the three a guest does, then the card they
- * make. Ordering the form by audience is the only ordering that survives a new field.
+ * The business form puts the fields only we ever see first, then the three a guest does, then
+ * the card they make. Ordering the form by audience is the only ordering that survives a new
+ * field.
  */
-export function ReferrerList({ rows }: { rows: ReferrerRow[] }) {
+export function ReferrerList({ kind, rows }: { kind: CodeKind; rows: ReferrerRow[] }) {
   const router = useRouter();
   const [draft, setDraft] = useState<Draft>(blank);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [removing, setRemoving] = useState<ReferrerRow | null>(null);
   const [pending, startTransition] = useTransition();
+  const formRef = useRef<HTMLDivElement>(null);
 
+  const business = kind === "BUSINESS";
   const editing = draft.id !== "";
 
   const set = (patch: Partial<Draft>) => {
@@ -85,9 +93,15 @@ export function ReferrerList({ rows }: { rows: ReferrerRow[] }) {
     startTransition(async () => {
       const form = new FormData();
       form.set("id", draft.id);
+      form.set("kind", kind);
       form.set("code", draft.code);
-      form.set("email", draft.email);
-      appendSponsor(form, draft);
+      if (business) {
+        form.set("maxUses", draft.maxUses);
+        form.set("email", draft.email);
+        appendSponsor(form, draft);
+      } else {
+        form.set("name", draft.name);
+      }
 
       const result = await saveReferrerAction(form);
       if (!result.ok) {
@@ -108,34 +122,61 @@ export function ReferrerList({ rows }: { rows: ReferrerRow[] }) {
     });
   };
 
-  const ready = draft.code.trim() !== "" && draft.name.trim() !== "";
+  // An individual's code may be left blank, and one is picked for it.
+  const ready = draft.name.trim() !== "" && (!business || draft.code.trim() !== "");
 
   return (
     <>
-      <div className="mt-8 space-y-4 rounded-2xl bg-surface p-5">
+      <div ref={formRef} className="mt-4 scroll-mt-4 space-y-4 rounded-2xl bg-surface p-5">
         <p className="marking">{editing ? `Editing ${draft.code}` : "New code"}</p>
 
-        <Field
-          label="Code"
-          value={draft.code}
-          onChange={(code) => set({ code })}
-          placeholder="BLOOM24"
-          className="tracking-[0.08em] uppercase"
-        />
-        <Field
-          label="Email for new rolls (optional)"
-          value={draft.email}
-          onChange={(email) => set({ email })}
-          placeholder="hello@bloomevents.in"
-        />
+        {business ? (
+          <>
+            <Field
+              label="Code"
+              value={draft.code}
+              onChange={(code) => set({ code })}
+              placeholder="BLOOM24"
+              className="tracking-[0.08em] uppercase"
+            />
+            <Field
+              label="Rolls allowed"
+              value={draft.maxUses}
+              onChange={(maxUses) => set({ maxUses })}
+              placeholder="10"
+            />
+            <Field
+              label="Email for new rolls (optional)"
+              value={draft.email}
+              onChange={(email) => set({ email })}
+              placeholder="hello@bloomevents.in"
+            />
 
-        <SponsorFields
-          value={draft}
-          onChange={set}
-          busy={busy}
-          onBusy={setBusy}
-          onError={setError}
-        />
+            <SponsorFields
+              value={draft}
+              onChange={set}
+              busy={busy}
+              onBusy={setBusy}
+              onError={setError}
+            />
+          </>
+        ) : (
+          <>
+            <Field
+              label="For"
+              value={draft.name}
+              onChange={(name) => set({ name })}
+              placeholder="Priya Sharma"
+            />
+            <Field
+              label="Code (optional)"
+              value={draft.code}
+              onChange={(code) => set({ code })}
+              placeholder="Left blank, one is picked"
+              className="tracking-[0.08em] uppercase"
+            />
+          </>
+        )}
 
         <div className={editing ? "grid grid-cols-2 gap-3" : ""}>
           {editing ? (
@@ -151,54 +192,56 @@ export function ReferrerList({ rows }: { rows: ReferrerRow[] }) {
         {error ? <p className="text-[13px] text-danger">{error}</p> : null}
       </div>
 
-      <section className="mt-10">
-        <p className="marking">Codes · {rows.length}</p>
+      {rows.length === 0 ? (
+        <p className="mt-4 text-[14px] text-dust">No codes yet.</p>
+      ) : (
+        <ul className="mt-4 divide-y divide-hair border-t border-hair">
+          {rows.map((row) => (
+            <li key={row.id} className="flex items-center justify-between gap-3 py-3">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[15px] text-chalk">{row.name}</p>
+                <p className="mt-0.5 truncate text-[13px] text-dust">
+                  <span className="tracking-[0.08em] text-ash">{row.code}</span>
+                  {" · "}
+                  {business
+                    ? `${row.used} of ${row.maxUses} used`
+                    : row.used > 0
+                      ? "Used"
+                      : "Unused"}
+                  {row.email ? ` · ${row.email}` : ""}
+                </p>
+              </div>
 
-        {rows.length === 0 ? (
-          <p className="mt-3 text-[14px] text-dust">No business is sending anybody here yet.</p>
-        ) : (
-          <ul className="mt-3 divide-y divide-hair border-t border-hair">
-            {rows.map((row) => (
-              <li key={row.id} className="flex items-center justify-between gap-3 py-3">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[15px] text-chalk">{row.name}</p>
-                  <p className="mt-0.5 truncate text-[13px] text-dust">
-                    <span className="tracking-[0.08em] text-ash">{row.code}</span>
-                    {" · "}
-                    {row.rolls} roll{row.rolls === 1 ? "" : "s"}
-                    {row.email ? ` · ${row.email}` : ""}
-                  </p>
-                </div>
-
-                <div className="flex shrink-0 items-center gap-1">
+              <div className="flex shrink-0 items-center gap-1">
+                {business ? (
                   <button
                     type="button"
                     aria-label={`Edit ${row.name}`}
                     disabled={pending}
                     onClick={() => {
                       reset(toDraft(row));
-                      window.scrollTo({ top: 0, behavior: "smooth" });
+                      formRef.current?.scrollIntoView({ behavior: "smooth" });
                     }}
                     className="flex h-9 w-9 items-center justify-center rounded-full text-dust transition-colors hover:text-flame disabled:pointer-events-none disabled:opacity-30"
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
+                ) : null}
 
-                  <button
-                    type="button"
-                    aria-label={`Remove ${row.name}`}
-                    disabled={pending}
-                    onClick={() => setRemoving(row)}
-                    className="flex h-9 w-9 items-center justify-center rounded-full text-dust transition-colors hover:text-danger disabled:pointer-events-none disabled:opacity-30"
-                  >
-                    <Trash className="h-4 w-4" />
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+                <button
+                  type="button"
+                  aria-label={`Remove ${row.name}`}
+                  disabled={pending}
+                  onClick={() => setRemoving(row)}
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-dust transition-colors hover:text-danger disabled:pointer-events-none disabled:opacity-30"
+                >
+                  <Trash className="h-4 w-4" />
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
 
       <Dialog
         open={removing !== null}
@@ -221,9 +264,9 @@ export function ReferrerList({ rows }: { rows: ReferrerRow[] }) {
       >
         <p>{removing?.name}</p>
         <p className="mt-2">
-          Nobody can type {removing?.code} again, and the {removing?.rolls} roll
-          {removing?.rolls === 1 ? "" : "s"} it created stop naming them. The rolls themselves are
-          untouched.
+          Nobody can type {removing?.code} again, and its uses leave the log below.
+          {business ? " The rolls it created stop naming the business." : ""} The rolls themselves
+          are untouched.
         </p>
       </Dialog>
     </>

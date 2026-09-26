@@ -7,7 +7,7 @@ import { STORAGE_STATE, TEST_HOST } from "./global-setup";
 /**
  * The admin side of referral codes, which is the half with no other cover.
  *
- * Everything a code carries is editable after it exists — the code string included, because a
+ * Everything a business code carries is editable after it exists — the code string included, because a
  * business renames itself and a typo on Tuesday should not retire a code already printed on
  * somebody's cards. What makes that worth a browser rather than a unit test is that the edit
  * has to land on the same row: the rolls already created point at an id, and an "edit" that
@@ -21,37 +21,56 @@ import { STORAGE_STATE, TEST_HOST } from "./global-setup";
  */
 test.use({ storageState: STORAGE_STATE });
 
-test("a referral code is created with an uploaded logo, then edited in place", async ({ page }) => {
+test("business and individual codes are minted, and a business code edited in place", async ({
+  page,
+}) => {
   const prisma = new PrismaClient({
     adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
   });
 
   await prisma.user.update({ where: { email: TEST_HOST.email }, data: { role: "ADMIN" } });
-  await prisma.referrer.deleteMany({ where: { code: { in: ["PWTEST1", "PWTEST2"] } } });
+  await prisma.referrer.deleteMany({ where: { code: { in: ["PWTEST1", "PWTEST2", "PWTEST3"] } } });
 
   try {
     await page.goto("/admin/referrals");
+    const businesses = page.locator("section", {
+      has: page.getByRole("heading", { name: "Businesses" }),
+    });
+    const individuals = page.locator("section", {
+      has: page.getByRole("heading", { name: "Individuals" }),
+    });
+
+    // One roll, whatever is posted.
+    await individuals.getByLabel("For").fill("Playwright Person");
+    await individuals.getByLabel("Code (optional)").fill("pwtest3");
+    await individuals.getByRole("button", { name: "Create this code" }).click();
+    await expect(individuals.getByText("PWTEST3")).toBeVisible();
+    const individual = await prisma.referrer.findUniqueOrThrow({ where: { code: "PWTEST3" } });
+    expect(individual).toMatchObject({ kind: "INDIVIDUAL", maxUses: 1, name: "Playwright Person" });
 
     // Typed as it was written on a card; stored in the form a roll code is stored in.
-    await page.getByLabel("Code").fill("pwtest-1");
+    await businesses.getByLabel("Code", { exact: true }).fill("pwtest-1");
+    await businesses.getByLabel("Rolls allowed").fill("25");
     await page.getByLabel("Business name").fill("Playwright Florals");
     await page.getByLabel("Website (optional)").fill("https://playwright-florals.test");
     await page.getByLabel("Email for new rolls (optional)").fill("partner@playwright.test");
     await page.locator('input[type="file"]').setInputFiles("public/icon-512.png");
     await expect(page.getByText("Image ready")).toBeVisible();
 
-    await page.getByRole("button", { name: "Create this code" }).click();
+    await businesses.getByRole("button", { name: "Create this code" }).click();
     await expect(page.getByRole("button", { name: "Edit Playwright Florals" })).toBeVisible();
 
     const created = await prisma.referrer.findUniqueOrThrow({ where: { code: "PWTEST1" } });
     expect(created.email).toBe("partner@playwright.test");
+    expect(created).toMatchObject({ kind: "BUSINESS", maxUses: 25 });
     // The bytes left the picker, were shrunk, and landed under this business's own key.
     expect(created.logoUrl).toContain(`/referrers/${created.id}/logo.jpg?v=`);
 
     await page.getByRole("button", { name: "Edit Playwright Florals" }).click();
     await expect(page.getByText("Editing PWTEST1")).toBeVisible();
 
-    await page.getByLabel("Code").fill("PWTEST2");
+    await businesses.getByLabel("Code", { exact: true }).fill("PWTEST2");
+    await businesses.getByLabel("Rolls allowed").fill("30");
     await page.getByLabel("Business name").fill("Playwright Weddings");
     await page.getByLabel("Email for new rolls (optional)").fill("");
     await page.getByRole("button", { name: "Save changes" }).click();
@@ -62,6 +81,7 @@ test("a referral code is created with an uploaded logo, then edited in place", a
     const edited = await prisma.referrer.findUniqueOrThrow({ where: { code: "PWTEST2" } });
     expect(edited.id).toBe(created.id);
     expect(edited.name).toBe("Playwright Weddings");
+    expect(edited.maxUses).toBe(30);
     // Cleared means cleared: an empty address stops the mail rather than storing "".
     expect(edited.email).toBeNull();
     // Untouched by an edit that did not pick a new one.
@@ -90,12 +110,14 @@ test("a referral code is created with an uploaded logo, then edited in place", a
 
     await page.goto("/new/name");
     await page.getByLabel("Event name").fill("Not a pitch");
+    await page.goto("/new/guests");
+    await page.getByRole("button", { name: /Create/ }).click();
     await page.getByLabel("Referral code").fill("SAMPLE");
-    await page.getByRole("button", { name: /Next/ }).click();
-    await expect(page.getByText(/don.t know that referral code/i)).toBeVisible();
+    await page.getByRole("button", { name: "Create roll", exact: true }).click();
+    await expect(page.getByText("Code not found, please re-check.")).toBeVisible();
   } finally {
     await prisma.referrer.deleteMany({ where: { code: "SAMPLE" } });
-    await prisma.referrer.deleteMany({ where: { code: { in: ["PWTEST1", "PWTEST2"] } } });
+    await prisma.referrer.deleteMany({ where: { code: { in: ["PWTEST1", "PWTEST2", "PWTEST3"] } } });
     await prisma.user.update({ where: { email: TEST_HOST.email }, data: { role: "HOST" } });
     await prisma.$disconnect();
   }

@@ -83,27 +83,10 @@ export function notify(topic: Exclude<Topic, "alerts">, text: string): Promise<v
 
 /* ------------------------------------------------------------------ signals */
 
-/** The same beta request `sendBetaRequest` emails, as one message you can read on a lock screen. */
-export function sendBetaRequestToTelegram(request: {
-  email: string;
-  name: string;
-  phone?: string | null;
-  eventType: string;
-  remarks?: string | null;
-}): Promise<void> {
+/** The same request `sendCodeRequest` emails, as one message you can read on a lock screen. */
+export function sendCodeRequestToTelegram(email: string): Promise<void> {
   return notify(
     "signals",
-    [
-      `Beta access requested — ${request.eventType}`,
-      "",
-      request.name,
-      request.email,
-      request.phone ? request.phone : null,
-      request.remarks ? `“${request.remarks}”` : null,
-      "",
-      `Allow it: ${env.appUrl}/admin`,
-    ]
-      .filter((line) => line !== null)
-      .join("\n"),
+    `Referral code requested — ${email}\n\nMake them a code: ${env.appUrl}/admin/referrals`,
   );
 }

@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { TEST_CODE } from "./global-setup";
+
 test.describe("public pages", () => {
   test("landing page renders and never scrolls sideways", async ({ page }) => {
     await page.goto("/");
@@ -73,37 +75,16 @@ test.describe("public pages", () => {
 
     await page.getByRole("button", { name: /Create/ }).click();
 
-    await expect(page.getByRole("heading", { name: "Almost there" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Continue with Google" })).toHaveAttribute(
-      "href",
-      "/api/auth/google/start?next=/new/guests%3Fcreate=1",
-    );
-    // And nothing was created on the way to the gate.
-    await expect(page.getByRole("heading", { name: "Roll Created!" })).toHaveCount(0);
-  });
-
-  /**
-   * The referral field, which is the one thing on step one that can refuse.
-   *
-   * A code is printed on a card a florist hands over, so it gets mistyped, and the step it is
-   * typed on is four screens from the one that writes anything. Finding out there that the
-   * business will not be credited is finding out too late, so the check happens on Next — and
-   * an empty field has nothing to check, which is why Next is still a plain link without one.
-   */
-  test("a referral code that names nobody does not get past step one", async ({ page }) => {
-    await page.goto("/new/name");
-    await page.getByLabel("Event name").fill("Mistyped card");
-
+    // A mistyped code is caught before the trip to Google, not after it.
     await page.getByLabel("Referral code").fill("NOSUCHCODE");
-    await page.getByRole("button", { name: /Next/ }).click();
+    await page.getByRole("button", { name: "Sign in and create" }).click();
+    await expect(page.getByText("Code not found, please re-check.")).toBeVisible();
 
-    await expect(page.getByText(/don.t know that referral code/i)).toBeVisible();
-    await expect(page).toHaveURL(/\/new\/name$/);
-
-    // Cleared, and the step is a link onward again.
-    await page.getByLabel("Referral code").fill("");
-    await page.getByRole("link", { name: /Next/ }).click();
-    await expect(page).toHaveURL(/\/new\/start$/);
+    // A real one sends them to sign in, and back here to finish.
+    await page.route("**/api/auth/google/start**", (route) => route.fulfill({ body: "" }));
+    await page.getByLabel("Referral code").fill(TEST_CODE);
+    await page.getByRole("button", { name: "Sign in and create" }).click();
+    await expect(page).toHaveURL(/\/api\/auth\/google\/start\?next=\/new\/guests%3Fcreate=1$/);
   });
 
   /**

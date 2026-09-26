@@ -42,7 +42,10 @@ const optionalLink = z
 export const saveReferrerSchema = z.object({
   id: z.string().min(1).optional(),
   code: referralCode,
-  name: z.string().trim().min(1, "Name the business").max(60),
+  kind: z.enum(["INDIVIDUAL", "BUSINESS"]),
+  /** Ignored for an individual, which is always one. */
+  maxUses: z.coerce.number().int().min(1, "Allow at least one roll").max(100_000),
+  name: z.string().trim().min(1, "Give the code a name").max(60),
   url: optionalLink,
   logoUrl: optionalLink,
   /** Told about every roll created with the code. Empty means tell them nothing. */
@@ -79,8 +82,8 @@ const rollFields = z.object({
     uploadsAllowed: z.boolean(),
     coverPreset: z.number().int().min(0).max(8),
 
-    /** A wedding business's code. Shape only — whether it names one is a database question. */
-    referralCode: referralCode.optional(),
+    /** Shape only — whether it names a code with a use left is a database question. */
+    referralCode,
 });
 
 export const createRollSchema = rollFields.superRefine((data, ctx) => {
@@ -137,7 +140,7 @@ export const editStartSchema = z.object({
   startsAt: z.iso.datetime({ offset: true }),
 });
 
-/** The wizard's own tiers and beta ceiling, so a hundred-shot roll cannot be bought here either. */
+/** The wizard's own tiers and ceiling, so a hundred-shot roll cannot be bought here either. */
 export const editSizeSchema = rollFields.pick({ maxGuests: true, photosPerGuest: true }).partial();
 
 /** The wizard's two reveal fields. The moment itself is derived from the roll, never posted. */
@@ -196,29 +199,11 @@ export const updateNameSchema = z.object({
   name: z.string().trim().min(1, "Please enter your name").max(60),
 });
 
-/* ------------------------------------------------------------------ admin */
+/* ------------------------------------------------------------------ code requests */
 
-/** The address an admin types into the beta list. Lower-cased on the way to the database. */
-export const grantAccessSchema = z.object({
+/** Asking for a referral code. Open to anyone, so the address is typed, not taken from a session. */
+export const codeRequestSchema = z.object({
   email: z.email("That doesn't look like an email address").max(160),
-});
-
-export const adjustAccessSchema = z.object({
-  id: z.string().min(1),
-  /** One step per tap, so an admin typo cannot grant 900 rolls. */
-  delta: z.union([z.literal(1), z.literal(-1)]),
-});
-
-export const revokeAccessSchema = adjustAccessSchema.pick({ id: true });
-
-/* ------------------------------------------------------------------ beta requests */
-
-/** Asking for access. No email field: the signed-in address is the one an admin must allow. */
-export const betaRequestSchema = z.object({
-  name: z.string().trim().min(1, "Please enter your name").max(60),
-  phone: z.string().trim().max(30).optional(),
-  eventType: z.string().trim().min(1, "What kind of event is it?").max(60),
-  remarks: z.string().trim().max(500).optional(),
 });
 
 /** Flattens a ZodError into { field: message } for rendering next to inputs. */

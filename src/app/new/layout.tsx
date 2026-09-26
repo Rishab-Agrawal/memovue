@@ -19,7 +19,11 @@ export default async function WizardLayout({ children }: { children: ReactNode }
   const user = await getCurrentUser();
 
   return (
-    <DraftProvider hostName={user?.name ?? "You"} signedIn={Boolean(user)}>
+    <DraftProvider
+      hostName={user?.name ?? "You"}
+      hostEmail={user?.email ?? ""}
+      signedIn={Boolean(user)}
+    >
       {children}
     </DraftProvider>
   );

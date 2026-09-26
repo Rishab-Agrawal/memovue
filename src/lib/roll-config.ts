@@ -26,17 +26,12 @@ export function formatPrice(rupees: number): string {
   return `₹${rupees.toLocaleString("en-IN")}`;
 }
 
-/* ------------------------------------------------------------------ beta */
-
 /**
- * Beta: nothing is charged (the wizard strikes the price rather than hiding it), and the
- * hundred-shot roll is not offered until its economics have been seen at a real event.
+ * Whether a shot count from `SHOT_TIERS` can be picked today. Read by the wizard and the server.
+ * The hundred-shot roll is held back until its economics have been seen at a real event.
  */
-export const BETA = true;
-
-/** Whether a shot count from `SHOT_TIERS` can be picked today. Read by the wizard and the server. */
 export function shotsAvailable(shots: number): boolean {
-  return !BETA || shots !== 100;
+  return shots !== 100;
 }
 
 /* ------------------------------------------------------------------ the calendar */

@@ -1,7 +1,4 @@
-import { notFound } from "next/navigation";
-
 import { BackButton } from "@/components/roll/Chrome";
-import { REFERRALS } from "@/lib/constants";
 import { sampleSponsor } from "@/lib/referrals";
 import { requireAdmin } from "@/lib/session";
 
@@ -19,7 +16,6 @@ export const dynamic = "force-dynamic";
  */
 export default async function SampleCardPage() {
   await requireAdmin();
-  if (!REFERRALS) notFound();
 
   const current = await sampleSponsor();
 

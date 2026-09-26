@@ -5,17 +5,15 @@ import { useEffect, useRef, useState, useTransition } from "react";
 
 import { cn } from "@/lib/cn";
 
-import { BetaGate } from "@/components/roll/BetaGate";
 import { Pill, StepButton } from "@/components/roll/Chrome";
+import { CodeDialog } from "@/components/roll/CodeDialog";
 import { Dialog } from "@/components/roll/Dialog";
 import { GiveawayHelp } from "@/components/roll/GiveawayHelp";
-import { Google } from "@/components/roll/Icons";
 import { ShareLink } from "@/components/roll/ShareLink";
 import { Toggle } from "@/components/roll/Toggle";
 import { WizardShell } from "@/components/roll/WizardShell";
 import { uploadCover } from "@/lib/cover-upload";
 import {
-  BETA,
   GIVEAWAY_LABEL,
   GIVEAWAY_MIN_SHOTS,
   PARTICIPANT_TIERS,
@@ -27,20 +25,18 @@ import {
   shotsAvailable,
 } from "@/lib/roll-config";
 
-import { createRollAction } from "../actions";
+import { checkReferralAction, createRollAction } from "../actions";
 import { draftToInput, forgetDraft, useDraft } from "../DraftContext";
 
 /** The highest shot tier the stepper may reach today: the last index `shotsAvailable` allows. */
 const SHOT_MAX = SHOT_TIERS.reduce((max, shots, index) => (shotsAvailable(shots) ? index : max), 0);
 
 export default function StepGuests() {
-  const { draft, update, hostName, signedIn, restored } = useDraft();
+  const { draft, update, hostEmail, signedIn, restored } = useDraft();
   const router = useRouter();
 
-  // The home screen's button checks the allowance first; this catches one spent meanwhile.
-  const [blocked, setBlocked] = useState(false);
-  /** Sign-in, asked for only at Create. */
-  const [needsAccount, setNeedsAccount] = useState(false);
+  const [asking, setAsking] = useState(false);
+  const [codeError, setCodeError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<{ id: string; code: string; name: string } | null>(null);
   const [coverFailed, setCoverFailed] = useState(false);
@@ -54,20 +50,22 @@ export default function StepGuests() {
       : "";
 
   const create = () => {
-    // The only moment an account is needed; the draft survives the trip to Google.
-    if (!signedIn) {
-      setNeedsAccount(true);
-      return;
-    }
-
     setError(null);
+    setCodeError(null);
     startTransition(async () => {
       const result = await createRollAction(draftToInput(draft));
       if (!result.ok) {
-        if (result.noAccess) setBlocked(true);
-        else setError(result.error);
+        // A code error belongs under the box, which is opened for it on the way back from Google.
+        if (result.fields?.referralCode) {
+          setCodeError(result.fields.referralCode);
+          setAsking(true);
+        } else {
+          setAsking(false);
+          setError(result.error);
+        }
         return;
       }
+      setAsking(false);
 
       // The cover goes up once the roll exists. A failure is reported, not fatal: it can be set again in settings.
       if (draft.coverBlob) {
@@ -83,6 +81,22 @@ export default function StepGuests() {
 
       forgetDraft();
       setCreated({ id: result.rollId, code: result.code, name: result.name });
+    });
+  };
+
+  /**
+   * The only moment an account is needed. The code is checked first, so a typo does not cost a
+   * trip to Google; the draft, code included, survives the trip.
+   */
+  const signInAndCreate = () => {
+    setCodeError(null);
+    startTransition(async () => {
+      const result = await checkReferralAction({ code: draft.referralCode });
+      if (!result.ok) {
+        setCodeError(result.error);
+        return;
+      }
+      window.location.assign("/api/auth/google/start?next=/new/guests%3Fcreate=1");
     });
   };
 
@@ -112,7 +126,7 @@ export default function StepGuests() {
           href: "/new/guests",
           inert: !draft.name.trim() || pending,
         }}
-        onNext={create}
+        onNext={() => setAsking(true)}
       >
         {/* A native range: one drag across the tiers, with keyboard and screen-reader support built in. */}
         <div className="flex items-end justify-between gap-4">
@@ -123,12 +137,9 @@ export default function StepGuests() {
             </p>
             <p className="mt-0.5 text-[14px] text-ash">participants</p>
           </div>
-          <div className="shrink-0 text-right" data-testid="price">
-            <p className={cn("text-[15px] text-dust", BETA && "line-through")}>
-              {formatPrice(price)}
-            </p>
-            {BETA ? <p className="mt-0.5 text-[13px] text-flame">Free in beta</p> : null}
-          </div>
+          <p className="shrink-0 text-right text-[15px] text-dust" data-testid="price">
+            {formatPrice(price)}
+          </p>
         </div>
 
         <input
@@ -216,25 +227,20 @@ export default function StepGuests() {
         </div>
       </WizardShell>
 
-      <BetaGate open={blocked} onClose={() => setBlocked(false)} hostName={hostName} />
-
-      <Dialog
-        open={needsAccount}
-        onClose={() => setNeedsAccount(false)}
-        title="Almost there"
-        actions={
-          // A plain anchor: a route handler that redirects to Google. `next` returns here.
-          <a
-            href="/api/auth/google/start?next=/new/guests%3Fcreate=1"
-            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-chalk px-6 text-[15px] font-medium whitespace-nowrap text-void transition-[color,background-color,scale] duration-150 hover:bg-white active:scale-[0.97]"
-          >
-            <Google className="h-5 w-5" />
-            Continue with Google
-          </a>
-        }
-      >
-        <p>All set! Sign in to create your roll.</p>
-      </Dialog>
+      <CodeDialog
+        open={asking}
+        onClose={() => setAsking(false)}
+        code={draft.referralCode}
+        onCodeChange={(referralCode) => {
+          update({ referralCode });
+          setCodeError(null);
+        }}
+        error={codeError}
+        pending={pending}
+        signedIn={signedIn}
+        onSubmit={signedIn ? create : signInAndCreate}
+        hostEmail={hostEmail}
+      />
 
       <Dialog
         open={error !== null}

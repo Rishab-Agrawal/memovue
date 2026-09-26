@@ -18,7 +18,17 @@ import { backupKey, deleteObjects, putStream, storageConfigured } from "./storag
  * Dependency order, so a restore never inserts a row before the row it points at.
  * **A new table has to be added here** — `runBackup` fails if one is missing.
  */
-export const TABLES = ["User", "BetaAccess", "BetaRequest", "Roll", "Guest", "Photo", "DeletedRoll"] as const;
+export const TABLES = [
+  "User",
+  "Referrer",
+  "Redemption",
+  "CodeRequest",
+  "Roll",
+  "Guest",
+  "Photo",
+  "DeletedRoll",
+  "Metric",
+] as const;
 
 /*
   Dates are transcribed, never interpreted. node-postgres reads a zone-less `timestamp` in the

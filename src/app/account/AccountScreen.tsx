@@ -17,7 +17,6 @@ import {
   Warning,
 } from "@/components/roll/Icons";
 import { SettingRow } from "@/components/roll/SettingRow";
-import { REFERRALS } from "@/lib/constants";
 
 import { deleteAccountAction, logoutAction, updateNameAction } from "./actions";
 
@@ -124,25 +123,16 @@ export function AccountScreen({
             <p className="marking">Admin</p>
             <div className="mt-1">
               <SettingRow
-                icon={<Pencil className="h-5 w-5" />}
-                label="Beta access"
-                href="/admin"
+                icon={<LinkIcon className="h-5 w-5" />}
+                label="Referral codes"
+                href="/admin/referrals"
               />
-              {REFERRALS ? (
-                <>
-                  <SettingRow
-                    icon={<LinkIcon className="h-5 w-5" />}
-                    label="Referral codes"
-                    href="/admin/referrals"
-                  />
-                  {/* Here rather than on the album itself: that page gets screenshotted. */}
-                  <SettingRow
-                    icon={<Photo className="h-5 w-5" />}
-                    label="Sample album card"
-                    href="/admin/sample"
-                  />
-                </>
-              ) : null}
+              {/* Here rather than on the album itself: that page gets screenshotted. */}
+              <SettingRow
+                icon={<Photo className="h-5 w-5" />}
+                label="Sample album card"
+                href="/admin/sample"
+              />
             </div>
           </section>
         ) : null}

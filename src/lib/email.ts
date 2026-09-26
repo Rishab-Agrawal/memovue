@@ -44,45 +44,19 @@ async function send(to: string, subject: string, text: string): Promise<void> {
 }
 
 /**
- * A beta access request, forwarded to `ADMIN_EMAIL`. Without one it returns quietly: the
+ * A referral code request, forwarded to `ADMIN_EMAIL`. Without one it returns quietly: the
  * request is already stored and listed on the admin screen.
  */
-export function sendBetaRequest(request: {
-  email: string;
-  name: string;
-  phone?: string | null;
-  eventType: string;
-  remarks?: string | null;
-}): Promise<void> {
+export function sendCodeRequest(email: string): Promise<void> {
   if (!env.adminEmail) {
-    console.info(`[beta request: no ADMIN_EMAIL] ${request.email}`);
+    console.info(`[code request: no ADMIN_EMAIL] ${email}`);
     return Promise.resolve();
   }
 
   return send(
     env.adminEmail,
-    `Beta access requested by ${request.name}`,
-    [
-      `Account: ${request.email}`,
-      `Name: ${request.name}`,
-      `Phone: ${request.phone || "—"}`,
-      `Event: ${request.eventType}`,
-      `Remarks: ${request.remarks || "—"}`,
-      "",
-      `Add the account address above at ${env.appUrl}/admin`,
-    ].join("\n"),
-  );
-}
-
-/** Beta access granted: sent when an address goes from no rolls to some. */
-export function sendAccessGranted(to: string): Promise<void> {
-  return send(
-    to,
-    "You're in: MemoVue beta access",
-    `Hi,\n\nYou've been given beta access to MemoVue, so you can now create a roll for your ` +
-      `event.\n\nSign in with Google using this email address and start one here:\n` +
-      `${env.appUrl}/rolls\n\nIf you want to share any feedback, kindly write back to us: ` +
-      `hello@memovue.com\n\nSincerely,\nMemoVue`,
+    `Referral code requested by ${email}`,
+    `${email} asked for a referral code.\n\nMake them one at ${env.appUrl}/admin/referrals`,
   );
 }
 

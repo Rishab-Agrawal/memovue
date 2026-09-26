@@ -27,11 +27,11 @@ export const TEST_GUEST = {
 };
 
 /**
- * Creating a roll spends one off the host's beta allowance, so the suite seeds itself two:
- * one for the roll every other test shoots on, and one for the test that spends the last,
- * gets refused, and deletes an unstarted roll to get it back.
+ * Every roll is created with a referral code, so the suite seeds its own: one with room for
+ * every roll the suite creates, and a one-time code for the test that spends it and is refused.
  */
-const TEST_ROLL_ALLOWANCE = 2;
+export const TEST_CODE = "PWHOST";
+export const TEST_ONCE_CODE = "PWONCE";
 
 export const STORAGE_STATE = path.join("tests", ".auth", "host.json");
 export const GUEST_STORAGE_STATE = path.join("tests", ".auth", "invited.json");
@@ -78,8 +78,7 @@ export default async function globalSetup() {
         where: { email: account.email },
         create: { email: account.email, name: account.name },
         // `role` is reset, not just seeded: the referrals spec borrows ADMIN for one test and
-        // hands it back, and a run killed in the middle would otherwise leave a test host with
-        // no beta allowance to spend, which is a different suite failing for no visible reason.
+        // hands it back, and a run killed in the middle would otherwise leave an admin behind.
         update: { name: account.name, role: "HOST" },
         select: { id: true, tokenVersion: true },
       });
@@ -112,20 +111,19 @@ export default async function globalSetup() {
       );
     }
 
-    /*
-      Reset rather than increment: the previous run spent this down to zero, and a suite that
-      starts with whatever the last one left behind fails differently every time.
-
-      `refunds` is on the same footing and was missed when the give-back grew a cap. One
-      refund per account is the rule, the suite spends its one every run, and a counter that
-      is never put back means every run after the first is asserting against an account that
-      has already used it up.
-    */
-    await prisma.betaAccess.upsert({
-      where: { email: TEST_HOST.email },
-      create: { email: TEST_HOST.email, rollsLeft: TEST_ROLL_ALLOWANCE },
-      update: { rollsLeft: TEST_ROLL_ALLOWANCE, refunds: 0 },
-    });
+    // Reset rather than left: the previous run spent these, and a suite that starts with
+    // whatever the last one left behind fails differently every time. Individual codes, so no
+    // business card lands on the suite's rolls.
+    for (const [code, maxUses] of [
+      [TEST_CODE, 100],
+      [TEST_ONCE_CODE, 1],
+    ] as const) {
+      await prisma.referrer.upsert({
+        where: { code },
+        create: { code, kind: "INDIVIDUAL", maxUses, name: "Playwright" },
+        update: { kind: "INDIVIDUAL", maxUses, used: 0 },
+      });
+    }
   } finally {
     await prisma.$disconnect();
   }

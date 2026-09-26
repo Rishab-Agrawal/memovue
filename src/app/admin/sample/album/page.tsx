@@ -1,7 +1,4 @@
-import { notFound } from "next/navigation";
-
 import { SampleAlbum } from "@/components/roll/SampleAlbum";
-import { REFERRALS } from "@/lib/constants";
 import { sampleSponsor } from "@/lib/referrals";
 import { SAMPLE_ALBUM } from "@/lib/sample-album";
 import { requireAdmin } from "@/lib/session";
@@ -18,7 +15,6 @@ export const dynamic = "force-dynamic";
  */
 export default async function SamplePitchPage() {
   await requireAdmin();
-  if (!REFERRALS) notFound();
 
   return (
     <SampleAlbum

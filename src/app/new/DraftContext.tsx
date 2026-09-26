@@ -3,7 +3,6 @@
 import type { RevealMode } from "@prisma/client";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
-import { REFERRALS } from "@/lib/constants";
 import { fromWall, toWall } from "@/lib/format";
 import { PARTICIPANT_TIERS, SHOT_TIERS } from "@/lib/roll-config";
 
@@ -26,11 +25,7 @@ export interface Draft {
    * restored after a reload or sign-in can say the cover was lost.
    */
   coverPicked: boolean;
-  /**
-   * A wedding business's referral code, as typed. Empty for almost every roll. Step one refuses
-   * to move on until a non-empty one names a business, so anything held here has been checked —
-   * and checked again at creation, which is the write that counts.
-   */
+  /** The referral code, as typed at Create. Kept here so it survives the trip to Google. */
   referralCode: string;
   participantIndex: number;
   shotIndex: number;
@@ -49,6 +44,8 @@ type DraftContextValue = {
   clearCover: () => void;
   /** Shown on the invitation card as "Invited by …". */
   hostName: string;
+  /** Prefills the code request form. Empty without an account. */
+  hostEmail: string;
   /** False for someone walking the wizard before making an account. See the last step. */
   signedIn: boolean;
   /** Whether the saved draft has been read back yet. See the last step's auto-create. */
@@ -114,10 +111,12 @@ export function forgetDraft() {
 export function DraftProvider({
   children,
   hostName,
+  hostEmail,
   signedIn,
 }: {
   children: ReactNode;
   hostName: string;
+  hostEmail: string;
   signedIn: boolean;
 }) {
   const [draft, setDraft] = useState<Draft>(() => {
@@ -158,6 +157,7 @@ export function DraftProvider({
     () => ({
       draft,
       hostName,
+      hostEmail,
       signedIn,
       restored,
       update: (patch: Partial<Draft>) => setDraft((current) => ({ ...current, ...patch })),
@@ -182,7 +182,7 @@ export function DraftProvider({
         }));
       },
     }),
-    [draft, hostName, signedIn, restored],
+    [draft, hostName, hostEmail, signedIn, restored],
   );
 
   return <DraftContext.Provider value={value}>{children}</DraftContext.Provider>;
@@ -208,7 +208,6 @@ export function draftToInput(draft: Draft) {
     giveawayAllowed: draft.giveawayAllowed,
     uploadsAllowed: draft.uploadsAllowed,
     coverPreset: draft.coverPreset,
-    // Undefined rather than "", so the schema's optional means "no code" rather than "empty one".
-    referralCode: (REFERRALS && draft.referralCode.trim()) || undefined,
+    referralCode: draft.referralCode.trim(),
   };
 }
