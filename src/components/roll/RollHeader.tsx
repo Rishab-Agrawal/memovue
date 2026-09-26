@@ -1,9 +1,11 @@
 import Link from "next/link";
 
-import { BackButton, SettingsButton } from "@/components/roll/Chrome";
+import { BackButton, RoundLink, SettingsButton } from "@/components/roll/Chrome";
+import { Photo, Qr } from "@/components/roll/Icons";
 import { SponsorCard } from "@/components/roll/Sponsor";
 import { formatDay, formatDuration } from "@/lib/format";
 import type { Sponsor } from "@/lib/referrals";
+import { SHOTS_POOL } from "@/lib/roll-config";
 
 /**
  * The top of a roll, shared by the host's roll home and the guest's album: the name, one line
@@ -22,6 +24,8 @@ export function RollHeader({
   now,
   back,
   settingsHref,
+  inviteHref,
+  poolHref,
   peopleHref,
   sponsor,
 }: {
@@ -38,6 +42,9 @@ export function RollHeader({
   back?: string;
   /** Absent for guests, who have no settings to open. */
   settingsHref?: string;
+  /** The guest's invite and shots pool, stacked where the host's settings would be. */
+  inviteHref?: string;
+  poolHref?: string;
   peopleHref?: string;
   /**
    * The wedding business whose referral code created this roll.
@@ -63,7 +70,20 @@ export function RollHeader({
       {/* The empty span keeps the settings button right-aligned and the row's padding when there is no back button. */}
       <div className="pad-safe-top flex items-start justify-between px-4">
         {back ? <BackButton href={back} /> : <span />}
-        {settingsHref ? <SettingsButton href={settingsHref} /> : null}
+        {settingsHref ? (
+          <SettingsButton href={settingsHref} />
+        ) : inviteHref ? (
+          <div className="flex flex-col gap-2">
+            <RoundLink href={inviteHref} label="Invite guests">
+              <Qr className="h-[18px] w-[18px]" />
+            </RoundLink>
+            {SHOTS_POOL && poolHref ? (
+              <RoundLink href={poolHref} label="Shots pool">
+                <Photo className="h-[18px] w-[18px]" />
+              </RoundLink>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <div className="px-5 pt-8 pb-10 text-center">

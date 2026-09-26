@@ -28,6 +28,8 @@ export interface BackdropRoll {
   everyoneCanSee: boolean;
   /** The host's giveaway switch. Only the settings sheet reads it. */
   giveawayAllowed: boolean;
+  /** The host's upload switch. */
+  uploadsAllowed: boolean;
   keptUntil: Date;
   photoCount: number;
   guestCount: number;
@@ -65,6 +67,7 @@ export function RollBackdrop({
   // The shutter, not the seal. A roll can be legible while it is still shooting.
   const ended = now >= roll.finishesAt;
   const revealsIn = formatDuration(roll.revealAt.getTime() - now.getTime());
+  const notYet = now < roll.startsAt ? `Your roll opens ${formatDay(roll.startsAt)}.` : undefined;
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -85,8 +88,8 @@ export function RollBackdrop({
         peopleHref={`/rolls/${roll.id}/people`}
       />
 
-      {/* Refreshes while anything can still change; an open, finished album schedules nothing. */}
-      {open && ended ? null : <LiveRefresh />}
+      {/* Refreshes while anything can still change; an open, finished album without uploads schedules nothing. */}
+      {open && ended && !roll.uploadsAllowed ? null : <LiveRefresh />}
 
       <div className="space-y-4 px-5 pt-4 pb-6">
         <RollControls
@@ -95,13 +98,9 @@ export function RollBackdrop({
           shotsLeft={roll.shotsLeft}
           // The host shoots by joining like anyone else, so the camera and pool go by code.
           cameraHref={`/e/${roll.code}`}
-          cameraOff={
-            isCapturing(roll, now)
-              ? undefined
-              : now < roll.startsAt
-                ? `Your roll opens ${formatDay(roll.startsAt)}.`
-                : "This roll has finished shooting."
-          }
+          cameraOff={isCapturing(roll, now) ? undefined : (notYet ?? "This roll has finished shooting.")}
+          uploads={roll.uploadsAllowed}
+          uploadOff={notYet}
           inviteHref={`/rolls/${roll.id}/invite`}
           poolLeft={roll.poolLeft}
           refill={roll.refill}

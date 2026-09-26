@@ -16,6 +16,7 @@ import {
   Person,
   Photo,
   Trash,
+  Upload,
 } from "@/components/roll/Icons";
 import { GiveawayHelp } from "@/components/roll/GiveawayHelp";
 import { SettingRow } from "@/components/roll/SettingRow";
@@ -36,6 +37,7 @@ import {
   deleteRollAction,
   setGiveawayAction,
   setSizeAction,
+  setUploadsAction,
   setVisibilityAction,
 } from "../actions";
 
@@ -57,6 +59,7 @@ export function SettingsSheet({
   guestCount,
   everyoneCanSee: initialVisibility,
   giveawayAllowed: initialGiveaway,
+  uploadsAllowed: initialUploads,
 }: {
   rollId: string;
   name: string;
@@ -73,10 +76,12 @@ export function SettingsSheet({
   guestCount: number;
   everyoneCanSee: boolean;
   giveawayAllowed: boolean;
+  uploadsAllowed: boolean;
 }) {
   const router = useRouter();
   const [everyoneCanSee, setEveryoneCanSee] = useState(initialVisibility);
   const [giveaway, setGiveaway] = useState(initialGiveaway);
+  const [uploads, setUploads] = useState(initialUploads);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -96,6 +101,14 @@ export function SettingsSheet({
     setGiveaway(next);
     startTransition(async () => {
       await setGiveawayAction(rollId, next);
+      router.refresh();
+    });
+  };
+
+  const toggleUploads = (next: boolean) => {
+    setUploads(next);
+    startTransition(async () => {
+      await setUploadsAction(rollId, next);
       router.refresh();
     });
   };
@@ -171,6 +184,12 @@ export function SettingsSheet({
             trailing={
               <Toggle on={everyoneCanSee} onChange={toggleVisibility} name={visibilityLabel} />
             }
+          />
+
+          <SettingRow
+            icon={<Upload className="h-5 w-5" />}
+            label="Allow uploads"
+            trailing={<Toggle on={uploads} onChange={toggleUploads} name="Allow uploads" />}
           />
 
           {SHOTS_POOL && photosPerGuest >= GIVEAWAY_MIN_SHOTS ? (

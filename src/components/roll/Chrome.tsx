@@ -76,6 +76,15 @@ export function SettingsButton({ href, label = "Roll settings" }: { href: string
   return <ChromeLink href={href} label={label} icon={<Gear className="h-[18px] w-[18px]" />} />;
 }
 
+/** A circle, so a roll's shortcuts never read as its square chrome. */
+export function RoundLink({ href, label, children }: { href: string; label: string; children: ReactNode }) {
+  return (
+    <Link href={href} aria-label={label} className={cn(chromeButton, "rounded-full")}>
+      {children}
+    </Link>
+  );
+}
+
 /** One end of a stepper. Circular, so it never reads as one of the rectangular tiles. */
 export function StepButton({
   label,

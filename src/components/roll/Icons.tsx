@@ -69,6 +69,12 @@ export const Download = (p: IconProps) => (
   </Svg>
 );
 
+export const Upload = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M4.5 19.5h15" />
+  </Svg>
+);
+
 export const Send = (p: IconProps) => (
   <Svg {...p}>
     <path d="M20.5 3.5 3.5 10.2l7 2.3 2.3 7z" />

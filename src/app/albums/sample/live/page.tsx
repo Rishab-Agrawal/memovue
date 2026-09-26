@@ -19,6 +19,7 @@ export default function LiveSampleAlbumPage() {
           feed={{
             open: true,
             capturing: true,
+            uploads: false,
             rollName: SAMPLE_ALBUM.name,
             everyoneCanSee: true,
             // A roll revealed as it is shot stores its close as the reveal.

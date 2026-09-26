@@ -37,7 +37,7 @@ export default async function GuestRollPage({ params }: PageProps<"/e/[code]">) 
   return (
     <GuestApp
       code={context.roll.code}
-      rollName={context.roll.name}
+      uploads={context.roll.uploadsAllowed}
       shotsLeft={context.shotsLeft}
       // Their allowance, including film drawn from or given to the pool.
       shotsTotal={context.roll.photosPerGuest + context.guest.fromPool}

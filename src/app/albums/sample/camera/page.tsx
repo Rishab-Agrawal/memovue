@@ -44,10 +44,6 @@ export default function SampleCamera() {
       <div className="absolute top-[calc(var(--safe-top)+0.25rem)] left-4 z-10">
         <BackButton href="/welcome" label="Leave the camera" />
       </div>
-
-      <span className="marking pointer-events-none absolute inset-x-0 top-[calc(var(--safe-top)+0.5rem)] truncate px-16 text-center text-chalk/60">
-        {SAMPLE_ALBUM.name}
-      </span>
     </div>
   );
 }

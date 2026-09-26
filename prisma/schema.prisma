@@ -93,6 +93,10 @@ model Roll {
   /// Whether guests may hand their own film to the shots pool. Drawing from it is unaffected.
   giveawayAllowed Boolean @default(false)
 
+  /// Whether guests may add photos from their library. Also keeps the roll taking photos past
+  /// its close, until it is deleted. See `acceptsUploads`.
+  uploadsAllowed Boolean @default(false)
+
   /// Capture runs startsAt..finishesAt. The reveal is a separate moment.
   startsAt   DateTime
   finishesAt DateTime

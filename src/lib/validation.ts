@@ -76,6 +76,7 @@ const rollFields = z.object({
 
     everyoneCanSee: z.boolean(),
     giveawayAllowed: z.boolean(),
+    uploadsAllowed: z.boolean(),
     coverPreset: z.number().int().min(0).max(8),
 
     /** A wedding business's code. Shape only — whether it names one is a database question. */

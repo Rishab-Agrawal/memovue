@@ -9,6 +9,7 @@ import {
   deleteRollPhoto,
   removeGuest,
   setRollSize,
+  setRollUploads,
   updateRollFields,
   updateRollFinish,
   updateRollReveal,
@@ -54,6 +55,19 @@ export async function setGiveawayAction(
   if (over) return over;
 
   await updateRollFields(rollId, user.id, { giveawayAllowed });
+  revalidatePath(`/rolls/${rollId}`);
+  return { ok: true };
+}
+
+export async function setUploadsAction(
+  rollId: string,
+  uploadsAllowed: boolean,
+): Promise<ActionResult> {
+  const user = await requireHost();
+  const over = overWriteBudget(user.id);
+  if (over) return over;
+
+  await setRollUploads(rollId, user.id, uploadsAllowed);
   revalidatePath(`/rolls/${rollId}`);
   return { ok: true };
 }

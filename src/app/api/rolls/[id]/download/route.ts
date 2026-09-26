@@ -4,7 +4,7 @@ import { PassThrough, Readable as NodeReadable } from "node:stream";
 
 import { ZIP_DOWNLOAD_LIMIT, ZIP_DOWNLOAD_SPENT } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
-import { UPLOAD_GRACE_HOURS, isOpen } from "@/lib/roll-access";
+import { acceptsUploads, isOpen } from "@/lib/roll-access";
 import { getCurrentUser } from "@/lib/session";
 import { getObjectStream, headObject, presignDownload, putStream, zipKey } from "@/lib/storage";
 
@@ -30,7 +30,7 @@ function refuse(status: number, message: string, headers: HeadersInit = {}) {
 /**
  * The whole album as a ZIP.
  *
- * Once no more uploads can arrive (close + upload grace), the archive is built into R2 once and
+ * Once no more uploads can arrive (`acceptsUploads`), the archive is built into R2 once and
  * every download is a redirect to a signed link, since R2 egress is free. Before that it can
  * still change, so it streams live through the app server.
  */
@@ -50,6 +50,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       revealAt: true,
       revealMode: true,
       revealedEarly: true,
+      uploadsAllowed: true,
     },
   });
   if (!roll) return refuse(404, "That roll no longer exists.");
@@ -83,10 +84,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   if (claimed.count === 0) return refuse(403, ZIP_DOWNLOAD_SPENT);
 
   const filename = `${safeSegment(roll.name)}-memovue.zip`;
-  const settled =
-    Date.now() >= roll.finishesAt.getTime() + UPLOAD_GRACE_HOURS * 3_600_000;
-
-  if (settled) {
+  if (!acceptsUploads(roll)) {
     const key = zipKey(roll.id);
 
     if (!(await headObject(key))) {

@@ -28,6 +28,8 @@ export interface FeedPhoto {
 export interface Feed {
   open: boolean;
   capturing: boolean;
+  /** Whether this guest may add photos from their library right now. */
+  uploads: boolean;
   rollName: string;
   everyoneCanSee: boolean;
   revealAt: string;
@@ -81,7 +83,7 @@ export function AlbumView({
   const sentinel = useRef<HTMLDivElement>(null);
   /* Which request the grid belongs to. A reset bumps it, so an in-flight page is dropped. */
   const request = useRef(0);
-  /* Open and no longer shooting: nothing left to poll for. */
+  /* Open and nothing more can arrive: nothing left to poll for. */
   const settled = useRef(false);
   /* The roll's count at the last poll, and the wall as last drawn — what `loadNew` compares. */
   const lastTotal = useRef<number | null>(null);
@@ -125,7 +127,7 @@ export function AlbumView({
       const next = (await response.json()) as Feed;
       if (lastTotal.current !== null && next.totalPhotos !== lastTotal.current) void loadNew();
       lastTotal.current = next.totalPhotos;
-      settled.current = next.open && !next.capturing;
+      settled.current = next.open && !next.capturing && !next.uploads;
       setFeed((previous) => {
         // The seal lifting while someone watches refreshes the page on its own.
         if (previous && !previous.open && next.open) {
@@ -294,6 +296,7 @@ export function AlbumScreen({
 }) {
   const [viewing, setViewing] = useState<number | null>(null);
   const { shots, waiting, dropped } = queue;
+  const shooting = Boolean(cameraHref) && feed.capturing;
   const revealsIn = formatDuration(new Date(feed.revealAt).getTime() - now);
 
   return (
@@ -307,6 +310,8 @@ export function AlbumScreen({
         open={feed.open}
         now={now}
         back={back ?? undefined}
+        inviteHref={shooting ? inviteHref : undefined}
+        poolHref={shooting ? poolHref : undefined}
         peopleHref={peopleHref}
         sponsor={sponsor}
       />
@@ -314,14 +319,13 @@ export function AlbumScreen({
       <div className="space-y-4 px-5 pt-4 pb-6">
         <LostShots count={dropped} />
 
-        {cameraHref && feed.capturing ? (
+        {shooting || feed.uploads ? (
           <RollControls
-            ended={!feed.capturing}
+            ended={!shooting}
             code={code}
             shotsLeft={feed.me.shotsLeft}
             cameraHref={cameraHref}
-            inviteHref={inviteHref}
-            poolHref={poolHref}
+            uploads={feed.uploads}
             poolLeft={feed.poolLeft}
             refill={feed.me.refill}
           />

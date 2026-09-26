@@ -30,6 +30,7 @@ export default async function SettingsPage({ params }: PageProps<"/rolls/[id]/se
         guestCount={roll.guestCount}
         everyoneCanSee={roll.everyoneCanSee}
         giveawayAllowed={roll.giveawayAllowed}
+        uploadsAllowed={roll.uploadsAllowed}
       />
     </div>
   );

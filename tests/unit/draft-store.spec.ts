@@ -32,6 +32,8 @@ const draft: Draft = {
   shotIndex: 1,
   everyoneCanSee: true,
   giveawayAllowed: false,
+  uploadsAllowed: true,
+  uploadsWarned: true,
 };
 
 test("a draft comes back off a reload as the shapes it went in as", () => {

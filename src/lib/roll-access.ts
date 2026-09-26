@@ -62,9 +62,14 @@ export const UPLOAD_GRACE_HOURS = 24;
 /**
  * Whether an upload for this roll is still allowed in. Outlives `isCapturing`: a photo taken at
  * 11:58 on bad wifi drains after the close, and refusing it makes the queue delete the only copy.
+ * A roll that allows uploads takes them for as long as it exists. False means the album is settled.
  */
-export function acceptsUploads(roll: RollTimings, now: Date = new Date()): boolean {
+export function acceptsUploads(
+  roll: RollTimings & { uploadsAllowed: boolean },
+  now: Date = new Date(),
+): boolean {
   if (now.getTime() < roll.startsAt.getTime()) return false;
+  if (roll.uploadsAllowed) return true;
   return now.getTime() < roll.finishesAt.getTime() + UPLOAD_GRACE_HOURS * 3_600_000;
 }
 

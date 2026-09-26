@@ -45,6 +45,7 @@ interface CreateRollInput {
   photosPerGuest: number;
   everyoneCanSee: boolean;
   giveawayAllowed: boolean;
+  uploadsAllowed: boolean;
   coverPreset: number;
   /** The business whose referral code was typed into the wizard, already resolved to a row. */
   referrerId?: string | null;
@@ -95,6 +96,7 @@ function writeRoll(host: Account & { name: string }, input: CreateRollInput, rev
         photosPerGuest: input.photosPerGuest,
         everyoneCanSee: input.everyoneCanSee,
         giveawayAllowed: input.giveawayAllowed,
+        uploadsAllowed: input.uploadsAllowed,
         startsAt: input.startsAt,
         finishesAt: input.finishesAt,
         revealMode: input.revealMode,
@@ -131,6 +133,7 @@ const rollSummary = {
   revealedEarly: true,
   everyoneCanSee: true,
   giveawayAllowed: true,
+  uploadsAllowed: true,
   maxGuests: true,
   photosPerGuest: true,
   keptUntil: true,
@@ -496,6 +499,12 @@ export async function updateRollFields(
   }>,
 ) {
   await prisma.roll.updateMany({ where: { id, hostId }, data });
+}
+
+/** Allowing uploads unsettles the album, so the ZIP built from it goes. See `acceptsUploads`. */
+export async function setRollUploads(id: string, hostId: string, uploadsAllowed: boolean) {
+  const { count } = await prisma.roll.updateMany({ where: { id, hostId }, data: { uploadsAllowed } });
+  if (count && uploadsAllowed && storageConfigured) await deleteObjects([zipKey(id)]);
 }
 
 /* ------------------------------------------------------------------ covers */

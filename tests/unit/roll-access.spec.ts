@@ -197,6 +197,7 @@ test.describe("uploads outlive the shutter", () => {
     revealAt: new Date("2026-08-26T19:30:00Z"),
     revealMode: "AFTER" as const,
     revealedEarly: false,
+    uploadsAllowed: false,
   };
 
   test("the shutter still closes exactly on time", () => {
@@ -215,6 +216,12 @@ test.describe("uploads outlive the shutter", () => {
     expect(acceptsUploads(roll, new Date("2026-08-26T18:29:00Z"))).toBe(false);
     const pastGrace = new Date(roll.finishesAt.getTime() + (UPLOAD_GRACE_HOURS + 1) * 3_600_000);
     expect(acceptsUploads(roll, pastGrace)).toBe(false);
+  });
+
+  test("a roll that allows uploads takes them for as long as it exists, from its opening", () => {
+    const library = { ...roll, uploadsAllowed: true };
+    expect(acceptsUploads(library, new Date("2026-08-26T18:29:00Z"))).toBe(false);
+    expect(acceptsUploads(library, new Date("2026-09-20T09:00:00Z"))).toBe(true);
   });
 
   /** The grace window must never be a way to read the album early. */

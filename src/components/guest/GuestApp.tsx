@@ -5,7 +5,9 @@ import { useEffect, useRef, useState } from "react";
 
 import { movePool } from "@/app/e/[code]/pool/actions";
 import { BackButton } from "@/components/roll/Chrome";
+import { Upload } from "@/components/roll/Icons";
 import { ShotsDialog } from "@/components/roll/ShotsDialog";
+import { UploadButton } from "@/components/roll/UploadButton";
 import type { ProcessedPhoto } from "@/lib/image";
 import { SHOTS_POOL } from "@/lib/roll-config";
 import {
@@ -20,7 +22,8 @@ import { CameraView } from "./CameraView";
 
 interface GuestAppProps {
   code: string;
-  rollName: string;
+  /** Whether the host lets photos in from the library. */
+  uploads: boolean;
   shotsLeft: number;
   /** This guest's own allowance, which the counter reads as a fraction. */
   shotsTotal: number;
@@ -39,7 +42,7 @@ interface GuestAppProps {
 /** The viewfinder, and nothing else. The album is a sibling route. */
 export function GuestApp({
   code,
-  rollName,
+  uploads,
   shotsLeft: initialShots,
   shotsTotal,
   pool: initialPool,
@@ -96,7 +99,10 @@ export function GuestApp({
     return watchConnectivity(code);
   }, [code]);
 
-  /** The shot is spent the moment the shutter fires; the upload goes through the durable queue. */
+  /**
+   * The shot is spent the moment the shutter fires or a photo is picked; the upload goes through
+   * the durable queue.
+   */
   function handleCaptured(photo: ProcessedPhoto) {
     shot.current += 1;
     setSpent(shot.current);
@@ -160,9 +166,18 @@ export function GuestApp({
         <BackButton href={home} label="Leave the camera" />
       </div>
 
-      <span className="marking pointer-events-none absolute inset-x-0 top-[calc(var(--safe-top)+0.5rem)] truncate px-16 text-center text-chalk/60">
-        {rollName}
-      </span>
+      {uploads ? (
+        <div className="absolute top-[calc(var(--safe-top)+0.25rem)] right-4 z-10">
+          <UploadButton
+            left={shotsLeft}
+            onPicked={handleCaptured}
+            className="flex h-11 items-center gap-2 rounded-2xl bg-surface px-4 text-[14px] font-medium text-chalk transition-[color,scale] duration-150 hover:text-flame active:scale-[0.97]"
+          >
+            <Upload className="h-[18px] w-[18px]" />
+            Upload
+          </UploadButton>
+        </div>
+      ) : null}
     </div>
   );
 }

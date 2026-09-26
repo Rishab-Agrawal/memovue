@@ -62,6 +62,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
     phase,
     open,
     capturing,
+    // Whether the library is open to this roll right now.
+    uploads: roll.uploadsAllowed && context.acceptsUploads,
     rollName: roll.name,
     hostName: roll.host.name,
     coverPreset: roll.coverPreset,

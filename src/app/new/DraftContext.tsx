@@ -36,6 +36,9 @@ export interface Draft {
   shotIndex: number;
   everyoneCanSee: boolean;
   giveawayAllowed: boolean;
+  uploadsAllowed: boolean;
+  /** Whether the host has been warned off uploads once in this draft. Asked only the first time. */
+  uploadsWarned: boolean;
 }
 
 type DraftContextValue = {
@@ -81,6 +84,9 @@ export function readDraft(): Draft | null {
       finishesAt: new Date(parsed.finishesAt),
       // Absent from a draft written before referral codes existed.
       referralCode: parsed.referralCode ?? "",
+      // Absent from a draft written before uploads existed.
+      uploadsAllowed: parsed.uploadsAllowed ?? false,
+      uploadsWarned: parsed.uploadsWarned ?? false,
       coverBlob: null,
       coverPreviewUrl: null,
     };
@@ -131,6 +137,8 @@ export function DraftProvider({
       shotIndex: 3,
       everyoneCanSee: true,
       giveawayAllowed: false,
+      uploadsAllowed: false,
+      uploadsWarned: false,
     };
   });
 
@@ -198,6 +206,7 @@ export function draftToInput(draft: Draft) {
     photosPerGuest: SHOT_TIERS[draft.shotIndex],
     everyoneCanSee: draft.everyoneCanSee,
     giveawayAllowed: draft.giveawayAllowed,
+    uploadsAllowed: draft.uploadsAllowed,
     coverPreset: draft.coverPreset,
     // Undefined rather than "", so the schema's optional means "no code" rather than "empty one".
     referralCode: (REFERRALS && draft.referralCode.trim()) || undefined,

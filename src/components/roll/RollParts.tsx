@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { Camera, Download, Lock, Photo, Qr } from "@/components/roll/Icons";
+import { Camera, Download, Lock, Photo, Qr, Upload } from "@/components/roll/Icons";
+import { useToast } from "@/components/roll/Toast";
+import { UploadButton } from "@/components/roll/UploadButton";
 import { cn } from "@/lib/cn";
 import { SHOTS_HELD, SHOTS_SPENT, ZIP_DOWNLOAD_SPENT } from "@/lib/constants";
 import { SHOTS_POOL } from "@/lib/roll-config";
-import { subscribeQueue } from "@/lib/upload-queue";
+import { enqueuePhoto, subscribeQueue } from "@/lib/upload-queue";
 
 /** The pieces below the cover, shared by the host's roll home and the guest's album. */
 
@@ -21,13 +23,14 @@ export function RollControls({
   code,
   shotsLeft,
   cameraHref,
+  uploads,
+  uploadOff,
   inviteHref,
   poolHref,
   poolLeft = 0,
   refill = 0,
   saveHref,
   downloadsLeft,
-  onCamera,
   cameraOff,
 }: {
   /** Whether the shutter has closed: a running roll offers camera and invite, a finished one Save. */
@@ -36,8 +39,12 @@ export function RollControls({
   code?: string;
   /** Film left as the server counted it; read together with the upload queue below. */
   shotsLeft?: number;
-  /** Ignored when `onCamera` is given. */
   cameraHref?: string;
+  /** Whether the host lets photos in from the library. Needs `code`, the queue they go into. */
+  uploads?: boolean;
+  /** Why the library cannot be used yet. Said when tapped. */
+  uploadOff?: string;
+  /** Drawn in a row of their own under the camera. The guest's are in the header instead. */
   inviteHref?: string;
   poolHref?: string;
   /** Unclaimed film in the roll. Only read to tell the two refusals below apart. */
@@ -48,8 +55,6 @@ export function RollControls({
   saveHref?: string;
   /** ZIP downloads this roll has left of its lifetime ten. Ignored without `saveHref`. */
   downloadsLeft?: number;
-  /** When given, the camera calls this instead of navigating. */
-  onCamera?: () => void;
   /** Why the camera cannot be used, when the roll's window is not open. Said when tapped. */
   cameraOff?: string;
 }) {
@@ -62,29 +67,34 @@ export function RollControls({
   );
 
   // Refuses only with no film of their own and no refill allowed; which one decides the sentence.
-  const filmSpent = shotsLeft !== undefined && shotsLeft - unreserved <= 0;
-  const off =
-    cameraOff ??
-    (filmSpent && refill <= 0 ? (poolLeft > 0 ? SHOTS_HELD : SHOTS_SPENT) : undefined);
+  const filmLeft = Math.max(0, (shotsLeft ?? 0) - unreserved);
+  const filmSpent = shotsLeft !== undefined && filmLeft <= 0;
+  const spent = poolLeft > 0 ? SHOTS_HELD : SHOTS_SPENT;
+  const off = cameraOff ?? (filmSpent && refill <= 0 ? spent : undefined);
+  const libraryOff = uploadOff ?? (filmSpent ? spent : undefined);
 
-  // One line of transient text for the row, so no control declines silently.
-  const [notice, setNotice] = useState<string | null>(null);
-
-  // Long enough to read, including the refusal that carries an email address.
-  useEffect(() => {
-    if (!notice) return;
-    const timer = setTimeout(() => setNotice(null), Math.max(2600, notice.length * 70));
-    return () => clearTimeout(timer);
-  }, [notice]);
+  const [say, toast] = useToast();
 
   // Downloads spent this sitting, so the ceiling shows as a notice rather than a plain-text page.
-  const [spent, setSpent] = useState(0);
-  const left = downloadsLeft === undefined ? Infinity : downloadsLeft - spent;
+  const [saved, setSaved] = useState(0);
+  const left = downloadsLeft === undefined ? Infinity : downloadsLeft - saved;
 
-  // A guest has neither, and two dead buttons are worse than none.
-  if (ended && !saveHref) return null;
+  const upload =
+    uploads && code ? (
+      <UploadButton
+        left={filmLeft}
+        off={libraryOff}
+        onPicked={(photo) => void enqueuePhoto(code, photo)}
+        className={cn(tile, libraryOff ? "bg-surface text-dust/60" : "bg-surface text-chalk hover:text-flame")}
+      >
+        <Upload className="h-5 w-5" />
+        Upload
+      </UploadButton>
+    ) : null;
 
-  /* Drawn in whichever row it belongs to: beside the camera, or under it next to the pool. */
+  // A guest has no Save, and a dead row is worse than none.
+  if (ended && !saveHref && !upload) return null;
+
   const invite = inviteHref ? (
     <Link
       href={inviteHref}
@@ -98,7 +108,7 @@ export function RollControls({
 
   return (
     <>
-      {/* A finished roll offers only Save: the album travels as the ZIP, not as the join link. */}
+      {/* A finished roll offers Save and the library: the album travels as the ZIP, not as the join link. */}
       {ended ? (
         <div className="flex gap-2">
           {saveHref ? (
@@ -109,18 +119,18 @@ export function RollControls({
               onClick={(event) => {
                 if (left <= 0) {
                   event.preventDefault();
-                  setNotice(ZIP_DOWNLOAD_SPENT);
+                  say(ZIP_DOWNLOAD_SPENT);
                   return;
                 }
-                setSpent((count) => count + 1);
-                setNotice("Building your album — the download starts on its own. Big rolls take a minute.");
+                setSaved((count) => count + 1);
+                say("Building your album — the download starts on its own. Big rolls take a minute.");
               }}
             />
           ) : null}
+          {upload}
         </div>
       ) : (
         <div className="space-y-2">
-          {/* Without a pool there are only two controls, so both fit here: camera, then invite. */}
           <div className="flex gap-2">
             {/* An unusable camera stays in place and explains itself when tapped. */}
             {off ? (
@@ -128,18 +138,8 @@ export function RollControls({
                 type="button"
                 aria-disabled="true"
                 aria-label="Take a photo"
-                onClick={() => setNotice(off)}
+                onClick={() => say(off)}
                 className={cn(tile, "bg-surface text-dust/60")}
-              >
-                <Camera className="h-5 w-5" />
-                Camera
-              </button>
-            ) : onCamera ? (
-              <button
-                type="button"
-                onClick={onCamera}
-                aria-label="Take a photo"
-                className={cn(tile, "bg-flame text-void")}
               >
                 <Camera className="h-5 w-5" />
                 Camera
@@ -155,14 +155,14 @@ export function RollControls({
               </Link>
             ) : null}
 
-            {SHOTS_POOL ? null : invite}
+            {upload}
           </div>
 
-          {SHOTS_POOL && (inviteHref || poolHref) ? (
+          {inviteHref || (SHOTS_POOL && poolHref) ? (
             <div className="flex gap-2">
               {invite}
 
-              {poolHref ? (
+              {SHOTS_POOL && poolHref ? (
                 <Link
                   href={poolHref}
                   aria-label="Shots pool"
@@ -177,14 +177,7 @@ export function RollControls({
         </div>
       )}
 
-      {notice ? (
-        <p
-          role="status"
-          className="animate-fade pointer-events-none fixed top-1/2 left-1/2 z-50 max-w-[16rem] -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-surface/95 px-5 py-3.5 text-center text-[14px] leading-snug text-chalk shadow-[0_8px_40px_-8px_rgba(0,0,0,0.9)] backdrop-blur-sm"
-        >
-          {notice}
-        </p>
-      ) : null}
+      {toast}
     </>
   );
 }
