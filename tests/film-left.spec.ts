@@ -12,7 +12,12 @@ import { TEST_HOST } from "./global-setup";
 const PHOTO = "public/covers/trip.jpg";
 
 /** A five-shot roll, open to the library, and a guest standing in its camera. */
-async function joined(browser: Browser, code: string, run: (page: Page) => Promise<void>) {
+async function joined(
+  browser: Browser,
+  code: string,
+  run: (page: Page) => Promise<void>,
+  closesIn = 86_400_000,
+) {
   const prisma = new PrismaClient({
     adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
   });
@@ -27,7 +32,7 @@ async function joined(browser: Browser, code: string, run: (page: Page) => Promi
       code,
       name: "Playwright Film Left",
       startsAt: new Date(now - 3_600_000),
-      finishesAt: new Date(now + 86_400_000),
+      finishesAt: new Date(now + closesIn),
       revealAt: new Date(now + 86_400_000),
       keptUntil: new Date(now + 30 * 86_400_000),
     },
@@ -35,6 +40,8 @@ async function joined(browser: Browser, code: string, run: (page: Page) => Promi
 
   const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
   const page = await context.newPage();
+  // A phone set an hour slow. Every deadline is the server's.
+  await page.clock.install({ time: now - 3_600_000 });
   try {
     await page.goto(`/join/${code}`);
     await page.getByPlaceholder("Enter your name").fill("Film");
@@ -84,4 +91,33 @@ test("uploads that land do not hand their film back", async ({ browser }) => {
     await library.setInputFiles([PHOTO, PHOTO, PHOTO]);
     await expect(page.getByText("You can only upload 2 photos!")).toBeVisible();
   });
+});
+
+// Requests sent together all see the same film unless the server makes them take turns.
+test("reservations never pass the allowance, however they are asked for", async ({ browser }) => {
+  await joined(browser, "PWCAM3", async (page) => {
+    const reserve = (clientId: string) =>
+      page.request.post("/api/r/PWCAM3/photos", {
+        data: { contentType: "image/jpeg", fullBytes: 1000, previewBytes: 500, clientId },
+      });
+
+    // One frame asked for twice at once, as a lost answer's retry or a second tab would.
+    const twice = await Promise.all([reserve("frame"), reserve("frame")]);
+    const [first, second] = await Promise.all(twice.map((response) => response.json()));
+    expect(second.photoId).toBe(first.photoId);
+
+    const rest = await Promise.all(Array.from({ length: 20 }, (_, i) => reserve(`frame-${i}`)));
+    expect(rest.filter((response) => response.ok())).toHaveLength(4);
+  });
+});
+
+test("the shutter closes on the server's clock", async ({ browser }) => {
+  await joined(
+    browser,
+    "PWCAM4",
+    async (page) => {
+      await expect(page).toHaveURL(/\/album$/, { timeout: 40_000 });
+    },
+    25_000,
+  );
 });

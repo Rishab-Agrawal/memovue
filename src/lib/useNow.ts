@@ -20,20 +20,51 @@ let current = 0;
 let timer: ReturnType<typeof setInterval> | null = null;
 const listeners = new Set<() => void>();
 
+/**
+ * The server's clock less this phone's. Every deadline is the server's, and a phone set by hand
+ * can be minutes out. Learned once per page load from a live answer, never from a render, which
+ * the back button replays however old it is.
+ */
+let skew = 0;
+let asked = false;
+
+function read(): number {
+  return Date.now() + skew;
+}
+
+function learnSkew() {
+  if (asked) return;
+  asked = true;
+  const sent = Date.now();
+  fetch("/api/health", { cache: "no-store" })
+    .then((response) => {
+      const stamped = Date.parse(response.headers.get("date") ?? "");
+      if (Number.isNaN(stamped)) return;
+      // Stamped to the second, somewhere in the round trip: its middle is the best guess.
+      skew = stamped + 500 - (sent + Date.now()) / 2;
+      current = read();
+      listeners.forEach((notify) => notify());
+    })
+    .catch(() => {
+      asked = false;
+    });
+}
+
 function subscribe(listener: () => void): () => void {
   listeners.add(listener);
+  learnSkew();
 
   if (!timer) {
-    current = Date.now();
+    current = read();
     timer = setInterval(() => {
-      current = Date.now();
+      current = read();
       listeners.forEach((notify) => notify());
     }, TICK_MS);
   }
 
   // The clock starts at 0 to match the server; this is what replaces it with the real time
   // on the first tick after mount rather than up to thirty seconds later.
-  current = Date.now();
+  current = read();
   queueMicrotask(listener);
 
   return () => {
@@ -49,6 +80,15 @@ export function useNow(): number {
   return useSyncExternalStore(
     subscribe,
     () => current,
+    () => 0,
+  );
+}
+
+/** How far this phone's clock is behind the server's, for a deadline that needs the millisecond. */
+export function useSkew(): number {
+  return useSyncExternalStore(
+    subscribe,
+    () => skew,
     () => 0,
   );
 }

@@ -11,6 +11,7 @@ import { UploadButton } from "@/components/roll/UploadButton";
 import type { ProcessedPhoto } from "@/lib/image";
 import { SHOTS_POOL } from "@/lib/roll-config";
 import { addFilm, enqueuePhoto, useFilmLeft, watchConnectivity } from "@/lib/upload-queue";
+import { useSkew } from "@/lib/useNow";
 
 import { CameraView } from "./CameraView";
 
@@ -63,15 +64,16 @@ export function GuestApp({
   const [offer, setOffer] = useState(initialTakeMax);
   const takeMax = Math.min(pool, offer);
 
+  const skew = useSkew();
   // Closes the shutter at the roll's end even if the page stays open. The upload grace is only for photos captured in time.
   useEffect(() => {
     const close = () => {
       setClosed(true);
       router.replace(home);
     };
-    const timer = setTimeout(close, Math.max(0, finishesAt - Date.now()));
+    const timer = setTimeout(close, Math.max(0, finishesAt - (Date.now() + skew)));
     return () => clearTimeout(timer);
-  }, [finishesAt, home, router]);
+  }, [finishesAt, skew, home, router]);
 
   /**
    * The shot is spent the moment the shutter fires or a photo is picked; the upload goes through
