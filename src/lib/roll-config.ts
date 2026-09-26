@@ -150,7 +150,7 @@ export const VISIBILITY_LABEL = {
  *
  * Turning it back on restores every one of them.
  */
-export const SHOTS_POOL = true;
+export const SHOTS_POOL = false;
 
 /**
  * A roll is bought as `maxGuests × photosPerGuest` frames. The pool is what is left over: the
