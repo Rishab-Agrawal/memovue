@@ -19,91 +19,36 @@ export const metadata: Metadata = {
 
 const INSTAGRAM = "memovue.official";
 
+/** Stills from the recording in the hero, for the PDF, where it cannot play. */
 const STEPS = [
   {
-    title: "Share one code",
-    body: "Put the QR on the tables or in the family group. Guests scan and start shooting. No app, no sign-up.",
+    title: "Scan",
+    body: "One QR. No app, no sign-up.",
+    shot: "/frames/collab-join.jpg",
   },
   {
-    title: "Everyone shoots",
-    body: "Each guest gets a set number of shots, like a disposable camera. Every photo is sealed the moment it's taken, even from whoever took it.",
+    title: "Shoot",
+    body: "Every photo sealed, even from its taker.",
+    shot: "/frames/collab-shoot.jpg",
   },
   {
-    title: "It all opens at once",
-    body: "At the time you pick, the morning after or a week later, the whole album reveals together, each photo credited to whoever took it.",
+    title: "Reveal",
+    body: "The whole album opens at once.",
+    shot: "/frames/collab-album.jpg",
   },
 ];
 
 const VERSUS_DRIVE = [
-  {
-    title: "Nobody uploads later",
-    body: "A Drive folder waits for guests to upload after the wedding, and most never do. Here, photos land in the album the moment they're taken.",
-  },
-  {
-    title: "Nothing to set up for guests",
-    body: "No Google sign-in, no folder link, no sharing permissions. One scan and they're shooting.",
-  },
-  {
-    title: "A reveal, not a folder",
-    body: "Drive fills up one upload at a time. MemoVue stays sealed, so guests stay in the moment, and you open everything together, like picking up prints.",
-  },
+  ["Chasing guests for uploads", "Photos arrive as they're taken"],
+  ["Sign in, find the link, upload", "Scan a QR. That's it."],
+  ["A folder that trickles in", "One reveal, all at once"],
 ];
 
-const DEAL = [
-  {
-    label: "You get",
-    body: `MemoVue for your wedding, free, for up to ${PARTICIPANT_TIERS.at(-1)} guests. We help you set it up.`,
-  },
-  {
-    label: "We ask",
-    body: `One feed post and one story, both tagging @${INSTAGRAM}. Photo, carousel or reel: your call.`,
-  },
-  {
-    label: "How it goes",
-    body: "Message us your wedding date. We send your code and help you set up the roll. You post after the reveal.",
-  },
-];
-
-function Section({
-  label,
-  title,
-  children,
-}: {
-  label: string;
-  title: string;
-  children: React.ReactNode;
-}) {
+function Heading({ children }: { children: React.ReactNode }) {
   return (
-    <section className="border-t border-hair px-6 py-16 break-inside-avoid sm:px-10 sm:py-20">
-      <div className="mx-auto max-w-3xl">
-        <p className="marking text-ash">{label}</p>
-        <h2 className="display-md mt-4 text-[clamp(1.8rem,6vw,2.5rem)] text-chalk">
-          {title}
-        </h2>
-        {children}
-      </div>
-    </section>
-  );
-}
-
-function Rows({ items }: { items: { title: string; body: string }[] }) {
-  return (
-    <ol className="mt-8 border-b border-hair">
-      {items.map((item, index) => (
-        <li
-          key={item.title}
-          className="grid grid-cols-[2.5rem_1fr] gap-x-4 border-t border-hair py-6"
-        >
-          <span className="marking tabular pt-1 text-flame">0{index + 1}</span>
-          <div>
-            <h3 className="display-sm text-[18px] text-chalk">{item.title}</h3>
-            <p className="mt-2 text-[16px] leading-relaxed text-ash">
-              {item.body}
-            </p>
-          </div>
-        </li>
-      ))}
-    </ol>
+    <h2 className="display-md text-center text-[clamp(1.8rem,6vw,2.5rem)] text-chalk">
+      {children}
+    </h2>
   );
 }
 
@@ -118,96 +63,128 @@ export default function CollabBrochure() {
       </header>
 
       <main className="flex-1">
-        <section className="bloom px-6 pt-14 pb-16 sm:px-10 sm:pt-20">
-          <div className="mx-auto max-w-3xl text-center">
-            <h1 className="display text-[clamp(2.6rem,10vw,4.5rem)] text-chalk">
-              Every guest&rsquo;s photos,{" "}
-              <span className="text-flame">one album.</span>
-            </h1>
-            <p className="mx-auto mt-6 max-w-lg text-[17px] leading-relaxed text-ash">
-              A disposable camera for your wedding, on every guest&rsquo;s
-              phone. Nobody sees a photo until the time you choose. Then the
-              whole album opens at once.
-            </p>
-
-            {/* Sealed, then revealed. */}
-            <div className="mx-auto mt-12 flex w-full max-w-[23rem] items-start">
-              <Phone
-                src="/frames/roll-pre-reveal.jpg"
-                className="w-[58%] -rotate-6"
-              />
-              <Phone
-                src="/frames/roll-home.jpg"
-                className="mt-[16%] -ml-[16%] w-[58%] rotate-[5deg]"
-              />
+        <section className="bloom px-6 pt-14 pb-16 sm:px-10 sm:pt-20 sm:pb-24">
+          <div className="mx-auto grid max-w-4xl items-center gap-12 md:grid-cols-[1fr_auto] md:gap-16">
+            <div className="text-center md:text-left">
+              <h1 className="display text-[clamp(2.6rem,10vw,4.2rem)] text-chalk">
+                Every guest&rsquo;s photos,{" "}
+                <span className="text-flame">one album.</span>
+              </h1>
+              <p className="mx-auto mt-6 max-w-sm text-[17px] leading-relaxed text-ash md:mx-0">
+                A disposable camera on every guest&rsquo;s phone. Sealed until
+                the reveal.
+              </p>
+              <PillLink href={`${SAMPLE_ALBUM.href}/join`} className="mt-8">
+                Try it as a guest
+              </PillLink>
             </div>
+
+            <Phone
+              src="/frames/collab-flow.mp4"
+              poster="/frames/collab-join.jpg"
+              className="mx-auto w-full max-w-[16rem] print:hidden"
+            />
           </div>
         </section>
 
-        <Section label="How it works" title="Three steps, zero effort.">
-          <Rows items={STEPS} />
-        </Section>
-
-        <Section
-          label="Why not Google Drive?"
-          title="Because nobody uploads after a wedding."
-        >
-          <Rows items={VERSUS_DRIVE} />
-        </Section>
-
-        <Section label="Try it" title="Be a guest at a sample wedding.">
-          <p className="mt-4 max-w-lg text-[16px] leading-relaxed text-ash">
-            Open the invitation your guests would see, and take a shot. Thirty
-            seconds.
-          </p>
-          <PillLink href={`${SAMPLE_ALBUM.href}/join`} className="mt-8">
-            Open the sample
-          </PillLink>
-        </Section>
-
-        <Section label="The collab" title="A simple barter.">
-          <dl className="mt-8 border-b border-hair">
-            {DEAL.map((term) => (
-              <div
-                key={term.label}
-                className="grid gap-2 border-t border-hair py-6 sm:grid-cols-[9rem_1fr] sm:gap-4"
-              >
-                <dt className="marking pt-1 text-flame">{term.label}</dt>
-                <dd className="text-[16px] leading-relaxed text-chalk">
-                  {term.body}
-                </dd>
-              </div>
+        <section className="border-t border-hair px-6 py-16 break-inside-avoid sm:px-10 sm:py-20">
+          <Heading>How it works</Heading>
+          <ol className="mx-auto mt-10 grid max-w-3xl grid-cols-3 gap-3 sm:gap-8">
+            {STEPS.map((step, index) => (
+              <li key={step.title} className="text-center">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={step.shot}
+                  alt=""
+                  className="w-full rounded-2xl border border-hair-bright sm:rounded-3xl"
+                />
+                <p className="marking tabular mt-4 text-flame">0{index + 1}</p>
+                <h3 className="display-sm mt-1 text-[17px] text-chalk sm:text-[20px]">
+                  {step.title}
+                </h3>
+                <p className="mt-1 text-[13px] leading-snug text-ash sm:text-[15px]">
+                  {step.body}
+                </p>
+              </li>
             ))}
-          </dl>
-        </Section>
+          </ol>
+        </section>
 
-        <section className="bloom border-t border-hair px-6 py-20 break-inside-avoid sm:px-10">
-          <div className="mx-auto flex max-w-3xl flex-col items-start gap-6">
-            <h2 className="display text-[clamp(2.2rem,7vw,3.2rem)] text-chalk">
-              The parts you <span className="text-flame">missed.</span>
-            </h2>
-            <p className="max-w-sm text-[16px] leading-relaxed text-ash">
-              You can&rsquo;t be in every room at your own wedding. Your guests
-              are.
-            </p>
-            <div className="mt-2 flex flex-wrap gap-3">
-              <PillLink href={`https://ig.me/m/${INSTAGRAM}`} variant="flame">
-                Message @{INSTAGRAM}
-              </PillLink>
-              <PillLink
-                href="/memovue-collab.pdf"
-                download
-                className="print:hidden"
-              >
-                Download PDF
-              </PillLink>
+        <section className="border-t border-hair px-6 py-16 break-inside-avoid sm:px-10 sm:py-20">
+          <Heading>Why not just Google Drive?</Heading>
+          <table className="mx-auto mt-10 w-full max-w-2xl table-fixed text-[15px] sm:text-[17px]">
+            <thead>
+              <tr>
+                <th className="marking pb-4 text-left text-dust">
+                  Google Drive
+                </th>
+                <th className="marking pb-4 pl-4 text-left text-flame">
+                  MemoVue
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {VERSUS_DRIVE.map(([drive, memovue]) => (
+                <tr key={drive} className="border-t border-hair">
+                  <td className="py-5 align-top text-dust line-through decoration-hair-bright">
+                    {drive}
+                  </td>
+                  <td className="display-sm py-5 pl-4 align-top text-chalk">
+                    {memovue}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+
+        <section className="bloom border-t border-hair px-6 py-16 break-inside-avoid sm:px-10 sm:py-24">
+          <Heading>The collab</Heading>
+          <div className="mx-auto mt-10 grid max-w-3xl gap-4 text-center sm:grid-cols-[1fr_auto_1fr] sm:gap-8">
+            <div className="border border-flame/40 px-6 py-8">
+              <p className="marking text-flame">You get</p>
+              <p className="display-md mt-3 text-[1.6rem] text-chalk">
+                MemoVue, free
+              </p>
+              <p className="mt-2 text-[15px] text-ash">
+                For up to {PARTICIPANT_TIERS.at(-1)} guests, set up with our
+                help
+              </p>
             </div>
+            <span
+              aria-hidden
+              className="display rotate-90 self-center text-[2rem] text-flame sm:rotate-0"
+            >
+              &harr;
+            </span>
+            <div className="border border-hair-bright px-6 py-8">
+              <p className="marking">You post</p>
+              <p className="display-md mt-3 text-[1.6rem] text-chalk">
+                1 post + 1 story
+              </p>
+              <p className="mt-2 text-[15px] text-ash">
+                Tagging @{INSTAGRAM}. Photo, carousel or reel.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-12 flex flex-wrap justify-center gap-3">
+            <PillLink href={`https://ig.me/m/${INSTAGRAM}`} variant="flame">
+              Send us your wedding date
+            </PillLink>
+            <PillLink
+              href="/memovue-collab.pdf"
+              download
+              className="print:hidden"
+            >
+              Download PDF
+            </PillLink>
           </div>
         </section>
       </main>
 
       <footer className="border-t border-hair px-6 py-8 sm:px-10">
-        <p className="marking tabular mx-auto max-w-3xl text-dust">
+        <p className="marking mx-auto max-w-3xl text-center text-dust">
           memovue.com
         </p>
       </footer>

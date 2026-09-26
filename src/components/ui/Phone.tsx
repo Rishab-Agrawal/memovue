@@ -2,17 +2,25 @@ import { cn } from "@/lib/cn";
 
 /*
   A screenshot of the app, in a phone. Not next/image: fixed local files gain nothing from the
-  optimiser. `half` drops the top edge, for screenshots that are themselves crops.
+  optimiser. `half` drops the top edge, for screenshots that are themselves crops. A `poster`
+  makes `src` a screen recording, played muted on a loop.
 */
 export function Phone({
   src,
+  poster,
   className,
   half,
 }: {
   src: string;
+  poster?: string;
   className?: string;
   half?: boolean;
 }) {
+  const media = cn(
+    "block w-full",
+    half ? "rounded-b-[1.7rem]" : "rounded-[2.1rem]",
+  );
+
   return (
     <div
       className={cn(
@@ -21,15 +29,20 @@ export function Phone({
         className,
       )}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={src}
-        alt=""
-        className={cn(
-          "block w-full",
-          half ? "rounded-b-[1.7rem]" : "rounded-[2.1rem]",
-        )}
-      />
+      {poster ? (
+        <video
+          src={src}
+          poster={poster}
+          autoPlay
+          muted
+          loop
+          playsInline
+          className={media}
+        />
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} alt="" className={media} />
+      )}
     </div>
   );
 }
