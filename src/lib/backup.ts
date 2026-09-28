@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createGzip } from "node:zlib";
-import { PassThrough, type Readable } from "node:stream";
+import { pipeline, type Readable } from "node:stream";
 import { Client, types } from "pg";
 
 import { backupKey, deleteObjects, putStream, storageConfigured } from "./storage";
@@ -55,7 +55,7 @@ export async function connect(): Promise<Client> {
 /** How many nights are kept. A week is long enough to notice damage before it ages out. */
 const KEEP_DAYS = 7;
 
-/** Rows per round trip, paged by primary key rather than OFFSET. */
+/** Rows per cursor fetch. */
 const PAGE = 2_000;
 
 interface BackupReport {
@@ -70,50 +70,33 @@ function backupDay(now: Date): string {
 }
 
 async function* readTable(client: Client, table: string): AsyncGenerator<string> {
-  let after = "";
-
+  // The identifier is from TABLES above, never from input.
+  await client.query(`declare page no scroll cursor for select * from "${table}"`);
   for (;;) {
-    // The identifier is from TABLES above, never from input; the value is parameterised.
-    const page = await client.query(
-      `select * from "${table}" where id > $1 order by id limit ${PAGE}`,
-      [after],
-    );
-    if (page.rows.length === 0) return;
-
+    const page = await client.query(`fetch ${PAGE} from page`);
+    if (page.rows.length === 0) break;
     for (const row of page.rows) yield `${JSON.stringify({ table, row })}\n`;
+  }
+  await client.query("close page");
+}
 
-    after = page.rows[page.rows.length - 1].id;
-    if (page.rows.length < PAGE) return;
+async function* readAll(client: Client, rows: Record<string, number>): AsyncGenerator<string> {
+  for (const table of TABLES) {
+    rows[table] = 0;
+    for await (const line of readTable(client, table)) {
+      rows[table] += 1;
+      yield line;
+    }
   }
 }
 
-/** Everything as one gzipped stream, never holding a table in memory. */
+/**
+ * Everything as one gzipped stream, never holding a table in memory. A failure destroys the
+ * stream rather than ending it: a truncated file that uploads cleanly looks like a backup.
+ */
 function serialise(client: Client, rows: Record<string, number>): Readable {
-  const out = new PassThrough();
-  const gzip = createGzip();
-  gzip.pipe(out);
-
-  void (async () => {
-    try {
-      for (const table of TABLES) {
-        rows[table] = 0;
-        for await (const line of readTable(client, table)) {
-          rows[table] += 1;
-          // Respect back-pressure, or the buffer becomes the memory streaming was meant to avoid.
-          if (!gzip.write(line)) {
-            await new Promise((resolve) => gzip.once("drain", resolve));
-          }
-        }
-      }
-      gzip.end();
-    } catch (error) {
-      // Destroyed rather than ended: a truncated file that uploads cleanly looks like a backup.
-      gzip.destroy(error instanceof Error ? error : new Error(String(error)));
-      out.destroy(error instanceof Error ? error : new Error(String(error)));
-    }
-  })();
-
-  return out;
+  // The upload reads the error off the returned stream, so the callback has nothing to do.
+  return pipeline(readAll(client, rows), createGzip(), () => {});
 }
 
 /** One night's pass. Safe to run twice: the key is the date, so a rerun overwrites. */
@@ -125,6 +108,8 @@ export async function runBackup(now: Date = new Date()): Promise<BackupReport> {
   const key = backupKey(backupDay(now));
 
   try {
+    // One snapshot, so no row points at one written after its table was read.
+    await client.query("begin isolation level repeatable read read only");
     await putStream(key, serialise(client, rows), "application/gzip");
 
     // A table missing from `TABLES` is a failed backup, not a smaller one.
