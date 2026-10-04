@@ -213,6 +213,24 @@ export const ArrowLeft = (p: IconProps) => (
   </Svg>
 );
 
+export const ArrowLeftRight = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4 12h16M8 8l-4 4 4 4M16 8l4 4-4 4" />
+  </Svg>
+);
+
+export const Play = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M8 5.5v13l10.5-6.5z" />
+  </Svg>
+);
+
+export const Pause = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M9 6v12M15 6v12" />
+  </Svg>
+);
+
 export const Close = (p: IconProps) => (
   <Svg {...p}>
     <path d="M6 6l12 12M18 6 6 18" />

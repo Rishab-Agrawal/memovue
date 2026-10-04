@@ -1,5 +1,7 @@
 import { PillLink } from "@/components/roll/Chrome";
+import { ArrowLeftRight } from "@/components/roll/Icons";
 import { Logo } from "@/components/ui/Logo";
+import { SealedAlbum } from "@/components/ui/SealedAlbum";
 import { cn } from "@/lib/cn";
 import { SAMPLE_ALBUM } from "@/lib/sample-album";
 
@@ -11,8 +13,11 @@ import { SAMPLE_ALBUM } from "@/lib/sample-album";
 
 export const INSTAGRAM = "memovue.official";
 
-/** Stills from the screen recording, so the PDF, which cannot play it, still shows the flow. */
-const STEPS = [
+/**
+ * Stills from the screen recording, so the PDF, which cannot play it, still shows the flow.
+ * The reveal is the album drawn live, so it develops on screen and prints open.
+ */
+const STEPS: { title: string; body: string; shot?: string }[] = [
   {
     title: "Scan",
     body: "One QR. No app, no sign-up.",
@@ -26,9 +31,10 @@ const STEPS = [
   {
     title: "Reveal",
     body: "The whole album opens at once.",
-    shot: "/frames/collab-album.jpg",
   },
 ];
+
+const screen = "w-full rounded-2xl border border-hair-bright sm:rounded-3xl";
 
 interface Term {
   label: string;
@@ -116,17 +122,17 @@ export function Brochure({
           <ol className="mx-auto mt-10 grid max-w-3xl grid-cols-3 gap-3 sm:gap-8">
             {STEPS.map((step, index) => (
               <li key={step.title} className="text-center">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={step.shot}
-                  alt=""
-                  className="w-full rounded-2xl border border-hair-bright sm:rounded-3xl"
-                />
+                {step.shot ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={step.shot} width={720} height={1392} alt="" className={screen} />
+                ) : (
+                  <SealedAlbum className={cn(screen, "overflow-clip")} />
+                )}
                 <p className="marking tabular mt-4 text-flame">0{index + 1}</p>
                 <h3 className="display-sm mt-1 text-[17px] text-chalk sm:text-[20px]">
                   {step.title}
                 </h3>
-                <p className="mt-1 text-[13px] leading-snug text-ash sm:text-[15px]">
+                <p className="mt-1 text-[14px] leading-snug text-ash sm:text-[15px]">
                   {step.body}
                 </p>
               </li>
@@ -142,12 +148,7 @@ export function Brochure({
           </h2>
           <div className="mx-auto mt-10 grid max-w-3xl gap-4 text-center sm:grid-cols-[1fr_auto_1fr] sm:gap-8">
             <Offer term={deal.terms[0]} lit />
-            <span
-              aria-hidden
-              className="display rotate-90 self-center text-[2rem] text-flame sm:rotate-0"
-            >
-              &harr;
-            </span>
+            <ArrowLeftRight className="size-8 rotate-90 place-self-center text-flame sm:rotate-0" />
             <Offer term={deal.terms[1]} />
           </div>
 

@@ -38,6 +38,8 @@ export default function PartnerBrochure() {
       media={
         <Phone
           src="/frames/partner-roll-home.jpg"
+          width={720}
+          height={1384}
           className="mx-auto w-full max-w-[16rem]"
         />
       }

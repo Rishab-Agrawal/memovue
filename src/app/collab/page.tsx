@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { Brochure, INSTAGRAM, Section } from "@/components/Brochure";
-import { Phone } from "@/components/ui/Phone";
+import { Recording } from "@/components/ui/Recording";
 import { PARTICIPANT_TIERS } from "@/lib/roll-config";
 
 /* Sent to couples who answer an Instagram pitch for a barter collab. */
@@ -29,7 +29,7 @@ export default function CollabBrochure() {
       }
       lede="A disposable camera on every guest’s phone, sealed until the reveal. Yours free for one post and one story."
       media={
-        <Phone
+        <Recording
           src="/frames/collab-flow.mp4"
           poster="/frames/collab-join.jpg"
           className="mx-auto w-full max-w-[16rem] print:hidden"

@@ -3,19 +3,22 @@ import Link from "next/link";
 import { PillLink } from "@/components/roll/Chrome";
 import { Logo, Mark } from "@/components/ui/Logo";
 import { Phone } from "@/components/ui/Phone";
+import { SealedAlbum } from "@/components/ui/SealedAlbum";
 
 /* The marketing page. Every call to action points at the welcome screen. */
 
-const STEPS: { title: string; body: string; shot: string }[] = [
+const STEPS: { title: string; body: string; shot: string; height: number }[] = [
   {
     title: "Set it up",
     body: "Create the roll, choosing the number of guests, shots, event dates and duration.",
     shot: "/frames/roll-creation.jpg",
+    height: 878,
   },
   {
     title: "Share one code",
     body: "Print it for the tables or send it in the group chat. Guests scan and start shooting - no app, no sign-up.",
     shot: "/frames/roll-invite.jpg",
+    height: 866,
   },
 ];
 
@@ -69,9 +72,16 @@ export default function MarketingHome() {
                 className="animate-rise flex w-full max-w-[23rem] items-start"
                 style={{ animationDelay: "160ms" }}
               >
-                <Phone src="/frames/camera-screen-bday.jpg" className="w-[58%] -rotate-6" />
+                <Phone
+                  src="/frames/camera-screen-bday.jpg"
+                  width={716}
+                  height={1283}
+                  className="w-[58%] -rotate-6"
+                />
                 <Phone
                   src="/frames/roll-home.jpg"
+                  width={720}
+                  height={1383}
                   className="mt-[16%] -ml-[16%] w-[58%] rotate-[5deg]"
                 />
               </div>
@@ -89,7 +99,13 @@ export default function MarketingHome() {
                 className="overflow-hidden rounded-3xl border border-hair bg-surface/50 px-6 pt-8 pb-9 sm:px-8"
               >
                 <p className="marking tabular text-dust">Step 0{index + 1}</p>
-                <Phone src={step.shot} half className="mx-auto mt-7 w-[80%] max-w-[15rem]" />
+                <Phone
+                  src={step.shot}
+                  width={720}
+                  height={step.height}
+                  half
+                  className="mx-auto mt-7 w-[80%] max-w-[15rem]"
+                />
                 <h2 className="display-md mt-9 text-[1.7rem] text-chalk">{step.title}</h2>
                 <p className="mt-3 text-[16px] leading-relaxed text-ash">{step.body}</p>
               </li>
@@ -110,10 +126,9 @@ export default function MarketingHome() {
               </p>
             </div>
 
-            <Phone
-              src="/frames/roll-pre-reveal.jpg"
-              className="mx-auto w-full max-w-[15rem] lg:max-w-[17rem]"
-            />
+            <Phone className="mx-auto w-[15rem] lg:w-[17rem]">
+              <SealedAlbum />
+            </Phone>
           </div>
         </section>
 

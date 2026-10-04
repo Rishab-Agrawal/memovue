@@ -99,6 +99,12 @@ body {
 }
 
 @layer base {
+  /* Keyboard focus in the accent, everywhere. A control that draws its own ring overrides it. */
+  :focus-visible {
+    outline: 2px solid var(--color-flame);
+    outline-offset: 2px;
+  }
+
   /* iOS zooms the viewport when focusing a text control under 16px. Rather than disabling
      pinch-zoom, never go below 16px on the controls that actually accept typing.
      Buttons are excluded deliberately — they can't trigger the zoom, and including them
@@ -363,24 +369,25 @@ body {
   }
 }
 
-/* The logo drawing itself in: stems first, then the circles bloom on. */
-@keyframes mv-draw {
+/* A sealed tile coming open: the album tile's own seal, lifting. */
+@keyframes mv-unseal {
   from {
-    stroke-dashoffset: var(--dash, 400);
+    filter: blur(14px) saturate(0.6);
+    transform: scale(1.15);
   }
   to {
-    stroke-dashoffset: 0;
+    filter: blur(0) saturate(1);
+    transform: none;
   }
 }
 
-@keyframes mv-bloom-in {
+/* The same reveal with no blur or scale: the print comes up out of the dark. */
+@keyframes mv-unseal-still {
   from {
-    opacity: 0;
-    transform: scale(0.4);
+    filter: brightness(0.2) saturate(0);
   }
   to {
-    opacity: 1;
-    transform: scale(1);
+    filter: brightness(1) saturate(1);
   }
 }
 
@@ -476,6 +483,48 @@ body {
   .animate-wait {
     animation: none !important;
     opacity: 0.5;
+  }
+}
+
+/*
+  The reveal, scrubbed by scroll. `.reveal` names one view timeline that every photo, seal and
+  name in it shares, so the whole album develops at once as it reaches the middle of the
+  screen, and seals again on the way back. Open by default: without scroll timelines, and in
+  print, nothing is sealed.
+*/
+.reveal {
+  view-timeline-name: --reveal;
+}
+
+.reveal-seal {
+  opacity: 0;
+}
+
+@supports (animation-timeline: view()) {
+  @media screen {
+    .reveal img {
+      animation: mv-unseal linear both;
+      animation-timeline: --reveal;
+      animation-range: cover 32% cover 50%;
+    }
+
+    .reveal-seal {
+      animation: mv-fade linear reverse both;
+      animation-timeline: --reveal;
+      animation-range: cover 32% cover 40%;
+    }
+
+    .reveal-name {
+      animation: mv-fade linear both;
+      animation-timeline: --reveal;
+      animation-range: cover 45% cover 50%;
+    }
+  }
+
+  @media screen and (prefers-reduced-motion: reduce) {
+    .reveal img {
+      animation-name: mv-unseal-still;
+    }
   }
 }
 
