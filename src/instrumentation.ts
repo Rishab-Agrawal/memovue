@@ -20,6 +20,15 @@ function isFramework(error: unknown): boolean {
 }
 
 /**
+ * A request Next's own client never sends: a POST carrying `rsc`, which only navigations send.
+ * Scanners probing for server actions do, and Next answers with an invariant it blames on itself.
+ * Next strips `rsc` before this hook sees the request, so the invariant is what is left to read.
+ */
+export function isForged(method: string, message: string): boolean {
+  return method === "POST" && message.startsWith("Invariant: Expected RSC response");
+}
+
+/**
  * What makes two crashes the same: the route pattern (not the URL) and the message's first line,
  * trimmed so ids and stack frames do not make every occurrence unique.
  */
@@ -35,6 +44,7 @@ export const onRequestError: Instrumentation.onRequestError = async (
   if (isFramework(error)) return;
 
   const message = error instanceof Error ? error.message : String(error);
+  if (isForged(request.method, message)) return;
   const digest =
     typeof error === "object" && error !== null && "digest" in error
       ? String((error as { digest?: unknown }).digest)

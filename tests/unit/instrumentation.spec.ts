@@ -1,11 +1,11 @@
 import { expect, test } from "@playwright/test";
 
-import { fingerprint } from "@/instrumentation";
+import { fingerprint, isForged } from "@/instrumentation";
 import { wallDate, wallDateRange } from "@/lib/format";
 import { shouldAlert } from "@/lib/ratelimit";
 
 /**
- * The three pieces of instrumentation that are logic rather than plumbing.
+ * The four pieces of instrumentation that are logic rather than plumbing.
  *
  * None needs a database, a browser or a bot token, which is the point. Each is the sort of
  * thing only discovered to be wrong months later, from a number that was quietly meaningless
@@ -70,4 +70,12 @@ test.describe("the error fingerprint", () => {
     const withStack = "boom\n    at Object.<anonymous> (/app/src/lib/rolls.ts:12:9)";
     expect(fingerprint("/rolls", withStack)).toBe(fingerprint("/rolls", "boom"));
   });
+});
+
+test("a scanner's hand-built action is not a crash anyone saw", () => {
+  const invariant = "Invariant: Expected RSC response, got text/plain. This is a bug in Next.js.";
+  expect(isForged("POST", invariant)).toBe(true);
+  // On a navigation it is a real Next bug, and a server action's own crash is ours.
+  expect(isForged("GET", invariant)).toBe(false);
+  expect(isForged("POST", "Cannot read properties of undefined")).toBe(false);
 });
