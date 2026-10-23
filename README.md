@@ -1,9 +1,7 @@
 # MemoVue
 
 A disposable camera for events. A host creates an event and gets one QR code; guests scan
-it, type a name, and shoot on their own phones with a fixed number of shots. Nobody sees a
-single photo — not even the person who took it — until the reveal time the host picked, and
-then the whole album opens at once, downloadable in original quality.
+it and shoot on their own phones with a fixed number of shots. Photos revealed at a time the host picked, downloadable in original quality.
 
 Live at [memovue.com](https://memovue.com).
 
