@@ -227,7 +227,8 @@ export function AlbumView({
     return () => observer.disconnect();
   }, [cursor, exhausted, loadPage]);
 
-  if (error) {
+  // A missed poll keeps the last answer for the next to replace; only a roll never loaded is an error.
+  if (!feed && error) {
     return <p className="px-5 py-10 text-center text-[15px] text-ash">{error}</p>;
   }
   if (!feed) {
