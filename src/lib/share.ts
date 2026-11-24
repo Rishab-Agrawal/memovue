@@ -30,3 +30,29 @@ export async function shareOrCopy(
     return null;
   }
 }
+
+/**
+ * Saves a PNG data URL to an iPhone's Photos, which a download never reaches: iOS files it under
+ * Files. Its share sheet's "Save Image" does, so iOS gets that. Everywhere else a download is
+ * already the right thing, so this returns `false` and leaves the tap to the anchor.
+ *
+ * Synchronous up to `share`, which iOS refuses once the tap's activation has been awaited away.
+ */
+export function savePngToPhotos(
+  dataUrl: string,
+  name: string,
+  nav: Pick<Navigator, "share" | "canShare" | "userAgent" | "maxTouchPoints"> = navigator,
+): boolean {
+  // iPadOS asks for desktop sites as a Mac; a touchscreen gives it away.
+  const ios = /iPhone|iPad|iPod/.test(nav.userAgent) || (/Macintosh/.test(nav.userAgent) && nav.maxTouchPoints > 1);
+  if (!ios) return false;
+
+  const bytes = Uint8Array.from(atob(dataUrl.split(",")[1]), (c) => c.charCodeAt(0));
+  const files = [new File([bytes], name, { type: "image/png" })];
+  if (!nav.canShare?.({ files })) return false;
+
+  nav.share({ files }).catch(() => {
+    /* Dismissed. Nothing was saved, and nothing needs saying. */
+  });
+  return true;
+}

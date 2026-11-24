@@ -1,5 +1,4 @@
-import { PillLink } from "@/components/roll/Chrome";
-import { Download } from "@/components/roll/Icons";
+import { SaveQr } from "@/components/roll/SaveQr";
 import { ShareLink } from "@/components/roll/ShareLink";
 import { Sheet } from "@/components/roll/Sheet";
 import { joinUrl, qrDataUrl } from "@/lib/qr";
@@ -38,16 +37,7 @@ export async function InviteCard({
 
       <div className="mt-6 flex gap-3">
         <ShareLink url={link} />
-        <PillLink
-          href={qr}
-          download={`memovue-${code}.png`}
-          variant="quiet"
-          full
-          className="px-3 text-[14px]"
-        >
-          <Download className="h-4 w-4" />
-          Save QR
-        </PillLink>
+        <SaveQr qr={qr} code={code} />
       </div>
     </>
   );
