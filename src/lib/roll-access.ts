@@ -41,10 +41,13 @@ export function openRollWhere(now: Date) {
   };
 }
 
-/** `closed`: shooting has finished but the photos have not opened yet. */
+/**
+ * `closed`: shooting has finished but the photos have not opened yet. `scheduled` outranks the
+ * seal: a roll revealed as it is shot has still not started.
+ */
 export function rollPhase(roll: RollTimings, now: Date = new Date()): RollPhase {
-  if (isOpen(roll, now)) return "revealed";
   if (now.getTime() < roll.startsAt.getTime()) return "scheduled";
+  if (isOpen(roll, now)) return "revealed";
   if (now.getTime() < roll.finishesAt.getTime()) return "capturing";
   return "closed";
 }

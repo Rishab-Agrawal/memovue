@@ -163,6 +163,12 @@ test.describe("phase", () => {
     expect(rollPhase(r, new Date("2026-09-14T02:00:00Z"))).toBe("closed");
     expect(rollPhase(r, new Date("2026-09-14T12:00:00Z"))).toBe("revealed");
   });
+
+  test("a roll revealed as it is shot has still not started before its start", () => {
+    const r = roll({ revealMode: "DURING" });
+    expect(rollPhase(r, new Date("2026-09-12T09:00:00Z"))).toBe("scheduled");
+    expect(rollPhase(r, new Date("2026-09-13T09:00:00Z"))).toBe("revealed");
+  });
 });
 
 test.describe("computeRevealAt", () => {

@@ -8,7 +8,6 @@ import { normalizeCode } from "@/lib/codes";
 import { sendRollFullNotice } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 import { callerIp, outOfGuesses, rateLimit, wrongGuess } from "@/lib/ratelimit";
-import { rollPhase } from "@/lib/roll-access";
 import { PARTICIPANT_TIERS } from "@/lib/roll-config";
 import { getCurrentUser } from "@/lib/session";
 import { fieldErrors, joinRollSchema } from "@/lib/validation";
@@ -42,9 +41,6 @@ export async function joinAction(code: string, formData: FormData): Promise<Join
     wrongGuess(ip);
     return { error: NO_SUCH_ROLL };
   }
-
-  const phase = rollPhase(roll);
-  if (phase === "scheduled") return { error: "This roll hasn't opened yet." };
 
   const parsed = joinRollSchema.safeParse({ name: formData.get("name") });
   if (!parsed.success) return { fields: fieldErrors(parsed.error) };

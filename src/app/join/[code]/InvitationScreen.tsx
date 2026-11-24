@@ -79,7 +79,6 @@ export function InvitationScreen({
             }}
             placeholder="Enter your name"
             aria-label="Your name"
-            disabled={scheduled}
             className="w-full bg-transparent text-[16px] text-chalk placeholder:text-dust focus:outline-none"
           />
         </NameField>
@@ -94,7 +93,7 @@ export function InvitationScreen({
         <Pill
           variant="light"
           full
-          disabled={!name.trim() || pending || scheduled}
+          disabled={!name.trim() || pending}
           onClick={submit}
         >
           {pending ? "One moment…" : JOIN_LABEL}

@@ -23,8 +23,8 @@ async function createWithCode(page: Page, code: string) {
  * Puts the roll's start in the past, on the wizard's start step.
  *
  * The wizard defaults to the coming Saturday at 6pm, so a roll created straight through the
- * defaults has not opened yet and its guests are told to come back later — which is correct
- * behaviour and useless for testing the camera. Today at midnight is the earliest the range
+ * defaults has not opened yet and its guests wait in front of a dimmed camera — which is
+ * correct behaviour and useless for testing the camera. Today at midnight is the earliest the range
  * allows, and it is always behind us.
  *
  * It drives the real calendar and the real time wheel, so the picker bugs these two controls

@@ -7,7 +7,7 @@ import { type RefObject, useCallback, useEffect, useRef, useState } from "react"
 import { PhotoTile } from "@/components/roll/PhotoGrid";
 import { RollHeader } from "@/components/roll/RollHeader";
 import { RollControls, VisibilityNotice } from "@/components/roll/RollParts";
-import { formatDay, formatDuration } from "@/lib/format";
+import { formatDay, formatDuration, formatShortDateTime } from "@/lib/format";
 import type { Sponsor } from "@/lib/referrals";
 import { useNow } from "@/lib/useNow";
 
@@ -28,6 +28,8 @@ export interface FeedPhoto {
 export interface Feed {
   open: boolean;
   capturing: boolean;
+  /** When shooting starts, while it has not. */
+  opensAt?: string;
   /** Whether this guest may add photos from their library right now. */
   uploads: boolean;
   rollName: string;
@@ -127,14 +129,14 @@ export function AlbumView({
       const next = (await response.json()) as Feed;
       if (lastTotal.current !== null && next.totalPhotos !== lastTotal.current) void loadNew();
       lastTotal.current = next.totalPhotos;
-      settled.current = next.open && !next.capturing && !next.uploads;
+      settled.current = next.open && !next.capturing && !next.uploads && !next.opensAt;
       setFeed((previous) => {
-        // The seal lifting while someone watches refreshes the page on its own.
-        if (previous && !previous.open && next.open) {
-          setGeneration((n) => n + 1);
-          // The server-rendered back and camera links were decided while sealed.
-          router.refresh();
-        }
+        // The seal lifting or the roll starting while someone watches refreshes the page on its own.
+        const lifted = previous && !previous.open && next.open;
+        const started = previous?.opensAt && !next.opensAt;
+        if (lifted) setGeneration((n) => n + 1);
+        // The server-rendered back and camera links were decided before either.
+        if (lifted || started) router.refresh();
         return next;
       });
     } catch {
@@ -297,6 +299,9 @@ export function AlbumScreen({
   const [viewing, setViewing] = useState<number | null>(null);
   const { shots, waiting, dropped } = queue;
   const shooting = Boolean(cameraHref) && feed.capturing;
+  const notYet = feed.opensAt
+    ? `This roll opens ${formatShortDateTime(new Date(feed.opensAt))}.`
+    : undefined;
   const revealsIn = formatDuration(new Date(feed.revealAt).getTime() - now);
 
   return (
@@ -319,9 +324,10 @@ export function AlbumScreen({
       <div className="space-y-4 px-5 pt-4 pb-6">
         <LostShots count={dropped} />
 
-        {shooting || feed.uploads ? (
+        {shooting || feed.uploads || notYet ? (
           <RollControls
-            ended={!shooting}
+            ended={!shooting && !notYet}
+            cameraOff={notYet}
             code={code}
             shotsLeft={feed.me.shotsLeft}
             cameraHref={cameraHref}

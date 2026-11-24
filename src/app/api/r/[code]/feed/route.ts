@@ -62,6 +62,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
     phase,
     open,
     capturing,
+    opensAt: phase === "scheduled" ? roll.startsAt.toISOString() : undefined,
     // Whether the library is open to this roll right now.
     uploads: roll.uploadsAllowed && context.acceptsUploads,
     rollName: roll.name,
