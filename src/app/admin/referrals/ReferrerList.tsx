@@ -8,6 +8,8 @@ import { Pill } from "@/components/roll/Chrome";
 import { Dialog } from "@/components/roll/Dialog";
 import { Pencil, Trash } from "@/components/roll/Icons";
 import { Toggle } from "@/components/roll/Toggle";
+import { cn } from "@/lib/cn";
+import { formatDayYear } from "@/lib/format";
 
 import {
   Field,
@@ -28,6 +30,15 @@ export interface ReferrerRow {
   logoUrl: string | null;
   maxUses: number;
   used: number;
+}
+
+/** One roll created with one code. */
+export interface UseRow {
+  id: string;
+  rollName: string;
+  createdAt: Date;
+  user: { email: string };
+  referrer: ReferrerRow;
 }
 
 interface Draft extends SponsorDraft {
@@ -60,11 +71,15 @@ function toDraft(row: ReferrerRow): Draft {
   };
 }
 
-/** What a row is called in the list and the dialogs: a business by name, a person by address. */
-const labelOf = (row: ReferrerRow) => row.name ?? row.email ?? row.code;
+/** Whom a code went to: a business or person by name, else a person by address. */
+const whom = (row: ReferrerRow) => row.name ?? row.email;
+
+/** What a row is called in the list and the dialogs. */
+const labelOf = (row: ReferrerRow) => whom(row) ?? row.code;
 
 /**
- * One kind of code: the form that mints it, and the list.
+ * One kind of code: the form that mints it, the codes with a use left, and the rolls created.
+ * A spent code is only in the second list, where it can still be edited.
  *
  * Every code is editable after the fact, the code itself included: a business renames itself,
  * moves domain, or was typed in wrong on a Tuesday, and none of that is a reason to retire a code
@@ -75,8 +90,17 @@ const labelOf = (row: ReferrerRow) => row.name ?? row.email ?? row.code;
  * the card they make. Ordering the form by audience is the only ordering that survives a new
  * field.
  */
-export function ReferrerList({ kind, rows }: { kind: CodeKind; rows: ReferrerRow[] }) {
+export function ReferrerList({
+  kind,
+  unused,
+  uses,
+}: {
+  kind: CodeKind;
+  unused: ReferrerRow[];
+  uses: UseRow[];
+}) {
   const router = useRouter();
+  const [showUsed, setShowUsed] = useState(false);
   const [draft, setDraft] = useState<Draft>(blank);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -109,6 +133,7 @@ export function ReferrerList({ kind, rows }: { kind: CodeKind; rows: ReferrerRow
       form.set("kind", kind);
       form.set("code", draft.code);
       form.set("email", draft.email);
+      form.set("name", draft.name);
       if (sending) form.set("sendEmail", "on");
       if (business) {
         form.set("maxUses", draft.maxUses);
@@ -133,6 +158,21 @@ export function ReferrerList({ kind, rows }: { kind: CodeKind; rows: ReferrerRow
       router.refresh();
     });
   };
+
+  const editButton = (row: ReferrerRow) => (
+    <button
+      type="button"
+      aria-label={`Edit ${labelOf(row)}`}
+      disabled={pending}
+      onClick={() => {
+        reset(toDraft(row));
+        formRef.current?.scrollIntoView({ behavior: "smooth" });
+      }}
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-dust transition-colors hover:text-flame disabled:pointer-events-none disabled:opacity-30"
+    >
+      <Pencil className="h-4 w-4" />
+    </button>
+  );
 
   // An individual's code may be left blank, and one is picked for it.
   const ready = !business || (draft.code.trim() !== "" && draft.name.trim() !== "");
@@ -166,6 +206,12 @@ export function ReferrerList({ kind, rows }: { kind: CodeKind; rows: ReferrerRow
           </>
         ) : (
           <>
+            <Field
+              label="Name (optional)"
+              value={draft.name}
+              onChange={(name) => set({ name })}
+              placeholder="Only you see this"
+            />
             <Field
               label="Email (optional)"
               value={draft.email}
@@ -223,41 +269,66 @@ export function ReferrerList({ kind, rows }: { kind: CodeKind; rows: ReferrerRow
         {error ? <p className="text-[13px] text-danger">{error}</p> : null}
       </div>
 
-      {rows.length === 0 ? (
-        <p className="mt-4 text-[14px] text-dust">No codes yet.</p>
+      <div role="group" aria-label="Show" className="mt-6 grid grid-cols-2 gap-1 rounded-full bg-surface p-1">
+        {[false, true].map((used) => (
+          <button
+            key={String(used)}
+            type="button"
+            aria-pressed={used === showUsed}
+            onClick={() => setShowUsed(used)}
+            className={cn(
+              "h-10 rounded-full text-[14px] font-medium transition-colors",
+              used === showUsed ? "bg-chalk text-void" : "text-dust hover:text-chalk",
+            )}
+          >
+            {used ? `Used · ${uses.length}` : `Unused · ${unused.length}`}
+          </button>
+        ))}
+      </div>
+
+      {showUsed ? (
+        uses.length === 0 ? (
+          <p className="mt-4 text-[14px] text-dust">No code has created a roll yet.</p>
+        ) : (
+          <ul className="mt-4 divide-y divide-hair border-t border-hair">
+            {uses.map((use) => (
+              <li key={use.id} className="flex items-center justify-between gap-3 py-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-4">
+                    <span className="text-[15px] break-all text-chalk">{use.user.email}</span>
+                    <span className="tabular shrink-0 text-[13px] text-dust">
+                      {formatDayYear(use.createdAt)}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[13px] text-ash">
+                    <span className="tracking-[0.08em]">{use.referrer.code}</span>
+                    {whom(use.referrer) ? ` · ${whom(use.referrer)}` : ""} · &ldquo;{use.rollName}&rdquo;
+                  </p>
+                </div>
+                {editButton(use.referrer)}
+              </li>
+            ))}
+          </ul>
+        )
+      ) : unused.length === 0 ? (
+        <p className="mt-4 text-[14px] text-dust">No unused codes.</p>
       ) : (
         <ul className="mt-4 divide-y divide-hair border-t border-hair">
-          {rows.map((row) => (
+          {unused.map((row) => (
             <li key={row.id} className="flex items-center justify-between gap-3 py-3">
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[15px] text-chalk">
-                  {business ? row.name : row.email ?? "Not given to anybody yet"}
+                  {whom(row) ?? "Not given to anybody yet"}
                 </p>
                 <p className="mt-0.5 truncate text-[13px] text-dust">
                   <span className="tracking-[0.08em] text-ash">{row.code}</span>
-                  {" · "}
-                  {business
-                    ? `${row.used} of ${row.maxUses} used`
-                    : row.used > 0
-                      ? "Used"
-                      : "Unused"}
-                  {business && row.email ? ` · ${row.email}` : ""}
+                  {business ? ` · ${row.used} of ${row.maxUses} used` : ""}
+                  {row.name && row.email ? ` · ${row.email}` : ""}
                 </p>
               </div>
 
               <div className="flex shrink-0 items-center gap-1">
-                <button
-                  type="button"
-                  aria-label={`Edit ${labelOf(row)}`}
-                  disabled={pending}
-                  onClick={() => {
-                    reset(toDraft(row));
-                    formRef.current?.scrollIntoView({ behavior: "smooth" });
-                  }}
-                  className="flex h-9 w-9 items-center justify-center rounded-full text-dust transition-colors hover:text-flame disabled:pointer-events-none disabled:opacity-30"
-                >
-                  <Pencil className="h-4 w-4" />
-                </button>
+                {editButton(row)}
 
                 <button
                   type="button"
@@ -295,7 +366,7 @@ export function ReferrerList({ kind, rows }: { kind: CodeKind; rows: ReferrerRow
       >
         <p className="break-all">{removing ? labelOf(removing) : null}</p>
         <p className="mt-2">
-          Nobody can type {removing?.code} again, and its uses leave the log below.
+          Nobody can type {removing?.code} again, and its uses leave the Used list.
           {business ? " The rolls it created stop naming the business." : ""} The rolls themselves
           are untouched.
         </p>

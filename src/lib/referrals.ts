@@ -27,6 +27,9 @@ export interface Sponsor {
 
 const card = { name: true, url: true, logoUrl: true } as const;
 
+/** What the admin screen draws for a code. */
+const adminRow = { ...card, id: true, code: true, kind: true, maxUses: true, used: true, email: true } as const;
+
 /**
  * The code on the one row that is not a real business: the made-up card on the sample album
  * an admin screenshots for the businesses they are pitching to. It is held here rather than in
@@ -94,7 +97,7 @@ export function listReferrers() {
   return prisma.referrer.findMany({
     where: { code: { not: SAMPLE_CODE } },
     orderBy: { createdAt: "desc" },
-    select: { ...card, id: true, code: true, kind: true, maxUses: true, used: true, email: true },
+    select: adminRow,
   });
 }
 
@@ -108,7 +111,7 @@ export function listRedemptions() {
       rollName: true,
       createdAt: true,
       user: { select: { email: true } },
-      referrer: { select: { code: true, kind: true, name: true, email: true } },
+      referrer: { select: adminRow },
     },
   });
 }

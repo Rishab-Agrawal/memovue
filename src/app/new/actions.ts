@@ -100,7 +100,7 @@ export async function createRollAction(
           `New roll — “${roll.name}” · ${user.name} · ${data.maxGuests} guests × ${data.photosPerGuest} shots` +
             (business
               ? `\nReferred by ${referrer.name}`
-              : `\nCode ${referrer.code}${referrer.email ? ` · ${referrer.email}` : ""}`),
+              : `\nCode ${[referrer.code, referrer.name, referrer.email].filter(Boolean).join(" · ")}`),
         ),
       ]),
     );

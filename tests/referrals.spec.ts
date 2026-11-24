@@ -59,6 +59,27 @@ test("business and individual codes are minted, and a business code edited in pl
     const given = await prisma.referrer.findUniqueOrThrow({ where: { code: "PWTEST3" } });
     expect(given).toMatchObject({ id: individual.id, email: "person@playwright.test" });
 
+    // Named for the admin's eyes, which then leads the row over the address.
+    await individuals.getByRole("button", { name: "Edit person@playwright.test" }).click();
+    await individuals.getByLabel("Name (optional)").fill("Priya");
+    await individuals.getByRole("button", { name: "Save changes" }).click();
+    await expect(row.getByText("Priya")).toBeVisible();
+    const named = await prisma.referrer.findUniqueOrThrow({ where: { code: "PWTEST3" } });
+    expect(named.name).toBe("Priya");
+
+    // Spent, it leaves Unused for Used, under who spent it.
+    const host = await prisma.user.findUniqueOrThrow({ where: { email: TEST_HOST.email } });
+    await prisma.referrer.update({ where: { id: individual.id }, data: { used: 1 } });
+    await prisma.redemption.create({
+      data: { referrerId: individual.id, userId: host.id, rollName: "Playwright Party" },
+    });
+    await page.reload();
+    await expect(row).toHaveCount(0);
+    await individuals.getByRole("button", { name: /^Used/ }).click();
+    const use = individuals.getByRole("listitem").filter({ hasText: "Playwright Party" });
+    await expect(use.getByText(TEST_HOST.email)).toBeVisible();
+    await expect(use.getByText("PWTEST3 · Priya", { exact: false })).toBeVisible();
+
     // Typed as it was written on a card; stored in the form a roll code is stored in.
     await businesses.getByLabel("Code", { exact: true }).fill("pwtest-1");
     await businesses.getByLabel("Rolls allowed").fill("25");

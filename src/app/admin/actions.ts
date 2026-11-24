@@ -91,7 +91,7 @@ export async function saveReferrerAction(form: FormData): Promise<ActionResult> 
           logoUrl: data.logoUrl || null,
           logo,
         }
-      : { maxUses: 1, name: null, url: null, logoUrl: null, logo: null }),
+      : { maxUses: 1, name: data.name || null, url: null, logoUrl: null, logo: null }),
   });
 
   if (result === "code-taken") return { ok: false, error: "That code is already taken." };

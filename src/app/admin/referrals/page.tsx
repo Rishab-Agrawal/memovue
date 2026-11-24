@@ -1,17 +1,16 @@
+import type { CodeKind } from "@prisma/client";
+
 import { BackButton } from "@/components/roll/Chrome";
 import { formatDayYear } from "@/lib/format";
-import { listRedemptions, listReferrers, listRequests } from "@/lib/referrals";
+import { isSpent, listRedemptions, listReferrers, listRequests } from "@/lib/referrals";
 import { requireAdmin } from "@/lib/session";
 
-import { type ReferrerRow, ReferrerList } from "./ReferrerList";
+import { ReferrerList } from "./ReferrerList";
 
 export const metadata = { title: "Referral codes" };
 export const dynamic = "force-dynamic";
 
-/**
- * Who may create a roll: every roll is created with one of these codes. Then who used which,
- * and who is asking for one.
- */
+/** Who may create a roll: every roll is created with one of these codes. Then who is asking for one. */
 export default async function ReferralsPage() {
   await requireAdmin();
 
@@ -21,8 +20,11 @@ export default async function ReferralsPage() {
     listRequests(),
   ]);
 
-  const rows = (kind: "INDIVIDUAL" | "BUSINESS"): ReferrerRow[] =>
-    referrers.filter((row) => row.kind === kind);
+  const lists = (kind: CodeKind) => ({
+    kind,
+    unused: referrers.filter((row) => row.kind === kind && !isSpent(row)),
+    uses: redemptions.filter((use) => use.referrer.kind === kind),
+  });
 
   return (
     <div className="min-h-dvh px-5 pt-4 pb-10">
@@ -36,7 +38,7 @@ export default async function ReferralsPage() {
       <section className="mt-10">
         <h2 className="display-sm text-[20px] text-chalk">Individuals</h2>
         <p className="mt-1 text-[14px] text-ash">One roll each.</p>
-        <ReferrerList kind="INDIVIDUAL" rows={rows("INDIVIDUAL")} />
+        <ReferrerList {...lists("INDIVIDUAL")} />
       </section>
 
       <section className="mt-12">
@@ -44,35 +46,7 @@ export default async function ReferralsPage() {
         <p className="mt-1 text-[14px] text-ash">
           As many rolls as you allow, each naming the business on its home screen.
         </p>
-        <ReferrerList kind="BUSINESS" rows={rows("BUSINESS")} />
-      </section>
-
-      <section className="mt-12">
-        <p className="marking">Used · {redemptions.length}</p>
-
-        {redemptions.length === 0 ? (
-          <p className="mt-3 text-[14px] text-dust">No code has created a roll yet.</p>
-        ) : (
-          <ul className="mt-3 divide-y divide-hair border-t border-hair">
-            {redemptions.map((use) => (
-              <li key={use.id} className="py-3">
-                <div className="flex items-baseline justify-between gap-4">
-                  <span className="text-[15px] break-all text-chalk">{use.user.email}</span>
-                  <span className="tabular shrink-0 text-[13px] text-dust">
-                    {formatDayYear(use.createdAt)}
-                  </span>
-                </div>
-                <p className="mt-1 text-[13px] text-ash">
-                  <span className="tracking-[0.08em]">{use.referrer.code}</span> ·{" "}
-                  {use.referrer.kind === "BUSINESS"
-                    ? `Business · ${use.referrer.name}`
-                    : `Individual · for ${use.referrer.email ?? "nobody yet"}`}{" "}
-                  · &ldquo;{use.rollName}&rdquo;
-                </p>
-              </li>
-            ))}
-          </ul>
-        )}
+        <ReferrerList {...lists("BUSINESS")} />
       </section>
 
       <section className="mt-10">

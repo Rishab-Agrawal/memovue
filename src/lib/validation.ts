@@ -56,7 +56,11 @@ const codeFields = z.object({
 });
 
 export const saveReferrerSchema = z.discriminatedUnion("kind", [
-  codeFields.extend({ kind: z.literal("INDIVIDUAL") }),
+  codeFields.extend({
+    kind: z.literal("INDIVIDUAL"),
+    /** Whom it went to, for the admin alone. Empty means unnamed. */
+    name: z.string().trim().max(60),
+  }),
   codeFields.extend({
     kind: z.literal("BUSINESS"),
     maxUses: z.coerce.number().int().min(1, "Allow at least one roll").max(100_000),

@@ -244,7 +244,7 @@ model Referrer {
   used    Int @default(0)
 
   /// The business, as it reads on the roll screen and in every Telegram message about the roll.
-  /// Null for an individual's code, which is known by its `email`.
+  /// On an individual's code, whom it went to: seen by admins only, and optional.
   name String?
 
   /// Where the card links. Null renders the name without a link.
