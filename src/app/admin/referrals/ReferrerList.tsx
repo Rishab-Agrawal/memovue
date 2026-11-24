@@ -71,6 +71,44 @@ function toDraft(row: ReferrerRow): Draft {
   };
 }
 
+/** A switch between two views, left and right. */
+export function Halves({
+  label,
+  options,
+  showRight,
+  onChange,
+  className,
+}: {
+  label: string;
+  options: [left: string, right: string];
+  showRight: boolean;
+  onChange: (showRight: boolean) => void;
+  className?: string;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label={label}
+      className={cn("grid grid-cols-2 gap-1 rounded-full bg-surface p-1", className)}
+    >
+      {[false, true].map((right) => (
+        <button
+          key={String(right)}
+          type="button"
+          aria-pressed={right === showRight}
+          onClick={() => onChange(right)}
+          className={cn(
+            "h-10 rounded-full text-[14px] font-medium transition-colors",
+            right === showRight ? "bg-chalk text-void" : "text-dust hover:text-chalk",
+          )}
+        >
+          {options[Number(right)]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /** Whom a code went to: a business or person by name, else a person by address. */
 const whom = (row: ReferrerRow) => row.name ?? row.email;
 
@@ -269,22 +307,13 @@ export function ReferrerList({
         {error ? <p className="text-[13px] text-danger">{error}</p> : null}
       </div>
 
-      <div role="group" aria-label="Show" className="mt-6 grid grid-cols-2 gap-1 rounded-full bg-surface p-1">
-        {[false, true].map((used) => (
-          <button
-            key={String(used)}
-            type="button"
-            aria-pressed={used === showUsed}
-            onClick={() => setShowUsed(used)}
-            className={cn(
-              "h-10 rounded-full text-[14px] font-medium transition-colors",
-              used === showUsed ? "bg-chalk text-void" : "text-dust hover:text-chalk",
-            )}
-          >
-            {used ? `Used · ${uses.length}` : `Unused · ${unused.length}`}
-          </button>
-        ))}
-      </div>
+      <Halves
+        label="Show"
+        options={[`Unused · ${unused.length}`, `Used · ${uses.length}`]}
+        showRight={showUsed}
+        onChange={setShowUsed}
+        className="mt-6"
+      />
 
       {showUsed ? (
         uses.length === 0 ? (

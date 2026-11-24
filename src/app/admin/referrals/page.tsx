@@ -5,12 +5,12 @@ import { formatDayYear } from "@/lib/format";
 import { isSpent, listRedemptions, listReferrers, listRequests } from "@/lib/referrals";
 import { requireAdmin } from "@/lib/session";
 
-import { ReferrerList } from "./ReferrerList";
+import { Codes } from "./Codes";
 
 export const metadata = { title: "Referral codes" };
 export const dynamic = "force-dynamic";
 
-/** Who may create a roll: every roll is created with one of these codes. Then who is asking for one. */
+/** Who is asking for a code, then the codes: every roll is created with one. */
 export default async function ReferralsPage() {
   await requireAdmin();
 
@@ -21,7 +21,6 @@ export default async function ReferralsPage() {
   ]);
 
   const lists = (kind: CodeKind) => ({
-    kind,
     unused: referrers.filter((row) => row.kind === kind && !isSpent(row)),
     uses: redemptions.filter((use) => use.referrer.kind === kind),
   });
@@ -34,20 +33,6 @@ export default async function ReferralsPage() {
       <p className="mt-2 text-[15px] text-ash">
         Every roll is created with one. A code is never given back when its roll is deleted.
       </p>
-
-      <section className="mt-10">
-        <h2 className="display-sm text-[20px] text-chalk">Individuals</h2>
-        <p className="mt-1 text-[14px] text-ash">One roll each.</p>
-        <ReferrerList {...lists("INDIVIDUAL")} />
-      </section>
-
-      <section className="mt-12">
-        <h2 className="display-sm text-[20px] text-chalk">Businesses</h2>
-        <p className="mt-1 text-[14px] text-ash">
-          As many rolls as you allow, each naming the business on its home screen.
-        </p>
-        <ReferrerList {...lists("BUSINESS")} />
-      </section>
 
       <section className="mt-10">
         <p className="marking">Requests · {requests.length}</p>
@@ -70,6 +55,8 @@ export default async function ReferralsPage() {
           </ul>
         )}
       </section>
+
+      <Codes lists={{ INDIVIDUAL: lists("INDIVIDUAL"), BUSINESS: lists("BUSINESS") }} />
     </div>
   );
 }

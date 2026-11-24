@@ -33,36 +33,34 @@ test("business and individual codes are minted, and a business code edited in pl
 
   try {
     await page.goto("/admin/referrals");
-    const businesses = page.locator("section", {
-      has: page.getByRole("heading", { name: "Businesses" }),
-    });
-    const individuals = page.locator("section", {
-      has: page.getByRole("heading", { name: "Individuals" }),
+    // One kind at a time, individuals first.
+    const codes = page.locator("section", {
+      has: page.getByRole("group", { name: "Kind of code" }),
     });
 
     // One roll, whatever is posted, and minted before anybody has been chosen to get it.
-    await individuals.getByLabel("Code (optional)").fill("pwtest3");
+    await codes.getByLabel("Code (optional)").fill("pwtest3");
     // Nowhere to send it yet, so sending is not offered.
-    await expect(individuals.getByRole("switch")).toHaveCount(0);
-    await individuals.getByRole("button", { name: "Create this code" }).click();
-    const row = individuals.getByRole("listitem").filter({ hasText: "PWTEST3" });
+    await expect(codes.getByRole("switch")).toHaveCount(0);
+    await codes.getByRole("button", { name: "Create this code" }).click();
+    const row = codes.getByRole("listitem").filter({ hasText: "PWTEST3" });
     await expect(row.getByText("Not given to anybody yet")).toBeVisible();
     const individual = await prisma.referrer.findUniqueOrThrow({ where: { code: "PWTEST3" } });
     expect(individual).toMatchObject({ kind: "INDIVIDUAL", maxUses: 1, name: null, email: null });
 
     // Given to somebody later, on the same row. Sending is left off: this is a real mailer.
-    await individuals.getByRole("button", { name: "Edit PWTEST3" }).click();
-    await individuals.getByLabel("Email (optional)").fill("person@playwright.test");
-    await expect(individuals.getByRole("switch")).toBeVisible();
-    await individuals.getByRole("button", { name: "Save changes" }).click();
+    await codes.getByRole("button", { name: "Edit PWTEST3" }).click();
+    await codes.getByLabel("Email (optional)").fill("person@playwright.test");
+    await expect(codes.getByRole("switch")).toBeVisible();
+    await codes.getByRole("button", { name: "Save changes" }).click();
     await expect(row.getByText("person@playwright.test")).toBeVisible();
     const given = await prisma.referrer.findUniqueOrThrow({ where: { code: "PWTEST3" } });
     expect(given).toMatchObject({ id: individual.id, email: "person@playwright.test" });
 
     // Named for the admin's eyes, which then leads the row over the address.
-    await individuals.getByRole("button", { name: "Edit person@playwright.test" }).click();
-    await individuals.getByLabel("Name (optional)").fill("Priya");
-    await individuals.getByRole("button", { name: "Save changes" }).click();
+    await codes.getByRole("button", { name: "Edit person@playwright.test" }).click();
+    await codes.getByLabel("Name (optional)").fill("Priya");
+    await codes.getByRole("button", { name: "Save changes" }).click();
     await expect(row.getByText("Priya")).toBeVisible();
     const named = await prisma.referrer.findUniqueOrThrow({ where: { code: "PWTEST3" } });
     expect(named.name).toBe("Priya");
@@ -75,21 +73,22 @@ test("business and individual codes are minted, and a business code edited in pl
     });
     await page.reload();
     await expect(row).toHaveCount(0);
-    await individuals.getByRole("button", { name: /^Used/ }).click();
-    const use = individuals.getByRole("listitem").filter({ hasText: "Playwright Party" });
+    await codes.getByRole("button", { name: /^Used/ }).click();
+    const use = codes.getByRole("listitem").filter({ hasText: "Playwright Party" });
     await expect(use.getByText(TEST_HOST.email)).toBeVisible();
     await expect(use.getByText("PWTEST3 · Priya", { exact: false })).toBeVisible();
 
     // Typed as it was written on a card; stored in the form a roll code is stored in.
-    await businesses.getByLabel("Code", { exact: true }).fill("pwtest-1");
-    await businesses.getByLabel("Rolls allowed").fill("25");
+    await codes.getByRole("button", { name: "Businesses" }).click();
+    await codes.getByLabel("Code", { exact: true }).fill("pwtest-1");
+    await codes.getByLabel("Rolls allowed").fill("25");
     await page.getByLabel("Business name").fill("Playwright Florals");
     await page.getByLabel("Website (optional)").fill("https://playwright-florals.test");
     await page.getByLabel("Email for new rolls (optional)").fill("partner@playwright.test");
     await page.locator('input[type="file"]').setInputFiles("public/icon-512.png");
     await expect(page.getByText("Image ready")).toBeVisible();
 
-    await businesses.getByRole("button", { name: "Create this code" }).click();
+    await codes.getByRole("button", { name: "Create this code" }).click();
     await expect(page.getByRole("button", { name: "Edit Playwright Florals" })).toBeVisible();
 
     const created = await prisma.referrer.findUniqueOrThrow({ where: { code: "PWTEST1" } });
@@ -101,8 +100,8 @@ test("business and individual codes are minted, and a business code edited in pl
     await page.getByRole("button", { name: "Edit Playwright Florals" }).click();
     await expect(page.getByText("Editing PWTEST1")).toBeVisible();
 
-    await businesses.getByLabel("Code", { exact: true }).fill("PWTEST2");
-    await businesses.getByLabel("Rolls allowed").fill("30");
+    await codes.getByLabel("Code", { exact: true }).fill("PWTEST2");
+    await codes.getByLabel("Rolls allowed").fill("30");
     await page.getByLabel("Business name").fill("Playwright Weddings");
     await page.getByLabel("Email for new rolls (optional)").fill("");
     await page.getByRole("button", { name: "Save changes" }).click();
