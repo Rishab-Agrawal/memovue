@@ -9,6 +9,7 @@ import { sendRollFullNotice } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 import { callerIp, outOfGuesses, rateLimit, wrongGuess } from "@/lib/ratelimit";
 import { rollPhase } from "@/lib/roll-access";
+import { PARTICIPANT_TIERS } from "@/lib/roll-config";
 import { getCurrentUser } from "@/lib/session";
 import { fieldErrors, joinRollSchema } from "@/lib/validation";
 
@@ -48,8 +49,9 @@ export async function joinAction(code: string, formData: FormData): Promise<Join
   const parsed = joinRollSchema.safeParse({ name: formData.get("name") });
   if (!parsed.success) return { fields: fieldErrors(parsed.error) };
 
-  // A loop backstop only: a whole wedding shares one venue IP. `maxGuests` is the real bound.
-  if (!rateLimit(`join:${ip}`, 100, 600).ok) {
+  // A loop backstop only: a whole wedding shares one venue IP, so the largest roll must fit
+  // through it at once. `maxGuests` is the real bound.
+  if (!rateLimit(`join:${ip}`, PARTICIPANT_TIERS.at(-1)!, 600).ok) {
     return { error: "Too many people joined from this network at once. Try again in a minute." };
   }
 

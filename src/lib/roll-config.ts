@@ -9,8 +9,8 @@ import { fromWall, startOfWallDay, toWall } from "./format";
 /** Participant caps, in the order the six boxes appear on the guests step. */
 export const PARTICIPANT_TIERS = [25, 50, 100, 200, 350, 500] as const;
 
-/** Shots per person, in the order the six chips appear. There is no unlimited option. */
-export const SHOT_TIERS = [5, 10, 16, 24, 36, 100] as const;
+/** Shots per person, in stepper order. There is no unlimited option. */
+export const SHOT_TIERS = [5, 10, 16, 24, 36, 72, 100] as const;
 
 /**
  * Rupee pricing: ten a head, fifteen for the hundred-shot roll. Shot count is otherwise free,
