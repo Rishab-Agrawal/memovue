@@ -61,16 +61,18 @@ function db(): Promise<IDBPDatabase> {
 }
 
 /**
- * One IndexedDB call, reopening the connection once if the browser closed it — iOS does that to
- * backgrounded pages, and says so only by failing the next call. Every call here is a single
- * get, put or delete, so repeating it is harmless.
+ * One IndexedDB call, retried once on a fresh connection after any failure. iOS drops connections
+ * of backgrounded pages and kills its database process, and says so only by failing the next
+ * call, under more than one error name. Every call here is a single get, put or delete, so
+ * repeating it is harmless.
  */
 async function withDb<T>(run: (database: IDBPDatabase) => Promise<T>): Promise<T> {
+  const opened = db();
   try {
-    return await run(await db());
-  } catch (error) {
-    if (!(error instanceof DOMException && error.name === "InvalidStateError")) throw error;
-    dbPromise = null;
+    return await run(await opened);
+  } catch {
+    // Calls that failed together reopen once between them.
+    if (dbPromise === opened) dbPromise = null;
     return run(await db());
   }
 }
